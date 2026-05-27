@@ -1,6 +1,7 @@
 import Navbar from './components/Navbar.jsx'
 import Hero from './components/Hero.jsx'
 import Services from './components/Services.jsx'
+import Location from './components/Location.jsx'
 import Features from './components/Features.jsx'
 import Process from './components/Process.jsx'
 import Testimonials from './components/Testimonials.jsx'
@@ -15,6 +16,7 @@ export default function App() {
       <main>
         <Hero />
         <Services />
+        <Location />
         <Features />
         <Process />
         <Testimonials />

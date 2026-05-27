@@ -74,7 +74,9 @@ export default function Footer() {
                 <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 1 1 18 0Z" stroke="currentColor" strokeWidth="1.6" />
                 <circle cx="12" cy="10" r="3" stroke="currentColor" strokeWidth="1.6" />
               </svg>
-              Jl. Kebon Sirih No. 24, Jakarta Pusat
+              <a href="https://maps.app.goo.gl/NucfTrRm2oNBUTSp9" target="_blank" rel="noreferrer">
+                PT. Padajaya STNK KIR, Jakarta Timur
+              </a>
             </li>
             <li>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none">

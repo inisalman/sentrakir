@@ -3,9 +3,9 @@ import './Navbar.css'
 
 const links = [
   { href: '#layanan', label: 'Layanan' },
+  { href: '#lokasi', label: 'Lokasi' },
   { href: '#keunggulan', label: 'Keunggulan' },
   { href: '#proses', label: 'Proses' },
-  { href: '#testimoni', label: 'Testimoni' },
   { href: '#faq', label: 'FAQ' },
 ]
 
