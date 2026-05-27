@@ -1,0 +1,41 @@
+.services-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1.25rem;
+}
+
+.service-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.service-card h3 {
+  font-size: 1.15rem;
+}
+
+.service-card p {
+  font-size: 0.95rem;
+  color: var(--color-text-soft);
+  flex: 1;
+}
+
+.service-card .btn-link {
+  margin-top: 0.6rem;
+  font-size: 0.9rem;
+}
+
+.service-badge {
+  position: absolute;
+  top: 1.25rem;
+  right: 1.25rem;
+  padding: 0.25rem 0.65rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  background: var(--color-accent);
+  color: #052e4a;
+  border-radius: var(--radius-pill);
+}

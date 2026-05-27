@@ -1,0 +1,25 @@
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem 2rem;
+}
+
+.feature-item {
+  padding: 0.5rem;
+}
+
+.feature-item h3 {
+  font-size: 1.1rem;
+  margin-bottom: 0.45rem;
+}
+
+.feature-item p {
+  font-size: 0.95rem;
+  color: var(--color-text-soft);
+}
+
+.feature-item .icon-tile {
+  background: #fff;
+  border: 1px solid var(--color-primary-100);
+  box-shadow: var(--shadow-sm);
+}
