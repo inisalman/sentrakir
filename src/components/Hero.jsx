@@ -24,9 +24,9 @@ export default function Hero() {
           </h1>
 
           <p className="hero-lead">
-            Sentrakir membantu pengurusan STNK, BPKB, SIM, Paspor, SKCK, hingga
-            izin usaha Anda. Proses transparan, harga jelas di awal, dokumen
-            diantar sampai depan rumah.
+            Sentrakir membantu pengurusan STNK, BPKB, KIR, SIM, hingga SKCK dan
+            tilang. Proses transparan, harga jelas di awal, dokumen diantar
+            sampai depan rumah.
           </p>
 
           <div className="hero-actions">
@@ -130,7 +130,7 @@ export default function Hero() {
           <div className="hero-card">
             <div className="hero-card-head">
               <div>
-                <div className="hero-card-title">Pengurusan Paspor</div>
+                <div className="hero-card-title">Perpanjangan STNK</div>
                 <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>
                   No. SK-0421 · An. Budi Hartono
                 </p>
@@ -153,7 +153,7 @@ export default function Hero() {
                 </span>
                 <div className="timeline-text">
                   <strong>Berkas diterima</strong>
-                  <span>Verifikasi awal selesai</span>
+                  <span>STNK & KTP terverifikasi</span>
                 </div>
                 <span className="timeline-time">09:14</span>
               </div>
@@ -178,8 +178,8 @@ export default function Hero() {
               <div className="timeline-item is-active">
                 <span className="timeline-dot">3</span>
                 <div className="timeline-text">
-                  <strong>Pengurusan ke imigrasi</strong>
-                  <span>Estimasi selesai 2 hari kerja</span>
+                  <strong>Pengurusan ke Samsat</strong>
+                  <span>Estimasi selesai hari ini</span>
                 </div>
                 <span className="timeline-time">Sekarang</span>
               </div>
