@@ -3,9 +3,9 @@
   overflow: hidden;
   border-radius: var(--radius-xl);
   padding: clamp(2.25rem, 5vw, 3.5rem);
-  background: linear-gradient(135deg, #1d54d8 0%, #2569eb 50%, #38bdf8 100%);
+  background: linear-gradient(135deg, #1C3967 0%, #2c4d80 50%, #38bdf8 100%);
   color: #fff;
-  box-shadow: 0 30px 60px rgba(29, 84, 216, 0.3);
+  box-shadow: 0 30px 60px rgba(28, 57, 103, 0.32);
 }
 
 .cta-glow {

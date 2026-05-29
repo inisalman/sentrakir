@@ -1,12 +1,11 @@
 import Navbar from './components/Navbar.jsx'
 import Hero from './components/Hero.jsx'
-import Services from './components/Services.jsx'
+import About from './components/About.jsx'
+import WhyUs from './components/WhyUs.jsx'
 import Location from './components/Location.jsx'
-import Features from './components/Features.jsx'
 import Process from './components/Process.jsx'
-import Testimonials from './components/Testimonials.jsx'
-import FAQ from './components/FAQ.jsx'
-import CTA from './components/CTA.jsx'
+import ServiceList from './components/ServiceList.jsx'
+import Partners from './components/Partners.jsx'
 import Footer from './components/Footer.jsx'
 
 export default function App() {
@@ -15,13 +14,12 @@ export default function App() {
       <Navbar />
       <main>
         <Hero />
-        <Services />
-        <Location />
-        <Features />
+        <About />
+        <WhyUs />
         <Process />
-        <Testimonials />
-        <FAQ />
-        <CTA />
+        <ServiceList />
+        <Location />
+        <Partners />
       </main>
       <Footer />
     </>

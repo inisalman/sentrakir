@@ -1,16 +1,16 @@
 import './Location.css'
 
-const MAPS_LINK = 'https://maps.app.goo.gl/NucfTrRm2oNBUTSp9'
+const MAPS_LINK =
+  'https://www.google.com/maps/place/BIROJASA+KIR+SIM+SENTRA/@-6.1854549,106.9069635,17z/data=!4m6!3m5!1s0x2e69f51b30d450af:0x9e02ecc3dc112939!8m2!3d-6.1854549!4d106.9069635!16s%2Fg%2F11njwzqy91'
 const MAPS_EMBED =
-  'https://www.google.com/maps?q=-6.1856505,106.9067669&z=17&output=embed'
+  'https://www.google.com/maps?q=-6.1854549,106.9069635&z=17&output=embed'
 
 export default function Location() {
   return (
-    <section className="section section-soft" id="lokasi">
-      <div className="container">
+    <section className="location-section" id="lokasi">
+      <div className="location-inner">
         <div className="section-header">
-          <span className="eyebrow">Lokasi kami</span>
-          <h2>Datang langsung atau biar kami yang menjemput</h2>
+          <h2 className="location-title">LOKASI KAMI</h2>
           <p>
             Kantor kami terbuka untuk konsultasi tatap muka. Kalau Anda
             berhalangan, tim kami siap menjemput berkas ke alamat Anda.
@@ -35,8 +35,8 @@ export default function Location() {
                 <div>
                   <strong>Alamat kantor</strong>
                   <span>
-                    PT. Padajaya STNK KIR, Jakarta Timur. Buka di Google Maps untuk
-                    petunjuk arah.
+                    Birojasa KIR SIM Sentra, Jakarta Timur. Buka di Google Maps
+                    untuk petunjuk arah.
                   </span>
                 </div>
               </li>
@@ -56,25 +56,6 @@ export default function Location() {
                 <div>
                   <strong>Jam operasional</strong>
                   <span>Senin–Sabtu, 08.00–20.00 WIB. Minggu & libur nasional tutup.</span>
-                </div>
-              </li>
-
-              <li className="location-item">
-                <span className="icon-tile">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                    <path
-                      d="M3 7h11v9H3zM14 10h4l3 3v3h-7"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                      strokeLinejoin="round"
-                    />
-                    <circle cx="7" cy="17" r="2" stroke="currentColor" strokeWidth="1.8" />
-                    <circle cx="17" cy="17" r="2" stroke="currentColor" strokeWidth="1.8" />
-                  </svg>
-                </span>
-                <div>
-                  <strong>Antar-jemput dokumen</strong>
-                  <span>Gratis untuk wilayah Jabodetabek. Cukup hubungi kami via WhatsApp.</span>
                 </div>
               </li>
             </ul>

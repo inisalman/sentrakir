@@ -3,46 +3,42 @@ import './Process.css'
 const steps = [
   {
     n: '01',
-    title: 'Konsultasi gratis',
+    title: 'Konsultasi Gratis',
     desc: 'Hubungi via WhatsApp. Sampaikan kebutuhan Anda, kami berikan estimasi biaya dan durasi yang jelas.',
   },
   {
     n: '02',
-    title: 'Kirim berkas',
-    desc: 'Tim kami menjemput dokumen ke rumah/kantor Anda, atau kirim digital. Anda tinggal duduk manis.',
+    title: 'Penerimaan Berkas',
+    desc: 'Berkas yang sudah kami terima segera kami proses sesuai tujuan pengurusan.',
   },
   {
     n: '03',
-    title: 'Proses dimulai',
-    desc: 'Kami urus ke instansi terkait. Status real-time dikirim ke WhatsApp Anda di setiap tahap.',
+    title: 'Proses Dimulai',
+    desc: 'Kami akan memproses keperluan pengurusan dokumen Anda hingga selesai ke instansi terkait.',
   },
   {
     n: '04',
-    title: 'Dokumen sampai',
-    desc: 'Dokumen jadi diantar gratis sampai depan pintu. Bayar sesuai kesepakatan, tanpa biaya tambahan.',
+    title: 'Pengurusan Selesai',
+    desc: 'Dokumen serta data yang sudah jadi dan sudah update ke sistem instansi terkait siap Anda gunakan.',
   },
 ]
 
 export default function Process() {
   return (
-    <section className="section" id="proses">
-      <div className="container">
-        <div className="section-header">
-          <span className="eyebrow">Cara kerja</span>
-          <h2>Empat langkah, urusan Anda beres</h2>
-          <p>
-            Kami sederhanakan proses yang biasanya rumit. Anda hanya perlu satu
-            kali kontak — sisanya biar kami yang lari.
-          </p>
-        </div>
+    <section className="process-section" id="proses">
+      <div className="process-inner">
+        <h2 className="process-title">TAHAPAN PROSES PENGERJAAN</h2>
+        <p className="process-subtitle">
+          Kami sederhanakan proses yang biasanya rumit. Anda hanya perlu satu
+          kali kontak — sisanya biar kami yang urus.
+        </p>
 
         <div className="process-grid">
-          {steps.map((s, i) => (
+          {steps.map((s) => (
             <div className="process-card" key={s.n}>
               <div className="process-number">{s.n}</div>
               <h3>{s.title}</h3>
               <p>{s.desc}</p>
-              {i < steps.length - 1 && <span className="process-connector" aria-hidden="true" />}
             </div>
           ))}
         </div>

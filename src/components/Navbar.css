@@ -27,26 +27,20 @@
 .brand {
   display: inline-flex;
   align-items: center;
-  gap: 0.6rem;
-  font-weight: 800;
-  color: var(--color-text);
-  font-size: 1.15rem;
-  letter-spacing: -0.01em;
+  line-height: 1;
 }
 
-.brand:hover {
-  color: var(--color-text);
+.brand-logo {
+  height: 56px;
+  width: auto;
+  display: block;
+  object-fit: contain;
 }
 
-.brand-mark {
-  width: 36px;
-  height: 36px;
-  border-radius: 12px;
-  display: grid;
-  place-items: center;
-  background: linear-gradient(135deg, var(--color-primary-500), var(--color-primary-700));
-  color: #fff;
-  box-shadow: 0 8px 18px rgba(37, 105, 235, 0.3);
+@media (max-width: 720px) {
+  .brand-logo {
+    height: 44px;
+  }
 }
 
 .nav-links {
@@ -56,23 +50,31 @@
 }
 
 .nav-links a:not(.nav-cta) {
-  color: var(--color-text-soft);
-  font-weight: 500;
+  color: var(--color-text);
+  font-weight: 600;
   font-size: 0.95rem;
+  display: inline-block;
+  transition: color var(--transition), transform var(--transition);
 }
 
 .nav-links a:not(.nav-cta):hover {
   color: var(--color-primary-700);
+  transform: scale(1.08);
 }
 
 .nav-cta {
   margin-left: 0.75rem;
-  padding: 0.6rem 1.15rem;
-  font-size: 0.9rem;
+  padding: 0.7rem 1.4rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  background: var(--color-primary-800);
   color: #fff;
+  text-transform: uppercase;
 }
 
 .nav-cta:hover {
+  background: var(--color-primary-900);
   color: #fff;
 }
 
