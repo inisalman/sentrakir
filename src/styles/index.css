@@ -215,6 +215,170 @@ p {
   color: var(--color-primary-800);
 }
 
+.padajaya-page {
+  --color-primary-50: #fffde6;
+  --color-primary-100: #fffbc2;
+  --color-primary-200: #fff67a;
+  --color-primary-300: #fdeb37;
+  --color-primary-400: #f2dc10;
+  --color-primary-500: #d8c200;
+  --color-primary-600: #fdeb37;
+  --color-primary-700: #ff0000;
+  --color-primary-800: #d90000;
+  --color-primary-900: #b80000;
+  --color-secondary: #ff0000;
+  --color-accent: #ff0000;
+  --color-bg-soft: #fffde8;
+  --color-bg-muted: #fff7b8;
+  --color-border: #f3e56b;
+  --color-border-strong: #ff0000;
+  --shadow-md: 0 6px 18px rgba(255, 0, 0, 0.12);
+  --shadow-lg: 0 24px 48px rgba(255, 0, 0, 0.16);
+}
+
+.padajaya-page .btn-primary {
+  background: #fdeb37;
+  color: #171717;
+  box-shadow: 0 12px 24px rgba(253, 235, 55, 0.34);
+}
+
+.padajaya-page .btn-primary:hover {
+  background: #ff0000;
+  color: #fff;
+  box-shadow: 0 16px 30px rgba(255, 0, 0, 0.3);
+}
+
+.padajaya-page .nav-cta {
+  background: #ff0000;
+  color: #fff;
+}
+
+.padajaya-page .nav-cta:hover {
+  background: #d90000;
+  color: #fff;
+}
+
+.padajaya-page .btn-ghost:hover,
+.padajaya-page .btn-link:hover,
+.padajaya-page a:hover {
+  color: #ff0000;
+}
+
+.padajaya-page .about-section,
+.padajaya-page .process-section,
+.padajaya-page .location-section {
+  background: #fffef0;
+}
+
+.padajaya-page .whyus-section,
+.padajaya-page .servicelist-section,
+.padajaya-page .partners-section {
+  background: linear-gradient(135deg, #fdeb37 0%, #fff9a6 58%, #fffef0 100%);
+}
+
+.padajaya-page .about-title,
+.padajaya-page .whyus-title,
+.padajaya-page .process-title,
+.padajaya-page .servicelist-title,
+.padajaya-page .location-title,
+.padajaya-page .partners-title {
+  color: #ff0000;
+}
+
+.padajaya-page .about-body p,
+.padajaya-page .about-list li,
+.padajaya-page .whyus-subtitle,
+.padajaya-page .whyus-text p,
+.padajaya-page .process-subtitle,
+.padajaya-page .process-card p,
+.padajaya-page .servicelist-subtitle,
+.padajaya-page .partners-subtitle,
+.padajaya-page .partner-desc,
+.padajaya-page .location-info > p,
+.padajaya-page .location-item span {
+  color: #2a1600;
+}
+
+.padajaya-page .about-pillar,
+.padajaya-page .process-card,
+.padajaya-page .servicelist-card,
+.padajaya-page .location-item {
+  background: #fff;
+  border-color: rgba(255, 0, 0, 0.28);
+  box-shadow: 0 12px 28px rgba(255, 0, 0, 0.08);
+}
+
+.padajaya-page .about-pillar:hover,
+.padajaya-page .process-card:hover,
+.padajaya-page .servicelist-card:hover,
+.padajaya-page .location-item:hover {
+  border-color: #ff0000;
+  box-shadow: 0 16px 32px rgba(255, 0, 0, 0.16);
+}
+
+.padajaya-page .about-pillar-label,
+.padajaya-page .whyus-text h3,
+.padajaya-page .process-number,
+.padajaya-page .servicelist-cta,
+.padajaya-page .partner-name {
+  color: #ff0000;
+}
+
+.padajaya-page .about-pillar h3,
+.padajaya-page .process-card h3,
+.padajaya-page .servicelist-name,
+.padajaya-page .location-item strong {
+  color: #171717;
+}
+
+.padajaya-page .about-pillar p,
+.padajaya-page .servicelist-desc {
+  color: #4a2a00;
+}
+
+.padajaya-page .whyus-icon,
+.padajaya-page .servicelist-icon,
+.padajaya-page .icon-tile {
+  background: #ff0000;
+  color: #fff;
+  border-color: #ff0000;
+}
+
+.padajaya-page .partners-section::before {
+  background: rgba(255, 0, 0, 0.22);
+}
+
+.padajaya-page .partners-section::after {
+  background: rgba(253, 235, 55, 0.48);
+}
+
+.padajaya-page .footer {
+  background: #ff0000;
+  color: #fff7b8;
+}
+
+.padajaya-page .footer-brand p,
+.padajaya-page .footer-col a,
+.padajaya-page .footer-contact li,
+.padajaya-page .footer-bottom,
+.padajaya-page .footer-bottom-links a {
+  color: #fff7b8;
+}
+
+.padajaya-page .footer-socials a {
+  background: rgba(253, 235, 55, 0.18);
+  color: #fdeb37;
+}
+
+.padajaya-page .footer-socials a:hover {
+  background: #fdeb37;
+  color: #171717;
+}
+
+.padajaya-page .footer-contact svg {
+  color: #fdeb37;
+}
+
 .card {
   background: #fff;
   border: 1px solid var(--color-border);

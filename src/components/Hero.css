@@ -25,6 +25,10 @@
   animation: heroBgZoom 18s ease-in-out infinite;
 }
 
+.padajaya-page .hero-bg {
+  background-color: #ff0000;
+}
+
 .hero-overlay {
   position: absolute;
   inset: 0;
@@ -37,6 +41,17 @@
     ),
     linear-gradient(180deg, rgba(8, 22, 51, 0.35) 0%, rgba(8, 22, 51, 0.55) 100%);
   z-index: -1;
+}
+
+.padajaya-page .hero-overlay {
+  background:
+    linear-gradient(
+      90deg,
+      rgba(255, 0, 0, 0.86) 0%,
+      rgba(255, 0, 0, 0.62) 54%,
+      rgba(253, 235, 55, 0.42) 100%
+    ),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.18) 0%, rgba(255, 0, 0, 0.36) 100%);
 }
 
 @keyframes heroBgZoom {
@@ -127,10 +142,27 @@
   box-shadow: 0 12px 24px rgba(0, 0, 0, 0.2);
 }
 
+.padajaya-page .btn-light {
+  background: #ff0000;
+  color: #fff;
+  border-color: #ff0000;
+}
+
+.padajaya-page .btn-light:hover {
+  background: #fdeb37;
+  color: #171717;
+  border-color: #fdeb37;
+}
+
 @media (max-width: 720px) {
   .hero-overlay {
     background:
       linear-gradient(180deg, rgba(8, 22, 51, 0.55) 0%, rgba(8, 22, 51, 0.85) 100%);
+  }
+
+  .padajaya-page .hero-overlay {
+    background:
+      linear-gradient(180deg, rgba(255, 0, 0, 0.58) 0%, rgba(255, 0, 0, 0.88) 100%);
   }
 
   .hero-copy {

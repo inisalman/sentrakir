@@ -7,8 +7,33 @@ import Process from './components/Process.jsx'
 import ServiceList from './components/ServiceList.jsx'
 import Partners from './components/Partners.jsx'
 import Footer from './components/Footer.jsx'
+import PadajayaNavbar from './components/padajaya/PadajayaNavbar.jsx'
+import PadajayaHero from './components/padajaya/PadajayaHero.jsx'
+import PadajayaAbout from './components/padajaya/PadajayaAbout.jsx'
+import PadajayaWhyUs from './components/padajaya/PadajayaWhyUs.jsx'
+import PadajayaProcess from './components/padajaya/PadajayaProcess.jsx'
 
 export default function App() {
+  const isPadajayaPage = window.location.pathname === '/padajaya'
+
+  if (isPadajayaPage) {
+    return (
+      <div className="padajaya-page">
+        <PadajayaNavbar />
+        <main>
+          <PadajayaHero />
+          <PadajayaAbout />
+          <PadajayaWhyUs />
+          <PadajayaProcess />
+          <ServiceList />
+          <Location />
+          <Partners />
+        </main>
+        <Footer />
+      </div>
+    )
+  }
+
   return (
     <>
       <Navbar />
