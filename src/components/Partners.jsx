@@ -38,7 +38,7 @@ export default function Partners() {
                 >
                   Hubungi
                 </a>
-                <a className="btn btn-ghost partner-btn" href="#top">
+                <a className="btn btn-ghost partner-btn" href="/padajaya">
                   Beranda
                 </a>
               </div>
