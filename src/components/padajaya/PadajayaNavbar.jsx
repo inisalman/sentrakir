@@ -1,0 +1,90 @@
+import { useEffect, useState } from 'react'
+import '../Navbar.css'
+
+const links = [
+  { href: '#tentang', label: 'Tentang Kami' },
+  { href: '#kenapa', label: 'Mengapa Padajaya' },
+  { href: '#proses', label: 'Alur Proses' },
+  { href: '#daftar-jasa', label: 'Daftar Jasa' },
+  { href: '#lokasi', label: 'Lokasi' },
+  { href: '#mitra', label: 'Mitra Kami' },
+]
+
+const WA_LINK =
+  'https://wa.me/6281295125811?text=' +
+  encodeURIComponent('Halo PT Padajaya, saya ingin konsultasi pengurusan dokumen kendaraan.')
+
+export default function PadajayaNavbar() {
+  const [scrolled, setScrolled] = useState(false)
+  const [open, setOpen] = useState(false)
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 12)
+    onScroll()
+    window.addEventListener('scroll', onScroll)
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
+  const handleNavClick = (e, href) => {
+    if (!href || !href.startsWith('#')) return
+    const targetId = href.slice(1)
+    const target = targetId === 'top' ? document.body : document.getElementById(targetId)
+    if (!target) return
+    e.preventDefault()
+    const navbar = document.querySelector('.navbar')
+    const navbarHeight = navbar ? navbar.offsetHeight : 0
+    const offsetTop =
+      target === document.body
+        ? 0
+        : target.getBoundingClientRect().top + window.scrollY - navbarHeight + 1
+    window.scrollTo({ top: offsetTop, behavior: 'smooth' })
+    setOpen(false)
+  }
+
+  return (
+    <header className={`navbar ${scrolled ? 'is-scrolled' : ''}`}>
+      <div className="container navbar-inner">
+        <a
+          href="#top"
+          className="brand"
+          aria-label="PT Padajaya beranda"
+          onClick={(e) => handleNavClick(e, '#top')}
+        >
+          <img
+            src="/logo-padajaya.png"
+            alt="PT Padajaya — Birojasa STNK & BPKB"
+            className="brand-logo"
+          />
+        </a>
+
+        <nav className={`nav-links ${open ? 'is-open' : ''}`} aria-label="Navigasi utama">
+          {links.map((l) => (
+            <a key={l.href} href={l.href} onClick={(e) => handleNavClick(e, l.href)}>
+              {l.label}
+            </a>
+          ))}
+          <a
+            href={WA_LINK}
+            target="_blank"
+            rel="noreferrer"
+            className="btn btn-primary nav-cta"
+            onClick={() => setOpen(false)}
+          >
+            HUBUNGI KAMI
+          </a>
+        </nav>
+
+        <button
+          className="nav-toggle"
+          aria-label="Buka menu"
+          aria-expanded={open}
+          onClick={() => setOpen((o) => !o)}
+        >
+          <span />
+          <span />
+          <span />
+        </button>
+      </div>
+    </header>
+  )
+}
