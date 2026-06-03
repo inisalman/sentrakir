@@ -17,8 +17,8 @@ import Dashboard from './components/Dashboard/Dashboard.jsx'
 export default function App() {
   const pathname = window.location.pathname
 
-  // Dashboard routes (/dashboard or /admin)
-  if (pathname === '/dashboard' || pathname === '/admin') {
+  // Dashboard route - hanya bisa diakses lewat /admin secara langsung
+  if (pathname === '/admin') {
     return <Dashboard />
   }
 

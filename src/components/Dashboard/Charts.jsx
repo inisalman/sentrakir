@@ -252,6 +252,8 @@ export const CustomEventsChart = ({ data }) => {
 
 // SEO Score Card
 export const SEOCard = ({ data }) => {
+  if (!data) return null;
+
   const getScoreClass = (score) => {
     if (score >= 90) return 'good';
     if (score >= 50) return 'medium';
