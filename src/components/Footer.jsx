@@ -1,4 +1,5 @@
 import "./Footer.css";
+import { trackButtonClick } from '../utils/analytics.js';
 
 export default function Footer() {
   return (
@@ -60,6 +61,7 @@ export default function Footer() {
               target="_blank"
               rel="noreferrer"
               aria-label="WhatsApp"
+              onClick={() => { trackButtonClick('WhatsApp Click', 'Footer') }}
             >
               <svg
                 width="18"

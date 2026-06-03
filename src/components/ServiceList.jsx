@@ -1,4 +1,5 @@
 import "./ServiceList.css";
+import { trackButtonClick } from '../utils/analytics.js';
 
 const WA_NUMBER = "6281295125811";
 
@@ -273,6 +274,7 @@ export default function ServiceList() {
                 href={waLink}
                 target="_blank"
                 rel="noreferrer"
+                onClick={() => { trackButtonClick('WhatsApp Click', `Service: ${s.name}`) }}
               >
                 <div className="servicelist-icon">{s.icon}</div>
                 <div className="servicelist-text">

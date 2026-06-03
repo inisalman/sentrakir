@@ -1,4 +1,5 @@
 import './Location.css'
+import { trackButtonClick } from '../utils/analytics.js'
 
 const MAPS_LINK =
   'https://www.google.com/maps/place/BIROJASA+KIR+SIM+SENTRA/@-6.1854549,106.9069635,17z/data=!4m6!3m5!1s0x2e69f51b30d450af:0x9e02ecc3dc112939!8m2!3d-6.1854549!4d106.9069635!16s%2Fg%2F11njwzqy91'
@@ -66,6 +67,7 @@ export default function Location() {
                 href={MAPS_LINK}
                 target="_blank"
                 rel="noreferrer"
+                onClick={() => { trackButtonClick('Direction Click', 'Location') }}
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                   <path
@@ -83,6 +85,7 @@ export default function Location() {
                 href="https://wa.me/62895376124400?text=Halo%20Sentrakir%2C%20saya%20ingin%20bertanya%20soal%20kunjungan%20ke%20kantor."
                 target="_blank"
                 rel="noreferrer"
+                onClick={() => { trackButtonClick('WhatsApp Click', 'Location') }}
               >
                 Tanya via WhatsApp
               </a>

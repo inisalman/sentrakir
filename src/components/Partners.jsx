@@ -1,4 +1,5 @@
 import './Partners.css'
+import { trackButtonClick } from '../utils/analytics.js'
 
 const partners = [
   {
@@ -35,10 +36,11 @@ export default function Partners() {
                   href={p.waLink}
                   target="_blank"
                   rel="noreferrer"
+                  onClick={() => { trackButtonClick('WhatsApp Click', 'Partners') }}
                 >
                   Hubungi
                 </a>
-                <a className="btn btn-ghost partner-btn" href="/padajaya">
+                <a className="btn btn-ghost partner-btn" href="/padajaya" onClick={() => { trackButtonClick('CTA Click', 'Partner Beranda') }}>
                   Beranda
                 </a>
               </div>

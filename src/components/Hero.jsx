@@ -1,4 +1,5 @@
 import './Hero.css'
+import { trackButtonClick } from '../utils/analytics.js'
 
 export default function Hero() {
   return (
@@ -24,10 +25,11 @@ export default function Hero() {
               target="_blank"
               rel="noreferrer"
               className="btn btn-primary"
+              onClick={() => { trackButtonClick('WhatsApp Click', 'Hero') }}
             >
               Hubungi Kami
             </a>
-            <a href="#layanan" className="btn btn-light">
+            <a href="#layanan" className="btn btn-light" onClick={() => { trackButtonClick('CTA Click', 'Daftar Layanan') }}>
               Daftar Layanan
             </a>
           </div>
