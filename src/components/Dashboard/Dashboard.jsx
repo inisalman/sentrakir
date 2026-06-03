@@ -64,10 +64,33 @@ const DashboardContent = ({ onLogout, dateRange, setDateRange }) => {
     const timer = setTimeout(() => {
       setData(getMockData());
       setLoading(false);
-    }, 1000);
+    }, 800);
 
     return () => clearTimeout(timer);
   }, [dateRange]);
+
+  const handleExportData = () => {
+    const exportData = {
+      exportedAt: new Date().toISOString(),
+      buttonClicks: JSON.parse(localStorage.getItem('sentrakir_button_clicks') || '{}'),
+      summary: data?.stats,
+    };
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `sentrakir-analytics-${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleClearData = () => {
+    if (confirm('Hapus semua data tracking? Ini tidak bisa di-undo.')) {
+      localStorage.removeItem('sentrakir_button_clicks');
+      setData(getMockData());
+      alert('Data tracking berhasil dihapus.');
+    }
+  };
 
   if (loading) {
     return (
@@ -107,22 +130,12 @@ const DashboardContent = ({ onLogout, dateRange, setDateRange }) => {
             </button>
           </div>
           <div className="dashboard-quick-links">
-            <a
-              href="https://plausible.io"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="dashboard-quick-link"
-            >
-              📈 Plausible
-            </a>
-            <a
-              href="https://search.google.com/search-console"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="dashboard-quick-link"
-            >
-              🔍 GSC
-            </a>
+            <button onClick={handleExportData} className="dashboard-quick-link" title="Export Data">
+              📥 Export
+            </button>
+            <button onClick={handleClearData} className="dashboard-quick-link" title="Hapus Data" style={{ color: '#e53e3e' }}>
+              🗑️ Clear
+            </button>
           </div>
           <button className="dashboard-logout-btn" onClick={onLogout}>
             Keluar
@@ -156,7 +169,7 @@ const DashboardContent = ({ onLogout, dateRange, setDateRange }) => {
 
         {/* Footer */}
         <p className="dashboard-last-updated">
-          Data terakhir diupdate: {new Date().toLocaleString('id-ID', {
+          Data dari browser ini • Diupdate: {new Date().toLocaleString('id-ID', {
             day: 'numeric',
             month: 'long',
             year: 'numeric',
