@@ -8,7 +8,7 @@ import {
   SEOCard,
   MonthlyChart,
 } from './Charts.jsx';
-import { getMockData } from '../../utils/mockData.js';
+import { getAnalyticsData, clearTrackingData } from '../../utils/analytics.js';
 import '../../styles/dashboard.css';
 
 // Simple password protection (for demo - in production use proper auth)
@@ -137,11 +137,12 @@ const DashboardContent = ({ onLogout, dateRange, setDateRange }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Simulate API loading
+    // Load real data from localStorage
     const timer = setTimeout(() => {
-      setData(getMockData());
+      const realData = getAnalyticsData(dateRange);
+      setData(realData);
       setLoading(false);
-    }, 800);
+    }, 300);
 
     return () => clearTimeout(timer);
   }, [dateRange]);
@@ -149,6 +150,8 @@ const DashboardContent = ({ onLogout, dateRange, setDateRange }) => {
   const handleExportData = () => {
     const exportData = {
       exportedAt: new Date().toISOString(),
+      visitors: JSON.parse(localStorage.getItem('sentrakir_visitors') || '{}'),
+      pageviews: JSON.parse(localStorage.getItem('sentrakir_pageviews') || '{}'),
       buttonClicks: JSON.parse(localStorage.getItem('sentrakir_button_clicks') || '{}'),
       summary: data?.stats,
     };
@@ -163,8 +166,8 @@ const DashboardContent = ({ onLogout, dateRange, setDateRange }) => {
 
   const handleClearData = () => {
     if (confirm('Hapus semua data tracking? Ini tidak bisa di-undo.')) {
-      localStorage.removeItem('sentrakir_button_clicks');
-      setData(getMockData());
+      clearTrackingData();
+      setData(getAnalyticsData(dateRange));
       alert('Data tracking berhasil dihapus.');
     }
   };
@@ -246,13 +249,7 @@ const DashboardContent = ({ onLogout, dateRange, setDateRange }) => {
 
         {/* Footer */}
         <p className="dashboard-last-updated">
-          Data dari browser ini • Diupdate: {new Date().toLocaleString('id-ID', {
-            day: 'numeric',
-            month: 'long',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-          })}
+          📊 Data Real dari localStorage • {data.stats.totalVisitors} visitors • {data.stats.totalClicks} clicks
         </p>
       </main>
     </div>
