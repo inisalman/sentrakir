@@ -21,7 +21,7 @@ export default function Footer() {
           </a>
           <p>
             Mitra terpercaya untuk pengurusan dokumen KIR dan pembuatan SIM
-            legal, Cepat, transparan, dan resmi.
+            Cepat, transparan, dan resmi.
           </p>
           <div className="footer-socials">
             <a href="#" aria-label="Instagram">
@@ -116,7 +116,7 @@ export default function Footer() {
                 />
               </svg>
               <a
-                href="https://www.google.com/maps/place/BIROJASA+KIR+SIM+SENTRA/@-6.1851922,106.9066844,20.33z/data=!4m14!1m7!3m6!1s0x2e69f5b203b3f1d9:0x7636e425a2392170!2sBIROJASA+STNK%2FKIR%2FSIM%2FTILANG+PT.PADAJAYA+STNK+KIR!8m2!3d-6.1856505!4d106.9067669!16s%2Fg%2F11jwxkyccv!3m5!1s0x2e69f51b30d450af:0x9e02ecc3dc112939!8m2!3d-6.1854549!4d106.9069635!16s%2Fg%2F11njwzqy91?entry=ttu&g_ep=EgoyMDI2MDUyNy4wIKXMDSoASAFQAw%3D%3D"
+                href="https://www.google.com/maps/place/BIROJASA+KIR+SIM+SENTRA/@-6.1851922,106.9066844,20.33z/data=!4m14!1m7!3m6!1s0x2e69f5b203b3f1d9:0x7636e425a2392170!2sBIROJASA+STNK%2FKIR%2FSIM%2FTILANG+PT.PADAJAYA+STNK+KIR!8m2!3d-6.1856505!4d106.9067669!16s%2Fg%2F11jwxkyccv!3m5!1s0x2e69f51b30d450af:0x9e02ecc3dc112939!8m2!3d-6.1854549!4d106.9069635!16s%2Fg%2F11njwzqy91?entry=ttu&g_ep=EgoyMDI2MDUyNy4wIKXMDSoASAFQAw%3D%3Dg"
                 target="_blank"
                 rel="noreferrer"
               >

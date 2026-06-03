@@ -1,4 +1,5 @@
 import '../Hero.css'
+import { trackButtonClick } from '../../utils/analytics.js'
 
 const WA_LINK =
   'https://wa.me/6281295125811?text=' +
@@ -29,10 +30,11 @@ export default function PadajayaHero() {
               target="_blank"
               rel="noreferrer"
               className="btn btn-primary"
+              onClick={() => { trackButtonClick('WhatsApp Click', 'Padajaya Hero') }}
             >
               Hubungi Kami
             </a>
-            <a href="#daftar-jasa" className="btn btn-light">
+            <a href="#daftar-jasa" className="btn btn-light" onClick={() => { trackButtonClick('CTA Click', 'Daftar Layanan') }}>
               Daftar Layanan
             </a>
           </div>

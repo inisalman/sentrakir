@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import './Navbar.css'
+import { trackButtonClick } from '../utils/analytics.js'
 
 const links = [
   { href: '#tentang', label: 'Tentang Kami' },
@@ -68,7 +69,10 @@ export default function Navbar() {
             target="_blank"
             rel="noreferrer"
             className="btn btn-primary nav-cta"
-            onClick={() => setOpen(false)}
+            onClick={() => {
+              setOpen(false)
+              trackButtonClick('WhatsApp Click', 'Navbar')
+            }}
           >
             HUBUNGI KAMI
           </a>

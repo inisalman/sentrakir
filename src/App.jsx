@@ -12,9 +12,17 @@ import PadajayaHero from './components/padajaya/PadajayaHero.jsx'
 import PadajayaAbout from './components/padajaya/PadajayaAbout.jsx'
 import PadajayaWhyUs from './components/padajaya/PadajayaWhyUs.jsx'
 import PadajayaProcess from './components/padajaya/PadajayaProcess.jsx'
+import Dashboard from './components/Dashboard/Dashboard.jsx'
 
 export default function App() {
-  const isPadajayaPage = window.location.pathname === '/padajaya'
+  const pathname = window.location.pathname
+
+  // Dashboard route
+  if (pathname === '/dashboard') {
+    return <Dashboard />
+  }
+
+  const isPadajayaPage = pathname === '/padajaya'
 
   if (isPadajayaPage) {
     return (
