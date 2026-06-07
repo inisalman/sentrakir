@@ -168,6 +168,46 @@ if (content.includes('background: "#f8fafc"') && content.includes('borderRadius:
   process.exit(1);
 }
 
+// Test 11: Form Inputs exist
+console.log('\n✓ Test 11: Form inputs configuration');
+const inputs = [
+  'kkOwnerName',
+  'kkOwnerAddress',
+  'kkPlateNumber',
+  'kkFrameNumber',
+  'kkEngineNumber',
+  'kkTestNumber',
+  'kirOwnerName',
+  'kirPlateNumber',
+  'kirTestNumber',
+  'kirVehicleType',
+  'kirBrand',
+  'stnkOwnerName',
+  'stnkPlateNumber',
+  'stnkOwnerAddress',
+  'stnkBrand',
+  'stnkVehicleType',
+  'stnkVehicleJenis',
+  'stnkModel',
+  'stnkYearManufactured',
+  'stnkFrameNumber',
+  'stnkEngineNumber'
+];
+
+let allInputsFound = true;
+inputs.forEach(input => {
+  if (!content.includes(input)) {
+    console.error(`  ❌ Input reference "${input}" not found in form code`);
+    allInputsFound = false;
+  }
+});
+
+if (allInputsFound) {
+  console.log(`  ✅ All ${inputs.length} form inputs properly configured in the UI`);
+} else {
+  process.exit(1);
+}
+
 console.log('\n' + '='.repeat(70));
 console.log('✅ ALL TESTS PASSED');
 console.log('='.repeat(70));

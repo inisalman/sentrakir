@@ -472,14 +472,30 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
     pajakExpiry: "",
     simDriverExpiry: "",
     notes: "",
-    // Vehicle document data (manual input)
-    ownerName: "",
-    ownerAddress: "",
-    frameNumber: "",
-    engineNumber: "",
-    brand: "",
-    model: "",
-    yearManufactured: "",
+    // Data Kartu Kendaraan
+    kkOwnerName: "",
+    kkOwnerAddress: "",
+    kkPlateNumber: "",
+    kkFrameNumber: "",
+    kkEngineNumber: "",
+    kkTestNumber: "",
+    // Data Kartu KIR
+    kirOwnerName: "",
+    kirPlateNumber: "",
+    kirTestNumber: "",
+    kirVehicleType: "Delvan",
+    kirBrand: "",
+    // Data STNK
+    stnkOwnerName: "",
+    stnkPlateNumber: "",
+    stnkOwnerAddress: "",
+    stnkBrand: "",
+    stnkVehicleType: "",
+    stnkVehicleJenis: "Delvan",
+    stnkModel: "",
+    stnkYearManufactured: "",
+    stnkFrameNumber: "",
+    stnkEngineNumber: "",
     kartuKirFile: null,
     kartuKirHilang: false,
     sertifikatKirFile: null,
@@ -503,14 +519,30 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
       pajakExpiry: "",
       simDriverExpiry: "",
       notes: "",
-      // Vehicle document data (manual input)
-      ownerName: "",
-      ownerAddress: "",
-      frameNumber: "",
-      engineNumber: "",
-      brand: "",
-      model: "",
-      yearManufactured: "",
+      // Data Kartu Kendaraan
+      kkOwnerName: "",
+      kkOwnerAddress: "",
+      kkPlateNumber: "",
+      kkFrameNumber: "",
+      kkEngineNumber: "",
+      kkTestNumber: "",
+      // Data Kartu KIR
+      kirOwnerName: "",
+      kirPlateNumber: "",
+      kirTestNumber: "",
+      kirVehicleType: "Delvan",
+      kirBrand: "",
+      // Data STNK
+      stnkOwnerName: "",
+      stnkPlateNumber: "",
+      stnkOwnerAddress: "",
+      stnkBrand: "",
+      stnkVehicleType: "",
+      stnkVehicleJenis: "Delvan",
+      stnkModel: "",
+      stnkYearManufactured: "",
+      stnkFrameNumber: "",
+      stnkEngineNumber: "",
       kartuKirFile: null,
       kartuKirHilang: false,
       sertifikatKirFile: null,
@@ -531,14 +563,30 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
       pajakExpiry: vehicle.pajakExpiry,
       simDriverExpiry: vehicle.simDriverExpiry || "",
       notes: vehicle.notes || "",
-      // Vehicle document data (manual input)
-      ownerName: vehicle.ownerName || "",
-      ownerAddress: vehicle.ownerAddress || "",
-      frameNumber: vehicle.frameNumber || "",
-      engineNumber: vehicle.engineNumber || "",
-      brand: vehicle.brand || "",
-      model: vehicle.model || "",
-      yearManufactured: vehicle.yearManufactured || "",
+      // Data Kartu Kendaraan
+      kkOwnerName: vehicle.kkOwnerName || "",
+      kkOwnerAddress: vehicle.kkOwnerAddress || "",
+      kkPlateNumber: vehicle.kkPlateNumber || "",
+      kkFrameNumber: vehicle.kkFrameNumber || "",
+      kkEngineNumber: vehicle.kkEngineNumber || "",
+      kkTestNumber: vehicle.kkTestNumber || "",
+      // Data Kartu KIR
+      kirOwnerName: vehicle.kirOwnerName || "",
+      kirPlateNumber: vehicle.kirPlateNumber || "",
+      kirTestNumber: vehicle.kirTestNumber || "",
+      kirVehicleType: vehicle.kirVehicleType || "Delvan",
+      kirBrand: vehicle.kirBrand || "",
+      // Data STNK
+      stnkOwnerName: vehicle.stnkOwnerName || "",
+      stnkPlateNumber: vehicle.stnkPlateNumber || "",
+      stnkOwnerAddress: vehicle.stnkOwnerAddress || "",
+      stnkBrand: vehicle.stnkBrand || "",
+      stnkVehicleType: vehicle.stnkVehicleType || "",
+      stnkVehicleJenis: vehicle.stnkVehicleJenis || "Delvan",
+      stnkModel: vehicle.stnkModel || "",
+      stnkYearManufactured: vehicle.stnkYearManufactured || "",
+      stnkFrameNumber: vehicle.stnkFrameNumber || "",
+      stnkEngineNumber: vehicle.stnkEngineNumber || "",
       kartuKirFile: null,
       kartuKirHilang: false,
       sertifikatKirFile: null,
@@ -656,14 +704,42 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
       stnkExpiry: formData.stnkExpiry,
       pajakExpiry: formData.pajakExpiry,
       notes: formData.notes,
-      // Vehicle document data (manual input)
-      ownerName: formData.ownerName || "",
-      ownerAddress: formData.ownerAddress || "",
-      frameNumber: formData.frameNumber || "",
-      engineNumber: formData.engineNumber || "",
-      brand: formData.brand || "",
-      model: formData.model || "",
-      yearManufactured: formData.yearManufactured || "",
+      // Legacy data mappings for backward compatibility
+      ownerName:
+        formData.kkOwnerName ||
+        formData.kirOwnerName ||
+        formData.stnkOwnerName ||
+        "",
+      ownerAddress: formData.kkOwnerAddress || formData.stnkOwnerAddress || "",
+      frameNumber: formData.kkFrameNumber || formData.stnkFrameNumber || "",
+      engineNumber: formData.kkEngineNumber || formData.stnkEngineNumber || "",
+      brand: formData.kirBrand || formData.stnkBrand || "",
+      model: formData.stnkModel || "",
+      yearManufactured: formData.stnkYearManufactured || "",
+      // Data Kartu Kendaraan
+      kkOwnerName: formData.kkOwnerName || "",
+      kkOwnerAddress: formData.kkOwnerAddress || "",
+      kkPlateNumber: formData.kkPlateNumber || "",
+      kkFrameNumber: formData.kkFrameNumber || "",
+      kkEngineNumber: formData.kkEngineNumber || "",
+      kkTestNumber: formData.kkTestNumber || "",
+      // Data Kartu KIR
+      kirOwnerName: formData.kirOwnerName || "",
+      kirPlateNumber: formData.kirPlateNumber || "",
+      kirTestNumber: formData.kirTestNumber || "",
+      kirVehicleType: formData.kirVehicleType || "Delvan",
+      kirBrand: formData.kirBrand || "",
+      // Data STNK
+      stnkOwnerName: formData.stnkOwnerName || "",
+      stnkPlateNumber: formData.stnkPlateNumber || "",
+      stnkOwnerAddress: formData.stnkOwnerAddress || "",
+      stnkBrand: formData.stnkBrand || "",
+      stnkVehicleType: formData.stnkVehicleType || "",
+      stnkVehicleJenis: formData.stnkVehicleJenis || "Delvan",
+      stnkModel: formData.stnkModel || "",
+      stnkYearManufactured: formData.stnkYearManufactured || "",
+      stnkFrameNumber: formData.stnkFrameNumber || "",
+      stnkEngineNumber: formData.stnkEngineNumber || "",
       kartuKirHilang: !!formData.kartuKirHilang,
       sertifikatKirHilang: !!formData.sertifikatKirHilang,
       kartuKirFileName: formData.kartuKirHilang ? null : formData.kartuKirFile,
@@ -697,15 +773,80 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
       pajakExpiry: formData.pajakExpiry,
       simDriverExpiry: formData.simDriverExpiry,
       notes: formData.notes,
-      // Vehicle document data (manual input, preserve existing if empty)
-      ownerName: formData.ownerName || selectedVehicle.ownerName || "",
-      ownerAddress: formData.ownerAddress || selectedVehicle.ownerAddress || "",
-      frameNumber: formData.frameNumber || selectedVehicle.frameNumber || "",
-      engineNumber: formData.engineNumber || selectedVehicle.engineNumber || "",
-      brand: formData.brand || selectedVehicle.brand || "",
-      model: formData.model || selectedVehicle.model || "",
+      // Legacy data mappings for backward compatibility (preserve existing if empty)
+      ownerName:
+        formData.kkOwnerName ||
+        formData.kirOwnerName ||
+        formData.stnkOwnerName ||
+        selectedVehicle.ownerName ||
+        "",
+      ownerAddress:
+        formData.kkOwnerAddress ||
+        formData.stnkOwnerAddress ||
+        selectedVehicle.ownerAddress ||
+        "",
+      frameNumber:
+        formData.kkFrameNumber ||
+        formData.stnkFrameNumber ||
+        selectedVehicle.frameNumber ||
+        "",
+      engineNumber:
+        formData.kkEngineNumber ||
+        formData.stnkEngineNumber ||
+        selectedVehicle.engineNumber ||
+        "",
+      brand:
+        formData.kirBrand ||
+        formData.stnkBrand ||
+        selectedVehicle.brand ||
+        "",
+      model: formData.stnkModel || selectedVehicle.model || "",
       yearManufactured:
-        formData.yearManufactured || selectedVehicle.yearManufactured || "",
+        formData.stnkYearManufactured ||
+        selectedVehicle.yearManufactured ||
+        "",
+      // Data Kartu Kendaraan
+      kkOwnerName: formData.kkOwnerName || selectedVehicle.kkOwnerName || "",
+      kkOwnerAddress:
+        formData.kkOwnerAddress || selectedVehicle.kkOwnerAddress || "",
+      kkPlateNumber:
+        formData.kkPlateNumber || selectedVehicle.kkPlateNumber || "",
+      kkFrameNumber:
+        formData.kkFrameNumber || selectedVehicle.kkFrameNumber || "",
+      kkEngineNumber:
+        formData.kkEngineNumber || selectedVehicle.kkEngineNumber || "",
+      kkTestNumber: formData.kkTestNumber || selectedVehicle.kkTestNumber || "",
+      // Data Kartu KIR
+      kirOwnerName:
+        formData.kirOwnerName || selectedVehicle.kirOwnerName || "",
+      kirPlateNumber:
+        formData.kirPlateNumber || selectedVehicle.kirPlateNumber || "",
+      kirTestNumber:
+        formData.kirTestNumber || selectedVehicle.kirTestNumber || "",
+      kirVehicleType:
+        formData.kirVehicleType || selectedVehicle.kirVehicleType || "Delvan",
+      kirBrand: formData.kirBrand || selectedVehicle.kirBrand || "",
+      // Data STNK
+      stnkOwnerName:
+        formData.stnkOwnerName || selectedVehicle.stnkOwnerName || "",
+      stnkPlateNumber:
+        formData.stnkPlateNumber || selectedVehicle.stnkPlateNumber || "",
+      stnkOwnerAddress:
+        formData.stnkOwnerAddress || selectedVehicle.stnkOwnerAddress || "",
+      stnkBrand: formData.stnkBrand || selectedVehicle.stnkBrand || "",
+      stnkVehicleType:
+        formData.stnkVehicleType || selectedVehicle.stnkVehicleType || "",
+      stnkVehicleJenis:
+        formData.stnkVehicleJenis || selectedVehicle.stnkVehicleJenis || "Delvan",
+      stnkModel: formData.stnkModel || selectedVehicle.stnkModel || "",
+      stnkYearManufactured:
+        formData.stnkYearManufactured ||
+        selectedVehicle.stnkYearManufactured ||
+        "",
+      stnkFrameNumber:
+        formData.stnkFrameNumber || selectedVehicle.stnkFrameNumber || "",
+      stnkEngineNumber:
+        formData.stnkEngineNumber || selectedVehicle.stnkEngineNumber || "",
       kartuKirHilang: !!formData.kartuKirHilang,
       sertifikatKirHilang: !!formData.sertifikatKirHilang,
       kartuKirFileName: formData.kartuKirHilang
@@ -1226,7 +1367,9 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                   />
                 </div>
 
-                {/* Data Dokumen Kendaraan (manual input) */}
+                {/* Data Dokumen Kendaraan (manual input per dokumen) */}
+
+                {/* 1. Data Kartu Kendaraan */}
                 <div
                   style={{
                     borderTop: "2px solid #e2e8f0",
@@ -1242,17 +1385,17 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                       margin: "0 0 16px 0",
                     }}
                   >
-                    🎫 Data Dokumen Kendaraan
+                    🎫 Data Kartu Kendaraan
                   </h4>
                   <div className="fleet-form-group">
                     <label className="fleet-label">Nama Pemilik</label>
                     <input
                       type="text"
                       className="fleet-input"
-                      placeholder="Nama pemilik sesuai STNK/KIR"
-                      value={formData.ownerName}
+                      placeholder="Nama pemilik pada Kartu Kendaraan"
+                      value={formData.kkOwnerName}
                       onChange={(e) =>
-                        setFormData({ ...formData, ownerName: e.target.value })
+                        setFormData({ ...formData, kkOwnerName: e.target.value })
                       }
                     />
                   </div>
@@ -1261,15 +1404,44 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                     <input
                       type="text"
                       className="fleet-input"
-                      placeholder="Alamat pemilik sesuai STNK"
-                      value={formData.ownerAddress}
+                      placeholder="Alamat pemilik pada Kartu Kendaraan"
+                      value={formData.kkOwnerAddress}
                       onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          ownerAddress: e.target.value,
-                        })
+                        setFormData({ ...formData, kkOwnerAddress: e.target.value })
                       }
                     />
+                  </div>
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "1fr 1fr",
+                      gap: "12px",
+                    }}
+                  >
+                    <div className="fleet-form-group">
+                      <label className="fleet-label">No Pol / Nomor Plat</label>
+                      <input
+                        type="text"
+                        className="fleet-input"
+                        placeholder="B 1234 ABC"
+                        value={formData.kkPlateNumber}
+                        onChange={(e) =>
+                          setFormData({ ...formData, kkPlateNumber: e.target.value.toUpperCase() })
+                        }
+                      />
+                    </div>
+                    <div className="fleet-form-group">
+                      <label className="fleet-label">No Uji Kendaraan</label>
+                      <input
+                        type="text"
+                        className="fleet-input"
+                        placeholder="No Uji"
+                        value={formData.kkTestNumber}
+                        onChange={(e) =>
+                          setFormData({ ...formData, kkTestNumber: e.target.value })
+                        }
+                      />
+                    </div>
                   </div>
                   <div
                     style={{
@@ -1284,29 +1456,85 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                         type="text"
                         className="fleet-input"
                         placeholder="Nomor rangka"
-                        value={formData.frameNumber}
+                        value={formData.kkFrameNumber}
                         onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            frameNumber: e.target.value,
-                          })
+                          setFormData({ ...formData, kkFrameNumber: e.target.value.toUpperCase() })
                         }
                       />
                     </div>
                     <div className="fleet-form-group">
-                      <label className="fleet-label">
-                        No Mesin / Motor Penggerak
-                      </label>
+                      <label className="fleet-label">No Mesin</label>
                       <input
                         type="text"
                         className="fleet-input"
                         placeholder="Nomor mesin"
-                        value={formData.engineNumber}
+                        value={formData.kkEngineNumber}
                         onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            engineNumber: e.target.value,
-                          })
+                          setFormData({ ...formData, kkEngineNumber: e.target.value.toUpperCase() })
+                        }
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. Data Kartu KIR */}
+                <div
+                  style={{
+                    borderTop: "2px solid #e2e8f0",
+                    paddingTop: "20px",
+                    marginTop: "8px",
+                  }}
+                >
+                  <h4
+                    style={{
+                      fontSize: "14px",
+                      fontWeight: "800",
+                      color: "#1C3967",
+                      margin: "0 0 16px 0",
+                    }}
+                  >
+                    🪪 Data Kartu KIR
+                  </h4>
+                  <div className="fleet-form-group">
+                    <label className="fleet-label">Nama Pemilik</label>
+                    <input
+                      type="text"
+                      className="fleet-input"
+                      placeholder="Nama pemilik pada Kartu KIR"
+                      value={formData.kirOwnerName}
+                      onChange={(e) =>
+                        setFormData({ ...formData, kirOwnerName: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "1fr 1fr",
+                      gap: "12px",
+                    }}
+                  >
+                    <div className="fleet-form-group">
+                      <label className="fleet-label">No Pol / Nomor Plat</label>
+                      <input
+                        type="text"
+                        className="fleet-input"
+                        placeholder="B 1234 ABC"
+                        value={formData.kirPlateNumber}
+                        onChange={(e) =>
+                          setFormData({ ...formData, kirPlateNumber: e.target.value.toUpperCase() })
+                        }
+                      />
+                    </div>
+                    <div className="fleet-form-group">
+                      <label className="fleet-label">No Uji Kendaraan</label>
+                      <input
+                        type="text"
+                        className="fleet-input"
+                        placeholder="No Uji"
+                        value={formData.kirTestNumber}
+                        onChange={(e) =>
+                          setFormData({ ...formData, kirTestNumber: e.target.value })
                         }
                       />
                     </div>
@@ -1314,31 +1542,143 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                   <div
                     style={{
                       display: "grid",
-                      gridTemplateColumns: "1fr 1fr 1fr",
+                      gridTemplateColumns: "1fr 1fr",
                       gap: "12px",
                     }}
                   >
+                    <div className="fleet-form-group">
+                      <label className="fleet-label">Jenis Kendaraan</label>
+                      <select
+                        className="fleet-input"
+                        value={formData.kirVehicleType}
+                        onChange={(e) =>
+                          setFormData({ ...formData, kirVehicleType: e.target.value })
+                        }
+                        style={{ background: "white" }}
+                      >
+                        <option value="Delvan">Delvan</option>
+                        <option value="Blindvan">Blindvan</option>
+                        <option value="Pick Up">Pick Up</option>
+                        <option value="Double Cabin">Double Cabin</option>
+                        <option value="Minibus">Minibus</option>
+                        <option value="Travel">Travel</option>
+                        <option value="Bus">Bus</option>
+                        <option value="Truck CDE">Truck CDE</option>
+                        <option value="Truck CDD">Truck CDD</option>
+                        <option value="Light Truck">Light Truck</option>
+                        <option value="Box">Box</option>
+                        <option value="Truck">Truck</option>
+                        <option value="Truck Wingbox">Truck Wingbox</option>
+                        <option value="Truk Gandeng">Truk Gandeng</option>
+                        <option value="Kereta Tempelan">Kereta Tempelan</option>
+                        <option value="Trailer">Trailer</option>
+                      </select>
+                    </div>
+                    <div className="fleet-form-group">
+                      <label className="fleet-label">Merek / Tipe</label>
+                      <input
+                        type="text"
+                        className="fleet-input"
+                        placeholder="Contoh: Mitsubishi/Colt Diesel"
+                        value={formData.kirBrand}
+                        onChange={(e) =>
+                          setFormData({ ...formData, kirBrand: e.target.value })
+                        }
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3. Data STNK */}
+                <div
+                  style={{
+                    borderTop: "2px solid #e2e8f0",
+                    paddingTop: "20px",
+                    marginTop: "8px",
+                  }}
+                >
+                  <h4
+                    style={{
+                      fontSize: "14px",
+                      fontWeight: "800",
+                      color: "#1C3967",
+                      margin: "0 0 16px 0",
+                    }}
+                  >
+                    📋 Data STNK
+                  </h4>
+                  <div className="fleet-form-group">
+                    <label className="fleet-label">Nama Pemilik</label>
+                    <input
+                      type="text"
+                      className="fleet-input"
+                      placeholder="Nama pemilik pada STNK"
+                      value={formData.stnkOwnerName}
+                      onChange={(e) =>
+                        setFormData({ ...formData, stnkOwnerName: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div className="fleet-form-group">
+                    <label className="fleet-label">Alamat Pemilik</label>
+                    <input
+                      type="text"
+                      className="fleet-input"
+                      placeholder="Alamat pemilik pada STNK"
+                      value={formData.stnkOwnerAddress}
+                      onChange={(e) =>
+                        setFormData({ ...formData, stnkOwnerAddress: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "1fr 1fr",
+                      gap: "12px",
+                    }}
+                  >
+                    <div className="fleet-form-group">
+                      <label className="fleet-label">No Pol / Nomor Plat</label>
+                      <input
+                        type="text"
+                        className="fleet-input"
+                        placeholder="B 1234 ABC"
+                        value={formData.stnkPlateNumber}
+                        onChange={(e) =>
+                          setFormData({ ...formData, stnkPlateNumber: e.target.value.toUpperCase() })
+                        }
+                      />
+                    </div>
                     <div className="fleet-form-group">
                       <label className="fleet-label">Merek</label>
                       <input
                         type="text"
                         className="fleet-input"
                         placeholder="Merek"
-                        value={formData.brand}
+                        value={formData.stnkBrand}
                         onChange={(e) =>
-                          setFormData({ ...formData, brand: e.target.value })
+                          setFormData({ ...formData, stnkBrand: e.target.value })
                         }
                       />
                     </div>
+                  </div>
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "1.5fr 1fr",
+                      gap: "12px",
+                    }}
+                  >
                     <div className="fleet-form-group">
-                      <label className="fleet-label">Model</label>
+                      <label className="fleet-label">Type Kendaraan</label>
                       <input
                         type="text"
                         className="fleet-input"
-                        placeholder="Model"
-                        value={formData.model}
+                        placeholder="Contoh: FE 74 HD"
+                        value={formData.stnkVehicleType}
                         onChange={(e) =>
-                          setFormData({ ...formData, model: e.target.value })
+                          setFormData({ ...formData, stnkVehicleType: e.target.value })
                         }
                       />
                     </div>
@@ -1347,13 +1687,90 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                       <input
                         type="text"
                         className="fleet-input"
-                        placeholder="Tahun"
-                        value={formData.yearManufactured}
+                        placeholder="Contoh: 2021"
+                        value={formData.stnkYearManufactured}
                         onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            yearManufactured: e.target.value,
-                          })
+                          setFormData({ ...formData, stnkYearManufactured: e.target.value })
+                        }
+                      />
+                    </div>
+                  </div>
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "1fr 1fr",
+                      gap: "12px",
+                    }}
+                  >
+                    <div className="fleet-form-group">
+                      <label className="fleet-label">Jenis Kendaraan</label>
+                      <select
+                        className="fleet-input"
+                        value={formData.stnkVehicleJenis}
+                        onChange={(e) =>
+                          setFormData({ ...formData, stnkVehicleJenis: e.target.value })
+                        }
+                        style={{ background: "white" }}
+                      >
+                        <option value="Delvan">Delvan</option>
+                        <option value="Blindvan">Blindvan</option>
+                        <option value="Pick Up">Pick Up</option>
+                        <option value="Double Cabin">Double Cabin</option>
+                        <option value="Minibus">Minibus</option>
+                        <option value="Travel">Travel</option>
+                        <option value="Bus">Bus</option>
+                        <option value="Truck CDE">Truck CDE</option>
+                        <option value="Truck CDD">Truck CDD</option>
+                        <option value="Light Truck">Light Truck</option>
+                        <option value="Box">Box</option>
+                        <option value="Truck">Truck</option>
+                        <option value="Truck Wingbox">Truck Wingbox</option>
+                        <option value="Truk Gandeng">Truk Gandeng</option>
+                        <option value="Kereta Tempelan">Kereta Tempelan</option>
+                        <option value="Trailer">Trailer</option>
+                      </select>
+                    </div>
+                    <div className="fleet-form-group">
+                      <label className="fleet-label">Model Kendaraan</label>
+                      <input
+                        type="text"
+                        className="fleet-input"
+                        placeholder="Contoh: Truk Box"
+                        value={formData.stnkModel}
+                        onChange={(e) =>
+                          setFormData({ ...formData, stnkModel: e.target.value })
+                        }
+                      />
+                    </div>
+                  </div>
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "1fr 1fr",
+                      gap: "12px",
+                    }}
+                  >
+                    <div className="fleet-form-group">
+                      <label className="fleet-label">No Rangka</label>
+                      <input
+                        type="text"
+                        className="fleet-input"
+                        placeholder="Nomor rangka"
+                        value={formData.stnkFrameNumber}
+                        onChange={(e) =>
+                          setFormData({ ...formData, stnkFrameNumber: e.target.value.toUpperCase() })
+                        }
+                      />
+                    </div>
+                    <div className="fleet-form-group">
+                      <label className="fleet-label">No Mesin</label>
+                      <input
+                        type="text"
+                        className="fleet-input"
+                        placeholder="Nomor mesin"
+                        value={formData.stnkEngineNumber}
+                        onChange={(e) =>
+                          setFormData({ ...formData, stnkEngineNumber: e.target.value.toUpperCase() })
                         }
                       />
                     </div>
