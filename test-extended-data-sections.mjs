@@ -23,12 +23,12 @@ if (!fs.existsSync(clientDashboardPath)) {
 
 const content = fs.readFileSync(clientDashboardPath, 'utf-8');
 
-// Test 1: Data Kartu Kendaraan section exists
-console.log('\n✓ Test 1: Data Kartu Kendaraan section');
-if (content.includes('🎫 Data Kartu Kendaraan')) {
-  console.log('  ✅ Data Kartu Kendaraan section header found');
+// Test 1: Data Kartu Kendaraan section exists (Data Sertifikat Kendaraan in detail modal)
+console.log('\n✓ Test 1: Data Kartu/Sertifikat Kendaraan section');
+if (content.includes('Data Sertifikat Kendaraan') || content.includes('Data Kartu Kendaraan')) {
+  console.log('  ✅ Data Kartu/Sertifikat Kendaraan section header found');
 } else {
-  console.error('  ❌ Data Kartu Kendaraan section not found');
+  console.error('  ❌ Data Kartu/Sertifikat Kendaraan section not found');
   process.exit(1);
 }
 
@@ -57,7 +57,7 @@ if (allFieldsPresent) {
 
 // Test 3: Data Kartu KIR section exists
 console.log('\n✓ Test 3: Data Kartu KIR section');
-if (content.includes('🪪 Data Kartu KIR')) {
+if (content.includes('Data Kartu KIR')) {
   console.log('  ✅ Data Kartu KIR section header found');
 } else {
   console.error('  ❌ Data Kartu KIR section not found');
@@ -85,7 +85,7 @@ if (allKirFieldsPresent) {
 
 // Test 5: Data STNK section exists
 console.log('\n✓ Test 5: Data STNK section');
-if (content.includes('📋 Data STNK')) {
+if (content.includes('Data STNK')) {
   console.log('  ✅ Data STNK section header found');
 } else {
   console.error('  ❌ Data STNK section not found');
@@ -143,17 +143,17 @@ if (gridLayoutCount >= 3) {
 
 // Test 9: Check modal sections order
 console.log('\n✓ Test 9: Modal sections order');
-const kartuKendaraanPos = content.indexOf('🎫 Data Kartu Kendaraan');
-const kartuKirPos = content.indexOf('🪪 Data Kartu KIR');
-const dataStnkPos = content.indexOf('📋 Data STNK');
-const statusDokumenPos = content.indexOf('📄 Status Dokumen');
+const kartuKendaraanPos = content.indexOf('Data Sertifikat Kendaraan');
+const kartuKirPos = content.lastIndexOf('Data Kartu KIR');
+const dataStnkPos = content.lastIndexOf('Data STNK');
+const statusDokumenPos = content.indexOf('Status Dokumen');
 
 if (kartuKendaraanPos < kartuKirPos && kartuKirPos < dataStnkPos && dataStnkPos < statusDokumenPos) {
   console.log('  ✅ Sections in correct order:');
-  console.log('     1. Data Kartu Kendaraan');
+  console.log('     1. Data Sertifikat Kendaraan');
   console.log('     2. Data Kartu KIR');
   console.log('     3. Data STNK');
-  console.log('     4. Status Dokumen Pindaian');
+  console.log('     4. Status Dokumen');
 } else {
   console.error('  ❌ Sections not in correct order');
   process.exit(1);

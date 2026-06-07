@@ -163,22 +163,33 @@ export default function ClientDashboard({
               </div>
               <div className="user-info">
                 <p className="user-name">{company.picName || "PIC Name"}</p>
-                <p className="user-role" style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                <p
+                  className="user-role"
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "2px",
+                  }}
+                >
                   <span>{company.name || "Company Name"} (B2B Klien)</span>
                   {(() => {
-                    const clientAdmin = getAdminById(company.adminId) || { name: 'Sentra' };
+                    const clientAdmin = getAdminById(company.adminId) || {
+                      name: "Sentra",
+                    };
                     return (
-                      <span style={{
-                        fontSize: '10px',
-                        fontWeight: 'bold',
-                        color: '#1e40af',
-                        background: '#eff6ff',
-                        padding: '1px 6px',
-                        borderRadius: '4px',
-                        border: '1px solid #bfdbfe',
-                        alignSelf: 'flex-start',
-                        marginTop: '2px'
-                      }}>
+                      <span
+                        style={{
+                          fontSize: "10px",
+                          fontWeight: "bold",
+                          color: "#1e40af",
+                          background: "#eff6ff",
+                          padding: "1px 6px",
+                          borderRadius: "4px",
+                          border: "1px solid #bfdbfe",
+                          alignSelf: "flex-start",
+                          marginTop: "2px",
+                        }}
+                      >
                         Admin: {clientAdmin.name}
                       </span>
                     );
@@ -604,6 +615,14 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
     }));
   };
 
+  // Remove selected document file
+  const removeDocumentFile = (docType) => {
+    setFormData((prev) => ({
+      ...prev,
+      [`${docType}File`]: null,
+    }));
+  };
+
   const handleOpenUpload = (vehicle) => {
     setSelectedVehicle(vehicle);
     setUploadDocType("kir");
@@ -682,8 +701,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
     )
       return;
 
-    const isKartuKirOk =
-      formData.kartuKirHilang || !!formData.kartuKirFile;
+    const isKartuKirOk = formData.kartuKirHilang || !!formData.kartuKirFile;
     const isSertifikatKirOk =
       formData.sertifikatKirHilang || !!formData.sertifikatKirFile;
     const isStnkOk = !!formData.stnkFile;
@@ -796,15 +814,10 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
         selectedVehicle.engineNumber ||
         "",
       brand:
-        formData.kirBrand ||
-        formData.stnkBrand ||
-        selectedVehicle.brand ||
-        "",
+        formData.kirBrand || formData.stnkBrand || selectedVehicle.brand || "",
       model: formData.stnkModel || selectedVehicle.model || "",
       yearManufactured:
-        formData.stnkYearManufactured ||
-        selectedVehicle.yearManufactured ||
-        "",
+        formData.stnkYearManufactured || selectedVehicle.yearManufactured || "",
       // Data Kartu Kendaraan
       kkOwnerName: formData.kkOwnerName || selectedVehicle.kkOwnerName || "",
       kkOwnerAddress:
@@ -817,8 +830,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
         formData.kkEngineNumber || selectedVehicle.kkEngineNumber || "",
       kkTestNumber: formData.kkTestNumber || selectedVehicle.kkTestNumber || "",
       // Data Kartu KIR
-      kirOwnerName:
-        formData.kirOwnerName || selectedVehicle.kirOwnerName || "",
+      kirOwnerName: formData.kirOwnerName || selectedVehicle.kirOwnerName || "",
       kirPlateNumber:
         formData.kirPlateNumber || selectedVehicle.kirPlateNumber || "",
       kirTestNumber:
@@ -837,7 +849,9 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
       stnkVehicleType:
         formData.stnkVehicleType || selectedVehicle.stnkVehicleType || "",
       stnkVehicleJenis:
-        formData.stnkVehicleJenis || selectedVehicle.stnkVehicleJenis || "Delvan",
+        formData.stnkVehicleJenis ||
+        selectedVehicle.stnkVehicleJenis ||
+        "Delvan",
       stnkModel: formData.stnkModel || selectedVehicle.stnkModel || "",
       stnkYearManufactured:
         formData.stnkYearManufactured ||
@@ -1385,7 +1399,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                       margin: "0 0 16px 0",
                     }}
                   >
-                    🎫 Data Kartu Kendaraan
+                    Data Sertifikat KIR
                   </h4>
                   <div className="fleet-form-group">
                     <label className="fleet-label">Nama Pemilik</label>
@@ -1395,7 +1409,10 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                       placeholder="Nama pemilik pada Kartu Kendaraan"
                       value={formData.kkOwnerName}
                       onChange={(e) =>
-                        setFormData({ ...formData, kkOwnerName: e.target.value })
+                        setFormData({
+                          ...formData,
+                          kkOwnerName: e.target.value,
+                        })
                       }
                     />
                   </div>
@@ -1407,7 +1424,10 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                       placeholder="Alamat pemilik pada Kartu Kendaraan"
                       value={formData.kkOwnerAddress}
                       onChange={(e) =>
-                        setFormData({ ...formData, kkOwnerAddress: e.target.value })
+                        setFormData({
+                          ...formData,
+                          kkOwnerAddress: e.target.value,
+                        })
                       }
                     />
                   </div>
@@ -1426,7 +1446,10 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                         placeholder="B 1234 ABC"
                         value={formData.kkPlateNumber}
                         onChange={(e) =>
-                          setFormData({ ...formData, kkPlateNumber: e.target.value.toUpperCase() })
+                          setFormData({
+                            ...formData,
+                            kkPlateNumber: e.target.value.toUpperCase(),
+                          })
                         }
                       />
                     </div>
@@ -1438,7 +1461,10 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                         placeholder="No Uji"
                         value={formData.kkTestNumber}
                         onChange={(e) =>
-                          setFormData({ ...formData, kkTestNumber: e.target.value })
+                          setFormData({
+                            ...formData,
+                            kkTestNumber: e.target.value,
+                          })
                         }
                       />
                     </div>
@@ -1458,7 +1484,10 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                         placeholder="Nomor rangka"
                         value={formData.kkFrameNumber}
                         onChange={(e) =>
-                          setFormData({ ...formData, kkFrameNumber: e.target.value.toUpperCase() })
+                          setFormData({
+                            ...formData,
+                            kkFrameNumber: e.target.value.toUpperCase(),
+                          })
                         }
                       />
                     </div>
@@ -1470,7 +1499,10 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                         placeholder="Nomor mesin"
                         value={formData.kkEngineNumber}
                         onChange={(e) =>
-                          setFormData({ ...formData, kkEngineNumber: e.target.value.toUpperCase() })
+                          setFormData({
+                            ...formData,
+                            kkEngineNumber: e.target.value.toUpperCase(),
+                          })
                         }
                       />
                     </div>
@@ -1493,7 +1525,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                       margin: "0 0 16px 0",
                     }}
                   >
-                    🪪 Data Kartu KIR
+                    Data Kartu KIR
                   </h4>
                   <div className="fleet-form-group">
                     <label className="fleet-label">Nama Pemilik</label>
@@ -1503,7 +1535,10 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                       placeholder="Nama pemilik pada Kartu KIR"
                       value={formData.kirOwnerName}
                       onChange={(e) =>
-                        setFormData({ ...formData, kirOwnerName: e.target.value })
+                        setFormData({
+                          ...formData,
+                          kirOwnerName: e.target.value,
+                        })
                       }
                     />
                   </div>
@@ -1522,7 +1557,10 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                         placeholder="B 1234 ABC"
                         value={formData.kirPlateNumber}
                         onChange={(e) =>
-                          setFormData({ ...formData, kirPlateNumber: e.target.value.toUpperCase() })
+                          setFormData({
+                            ...formData,
+                            kirPlateNumber: e.target.value.toUpperCase(),
+                          })
                         }
                       />
                     </div>
@@ -1534,7 +1572,10 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                         placeholder="No Uji"
                         value={formData.kirTestNumber}
                         onChange={(e) =>
-                          setFormData({ ...formData, kirTestNumber: e.target.value })
+                          setFormData({
+                            ...formData,
+                            kirTestNumber: e.target.value,
+                          })
                         }
                       />
                     </div>
@@ -1552,7 +1593,10 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                         className="fleet-input"
                         value={formData.kirVehicleType}
                         onChange={(e) =>
-                          setFormData({ ...formData, kirVehicleType: e.target.value })
+                          setFormData({
+                            ...formData,
+                            kirVehicleType: e.target.value,
+                          })
                         }
                         style={{ background: "white" }}
                       >
@@ -1605,7 +1649,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                       margin: "0 0 16px 0",
                     }}
                   >
-                    📋 Data STNK
+                    Data STNK
                   </h4>
                   <div className="fleet-form-group">
                     <label className="fleet-label">Nama Pemilik</label>
@@ -1615,7 +1659,10 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                       placeholder="Nama pemilik pada STNK"
                       value={formData.stnkOwnerName}
                       onChange={(e) =>
-                        setFormData({ ...formData, stnkOwnerName: e.target.value })
+                        setFormData({
+                          ...formData,
+                          stnkOwnerName: e.target.value,
+                        })
                       }
                     />
                   </div>
@@ -1627,7 +1674,10 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                       placeholder="Alamat pemilik pada STNK"
                       value={formData.stnkOwnerAddress}
                       onChange={(e) =>
-                        setFormData({ ...formData, stnkOwnerAddress: e.target.value })
+                        setFormData({
+                          ...formData,
+                          stnkOwnerAddress: e.target.value,
+                        })
                       }
                     />
                   </div>
@@ -1646,7 +1696,10 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                         placeholder="B 1234 ABC"
                         value={formData.stnkPlateNumber}
                         onChange={(e) =>
-                          setFormData({ ...formData, stnkPlateNumber: e.target.value.toUpperCase() })
+                          setFormData({
+                            ...formData,
+                            stnkPlateNumber: e.target.value.toUpperCase(),
+                          })
                         }
                       />
                     </div>
@@ -1658,7 +1711,10 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                         placeholder="Merek"
                         value={formData.stnkBrand}
                         onChange={(e) =>
-                          setFormData({ ...formData, stnkBrand: e.target.value })
+                          setFormData({
+                            ...formData,
+                            stnkBrand: e.target.value,
+                          })
                         }
                       />
                     </div>
@@ -1678,7 +1734,10 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                         placeholder="Contoh: FE 74 HD"
                         value={formData.stnkVehicleType}
                         onChange={(e) =>
-                          setFormData({ ...formData, stnkVehicleType: e.target.value })
+                          setFormData({
+                            ...formData,
+                            stnkVehicleType: e.target.value,
+                          })
                         }
                       />
                     </div>
@@ -1690,7 +1749,10 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                         placeholder="Contoh: 2021"
                         value={formData.stnkYearManufactured}
                         onChange={(e) =>
-                          setFormData({ ...formData, stnkYearManufactured: e.target.value })
+                          setFormData({
+                            ...formData,
+                            stnkYearManufactured: e.target.value,
+                          })
                         }
                       />
                     </div>
@@ -1708,7 +1770,10 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                         className="fleet-input"
                         value={formData.stnkVehicleJenis}
                         onChange={(e) =>
-                          setFormData({ ...formData, stnkVehicleJenis: e.target.value })
+                          setFormData({
+                            ...formData,
+                            stnkVehicleJenis: e.target.value,
+                          })
                         }
                         style={{ background: "white" }}
                       >
@@ -1738,7 +1803,10 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                         placeholder="Contoh: Truk Box"
                         value={formData.stnkModel}
                         onChange={(e) =>
-                          setFormData({ ...formData, stnkModel: e.target.value })
+                          setFormData({
+                            ...formData,
+                            stnkModel: e.target.value,
+                          })
                         }
                       />
                     </div>
@@ -1758,7 +1826,10 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                         placeholder="Nomor rangka"
                         value={formData.stnkFrameNumber}
                         onChange={(e) =>
-                          setFormData({ ...formData, stnkFrameNumber: e.target.value.toUpperCase() })
+                          setFormData({
+                            ...formData,
+                            stnkFrameNumber: e.target.value.toUpperCase(),
+                          })
                         }
                       />
                     </div>
@@ -1770,7 +1841,10 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                         placeholder="Nomor mesin"
                         value={formData.stnkEngineNumber}
                         onChange={(e) =>
-                          setFormData({ ...formData, stnkEngineNumber: e.target.value.toUpperCase() })
+                          setFormData({
+                            ...formData,
+                            stnkEngineNumber: e.target.value.toUpperCase(),
+                          })
                         }
                       />
                     </div>
@@ -1794,7 +1868,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                         margin: "0 0 16px 0",
                       }}
                     >
-                      📄 Unggah Dokumen Kendaraan (Wajib)
+                      Unggah Dokumen Kendaraan (Wajib)
                     </h4>
                     <div
                       style={{
@@ -1808,8 +1882,8 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                       }}
                     >
                       ℹ️ Unggah file dokumen Kartu KIR, Sertifikat KIR, dan STNK
-                      (format PDF/PNG/JPG). Centang opsi "Hilang" apabila dokumen
-                      KIR tidak tersedia.
+                      (format PDF/PNG/JPG). Centang opsi "Hilang" apabila
+                      dokumen KIR tidak tersedia.
                     </div>
 
                     {[
@@ -1922,53 +1996,133 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                               Kehilangan Resmi dari Kepolisian.
                             </div>
                           ) : (
-                            <>
-                              <div
-                                style={{
-                                  display: "flex",
-                                  gap: "8px",
-                                  marginTop: "8px",
-                                  flexWrap: "wrap",
-                                }}
-                              >
-                                <input
-                                  type="file"
-                                  accept=".pdf,.png,.jpg,.jpeg"
-                                  style={{ display: "none" }}
-                                  id={`file-input-${docType}`}
-                                  onChange={(e) => {
-                                    if (e.target.files && e.target.files[0]) {
-                                      setDocumentFile(
-                                        docType,
-                                        e.target.files[0].name,
-                                      );
-                                    }
-                                  }}
-                                />
-                                <button
-                                  type="button"
-                                  className="fleet-btn fleet-btn-secondary fleet-btn-sm"
-                                  onClick={() =>
-                                    document
-                                      .getElementById(`file-input-${docType}`)
-                                      .click()
+                            <div style={{ marginTop: "10px" }}>
+                              <input
+                                type="file"
+                                accept=".pdf,.png,.jpg,.jpeg"
+                                style={{ display: "none" }}
+                                id={`file-input-${docType}`}
+                                onChange={(e) => {
+                                  if (e.target.files && e.target.files[0]) {
+                                    setDocumentFile(
+                                      docType,
+                                      e.target.files[0].name,
+                                    );
                                   }
-                                >
-                                  📁 {file ? "Ganti File" : "Pilih File"}
-                                </button>
-                              </div>
-                              {file && (
-                                <p
+                                }}
+                              />
+
+                              {file ? (
+                                <div
                                   style={{
-                                    fontSize: "11px",
-                                    margin: "6px 0 0 0",
-                                    color: "#475569",
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                    alignItems: "center",
+                                    background: "#f0fdf4",
+                                    border: "1px solid #bbf7d0",
+                                    padding: "10px 14px",
+                                    borderRadius: "8px",
                                   }}
                                 >
-                                  File: <strong>{file}</strong>
-                                </p>
+                                  <div
+                                    style={{
+                                      display: "flex",
+                                      alignItems: "center",
+                                      gap: "8px",
+                                      overflow: "hidden",
+                                    }}
+                                  >
+                                    <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                      <span
+                                        style={{
+                                          fontSize: "13px",
+                                          fontWeight: "600",
+                                          color: "#166534",
+                                          display: "block",
+                                        }}
+                                      >
+                                        {file}
+                                      </span>
+                                      <span style={{ fontSize: "11px", color: "#15803d" }}>
+                                        Terpilih (PDF/Gambar)
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <div style={{ display: "flex", gap: "8px" }}>
+                                    <label
+                                      htmlFor={`file-input-${docType}`}
+                                      style={{
+                                        fontSize: "11px",
+                                        fontWeight: "600",
+                                        color: "#166534",
+                                        cursor: "pointer",
+                                        background: "#ffffff",
+                                        border: "1px solid #bbf7d0",
+                                        padding: "4px 8px",
+                                        borderRadius: "6px",
+                                      }}
+                                    >
+                                      Ganti
+                                    </label>
+                                    <button
+                                      type="button"
+                                      onClick={() => removeDocumentFile(docType)}
+                                      style={{
+                                        fontSize: "11px",
+                                        fontWeight: "600",
+                                        color: "#b91c1c",
+                                        cursor: "pointer",
+                                        background: "#ffffff",
+                                        border: "1px solid #fecaca",
+                                        padding: "4px 8px",
+                                        borderRadius: "6px",
+                                      }}
+                                    >
+                                      Hapus
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <label
+                                  htmlFor={`file-input-${docType}`}
+                                  style={{
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    border: "2px dashed #cbd5e1",
+                                    borderRadius: "8px",
+                                    padding: "20px 16px",
+                                    background: "#ffffff",
+                                    cursor: "pointer",
+                                    transition: "all 0.2s ease",
+                                    textAlign: "center",
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    e.currentTarget.style.borderColor = "#3b82f6";
+                                    e.currentTarget.style.background = "#f8fafc";
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.borderColor = "#cbd5e1";
+                                    e.currentTarget.style.background = "#ffffff";
+                                  }}
+                                >
+                                  <span
+                                    style={{
+                                      fontSize: "13px",
+                                      fontWeight: "600",
+                                      color: "#1c3967",
+                                      marginBottom: "2px",
+                                    }}
+                                  >
+                                    Pilih Berkas Dokumen
+                                  </span>
+                                  <span style={{ fontSize: "11px", color: "#6b7a96" }}>
+                                    Klik untuk mengunggah file (PDF, PNG, JPG, JPEG)
+                                  </span>
+                                </label>
                               )}
-                            </>
+                            </div>
                           )}
                         </div>
                       );
@@ -2297,22 +2451,33 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                     </div>
 
                     {(() => {
-                      const isStnkPajak = ['stnk_renewal', 'pajak_renewal'].includes(requestServiceType);
-                      const isClientOfAdmin1 = (company.adminId || 'admin-1') === 'admin-1';
+                      const isStnkPajak = [
+                        "stnk_renewal",
+                        "pajak_renewal",
+                      ].includes(requestServiceType);
+                      const isClientOfAdmin1 =
+                        (company.adminId || "admin-1") === "admin-1";
                       if (isStnkPajak && isClientOfAdmin1) {
                         return (
-                          <div style={{
-                            background: '#fffbe6',
-                            border: '1px solid #ffe58f',
-                            borderRadius: '8px',
-                            padding: '12px',
-                            fontSize: '12.5px',
-                            color: '#d46b08',
-                            marginBottom: '16px',
-                            lineHeight: '1.5',
-                            textAlign: 'left'
-                          }}>
-                            ℹ️ <strong>Rute Administrator Berbeda:</strong> Pengurusan STNK 5 Tahunan & Pajak Tahunan dari client Admin Sentra akan dialihkan secara otomatis ke <strong>Administrator Padajaya</strong>. Admin Padajaya akan dapat melihat info PIC Anda untuk berkomunikasi langsung.
+                          <div
+                            style={{
+                              background: "#fffbe6",
+                              border: "1px solid #ffe58f",
+                              borderRadius: "8px",
+                              padding: "12px",
+                              fontSize: "12.5px",
+                              color: "#d46b08",
+                              marginBottom: "16px",
+                              lineHeight: "1.5",
+                              textAlign: "left",
+                            }}
+                          >
+                            ℹ️ <strong>Rute Administrator Berbeda:</strong>{" "}
+                            Pengurusan STNK 5 Tahunan & Pajak Tahunan dari
+                            client Admin Sentra akan dialihkan secara otomatis
+                            ke <strong>Administrator Padajaya</strong>. Admin
+                            Padajaya akan dapat melihat info PIC Anda untuk
+                            berkomunikasi langsung.
                           </div>
                         );
                       }
@@ -2571,7 +2736,9 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
         <div className="fleet-modal-overlay">
           <div className="fleet-modal" style={{ maxWidth: "700px" }}>
             <div className="fleet-modal-header">
-              <h3>📋 Data Lengkap Kendaraan — {vehicleDetailModal.plateNumber}</h3>
+              <h3>
+                Data Lengkap Kendaraan — {vehicleDetailModal.plateNumber}
+              </h3>
               <span
                 className="btn-close-modal"
                 onClick={() => setVehicleDetailModal(null)}
@@ -2592,7 +2759,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                     borderBottom: "2px solid #e2e8f0",
                   }}
                 >
-                  📌 Informasi Dasar Kendaraan
+                  Informasi Dasar Kendaraan
                 </h4>
                 <div
                   style={{
@@ -2601,8 +2768,20 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                     gap: "16px",
                   }}
                 >
-                  <div style={{ background: "#f8fafc", padding: "12px", borderRadius: "8px" }}>
-                    <p style={{ fontSize: "12px", color: "#6b7a96", margin: "0 0 4px 0" }}>
+                  <div
+                    style={{
+                      background: "#f8fafc",
+                      padding: "12px",
+                      borderRadius: "8px",
+                    }}
+                  >
+                    <p
+                      style={{
+                        fontSize: "12px",
+                        color: "#6b7a96",
+                        margin: "0 0 4px 0",
+                      }}
+                    >
                       Plat Nomor
                     </p>
                     <p
@@ -2616,8 +2795,20 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                       {vehicleDetailModal.plateNumber}
                     </p>
                   </div>
-                  <div style={{ background: "#f8fafc", padding: "12px", borderRadius: "8px" }}>
-                    <p style={{ fontSize: "12px", color: "#6b7a96", margin: "0 0 4px 0" }}>
+                  <div
+                    style={{
+                      background: "#f8fafc",
+                      padding: "12px",
+                      borderRadius: "8px",
+                    }}
+                  >
+                    <p
+                      style={{
+                        fontSize: "12px",
+                        color: "#6b7a96",
+                        margin: "0 0 4px 0",
+                      }}
+                    >
                       Tipe / Jenis Kendaraan
                     </p>
                     <p
@@ -2631,8 +2822,20 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                       {vehicleDetailModal.vehicleType}
                     </p>
                   </div>
-                  <div style={{ background: "#f8fafc", padding: "12px", borderRadius: "8px" }}>
-                    <p style={{ fontSize: "12px", color: "#6b7a96", margin: "0 0 4px 0" }}>
+                  <div
+                    style={{
+                      background: "#f8fafc",
+                      padding: "12px",
+                      borderRadius: "8px",
+                    }}
+                  >
+                    <p
+                      style={{
+                        fontSize: "12px",
+                        color: "#6b7a96",
+                        margin: "0 0 4px 0",
+                      }}
+                    >
                       Nomor Buku Uji KIR
                     </p>
                     <p
@@ -2647,8 +2850,20 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                       {vehicleDetailModal.testNumber || "-"}
                     </p>
                   </div>
-                  <div style={{ background: "#f8fafc", padding: "12px", borderRadius: "8px" }}>
-                    <p style={{ fontSize: "12px", color: "#6b7a96", margin: "0 0 4px 0" }}>
+                  <div
+                    style={{
+                      background: "#f8fafc",
+                      padding: "12px",
+                      borderRadius: "8px",
+                    }}
+                  >
+                    <p
+                      style={{
+                        fontSize: "12px",
+                        color: "#6b7a96",
+                        margin: "0 0 4px 0",
+                      }}
+                    >
                       ID Kendaraan (Internal)
                     </p>
                     <p
@@ -2679,7 +2894,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                     borderBottom: "2px solid #e2e8f0",
                   }}
                 >
-                  📅 Masa Berlaku Dokumen
+                  Masa Berlaku Dokumen
                 </h4>
                 <div
                   style={{
@@ -2688,8 +2903,22 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                     gap: "12px",
                   }}
                 >
-                  <div style={{ background: "#f0fdf4", padding: "12px", borderRadius: "8px", border: "1px solid #bbf7d0" }}>
-                    <p style={{ fontSize: "12px", color: "#15803d", margin: "0 0 4px 0", fontWeight: "600" }}>
+                  <div
+                    style={{
+                      background: "#f0fdf4",
+                      padding: "12px",
+                      borderRadius: "8px",
+                      border: "1px solid #bbf7d0",
+                    }}
+                  >
+                    <p
+                      style={{
+                        fontSize: "12px",
+                        color: "#15803d",
+                        margin: "0 0 4px 0",
+                        fontWeight: "600",
+                      }}
+                    >
                       Uji KIR
                     </p>
                     <p
@@ -2710,7 +2939,9 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                       }}
                     >
                       {(() => {
-                        const days = getDaysRemaining(vehicleDetailModal.kirExpiry);
+                        const days = getDaysRemaining(
+                          vehicleDetailModal.kirExpiry,
+                        );
                         if (days <= 0) {
                           return `⚠️ Jatuh Tempo (${Math.abs(days)} hari lalu)`;
                         } else if (days <= 7) {
@@ -2722,8 +2953,22 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                       })()}
                     </p>
                   </div>
-                  <div style={{ background: "#f0fdf4", padding: "12px", borderRadius: "8px", border: "1px solid #bbf7d0" }}>
-                    <p style={{ fontSize: "12px", color: "#15803d", margin: "0 0 4px 0", fontWeight: "600" }}>
+                  <div
+                    style={{
+                      background: "#f0fdf4",
+                      padding: "12px",
+                      borderRadius: "8px",
+                      border: "1px solid #bbf7d0",
+                    }}
+                  >
+                    <p
+                      style={{
+                        fontSize: "12px",
+                        color: "#15803d",
+                        margin: "0 0 4px 0",
+                        fontWeight: "600",
+                      }}
+                    >
                       STNK (5 Tahun)
                     </p>
                     <p
@@ -2744,7 +2989,9 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                       }}
                     >
                       {(() => {
-                        const days = getDaysRemaining(vehicleDetailModal.stnkExpiry);
+                        const days = getDaysRemaining(
+                          vehicleDetailModal.stnkExpiry,
+                        );
                         if (days <= 0) {
                           return `⚠️ Jatuh Tempo (${Math.abs(days)} hari lalu)`;
                         } else if (days <= 7) {
@@ -2756,8 +3003,22 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                       })()}
                     </p>
                   </div>
-                  <div style={{ background: "#f0fdf4", padding: "12px", borderRadius: "8px", border: "1px solid #bbf7d0" }}>
-                    <p style={{ fontSize: "12px", color: "#15803d", margin: "0 0 4px 0", fontWeight: "600" }}>
+                  <div
+                    style={{
+                      background: "#f0fdf4",
+                      padding: "12px",
+                      borderRadius: "8px",
+                      border: "1px solid #bbf7d0",
+                    }}
+                  >
+                    <p
+                      style={{
+                        fontSize: "12px",
+                        color: "#15803d",
+                        margin: "0 0 4px 0",
+                        fontWeight: "600",
+                      }}
+                    >
                       Pajak (1 Tahun)
                     </p>
                     <p
@@ -2778,7 +3039,9 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                       }}
                     >
                       {(() => {
-                        const days = getDaysRemaining(vehicleDetailModal.pajakExpiry);
+                        const days = getDaysRemaining(
+                          vehicleDetailModal.pajakExpiry,
+                        );
                         if (days <= 0) {
                           return `⚠️ Jatuh Tempo (${Math.abs(days)} hari lalu)`;
                         } else if (days <= 7) {
@@ -2806,10 +3069,24 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                       borderBottom: "2px solid #e2e8f0",
                     }}
                   >
-                    🪪 SIM Driver
+                    SIM Driver
                   </h4>
-                  <div style={{ background: "#f0fdf4", padding: "12px", borderRadius: "8px", border: "1px solid #bbf7d0" }}>
-                    <p style={{ fontSize: "12px", color: "#15803d", margin: "0 0 4px 0", fontWeight: "600" }}>
+                  <div
+                    style={{
+                      background: "#f0fdf4",
+                      padding: "12px",
+                      borderRadius: "8px",
+                      border: "1px solid #bbf7d0",
+                    }}
+                  >
+                    <p
+                      style={{
+                        fontSize: "12px",
+                        color: "#15803d",
+                        margin: "0 0 4px 0",
+                        fontWeight: "600",
+                      }}
+                    >
                       Masa Berlaku SIM
                     </p>
                     <p
@@ -2830,7 +3107,9 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                       }}
                     >
                       {(() => {
-                        const days = getDaysRemaining(vehicleDetailModal.simDriverExpiry);
+                        const days = getDaysRemaining(
+                          vehicleDetailModal.simDriverExpiry,
+                        );
                         if (days <= 0) {
                           return `⚠️ Jatuh Tempo (${Math.abs(days)} hari lalu)`;
                         } else if (days <= 7) {
@@ -2857,7 +3136,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                     borderBottom: "2px solid #e2e8f0",
                   }}
                 >
-                  🎫 Data Kartu Kendaraan
+                  Data Sertifikat Kendaraan
                 </h4>
                 <div
                   style={{
@@ -2866,51 +3145,169 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                     gap: "12px",
                   }}
                 >
-                  <div style={{ background: "#f8fafc", padding: "12px", borderRadius: "8px" }}>
-                    <p style={{ fontSize: "12px", color: "#6b7a96", margin: "0 0 4px 0" }}>
+                  <div
+                    style={{
+                      background: "#f8fafc",
+                      padding: "12px",
+                      borderRadius: "8px",
+                    }}
+                  >
+                    <p
+                      style={{
+                        fontSize: "12px",
+                        color: "#6b7a96",
+                        margin: "0 0 4px 0",
+                      }}
+                    >
                       Nama Pemilik
                     </p>
-                    <p style={{ fontSize: "13px", fontWeight: "600", color: "#1C3967", margin: 0 }}>
+                    <p
+                      style={{
+                        fontSize: "13px",
+                        fontWeight: "600",
+                        color: "#1C3967",
+                        margin: 0,
+                      }}
+                    >
                       {vehicleDetailModal.ownerName || "-"}
                     </p>
                   </div>
-                  <div style={{ background: "#f8fafc", padding: "12px", borderRadius: "8px" }}>
-                    <p style={{ fontSize: "12px", color: "#6b7a96", margin: "0 0 4px 0" }}>
+                  <div
+                    style={{
+                      background: "#f8fafc",
+                      padding: "12px",
+                      borderRadius: "8px",
+                    }}
+                  >
+                    <p
+                      style={{
+                        fontSize: "12px",
+                        color: "#6b7a96",
+                        margin: "0 0 4px 0",
+                      }}
+                    >
                       Alamat Pemilik
                     </p>
-                    <p style={{ fontSize: "13px", fontWeight: "600", color: "#1C3967", margin: 0 }}>
+                    <p
+                      style={{
+                        fontSize: "13px",
+                        fontWeight: "600",
+                        color: "#1C3967",
+                        margin: 0,
+                      }}
+                    >
                       {vehicleDetailModal.ownerAddress || "-"}
                     </p>
                   </div>
-                  <div style={{ background: "#f8fafc", padding: "12px", borderRadius: "8px" }}>
-                    <p style={{ fontSize: "12px", color: "#6b7a96", margin: "0 0 4px 0" }}>
+                  <div
+                    style={{
+                      background: "#f8fafc",
+                      padding: "12px",
+                      borderRadius: "8px",
+                    }}
+                  >
+                    <p
+                      style={{
+                        fontSize: "12px",
+                        color: "#6b7a96",
+                        margin: "0 0 4px 0",
+                      }}
+                    >
                       No Pol / Nomor Plat
                     </p>
-                    <p style={{ fontSize: "13px", fontWeight: "600", color: "#1C3967", margin: 0, fontFamily: "monospace" }}>
+                    <p
+                      style={{
+                        fontSize: "13px",
+                        fontWeight: "600",
+                        color: "#1C3967",
+                        margin: 0,
+                        fontFamily: "monospace",
+                      }}
+                    >
                       {vehicleDetailModal.plateNumber}
                     </p>
                   </div>
-                  <div style={{ background: "#f8fafc", padding: "12px", borderRadius: "8px" }}>
-                    <p style={{ fontSize: "12px", color: "#6b7a96", margin: "0 0 4px 0" }}>
+                  <div
+                    style={{
+                      background: "#f8fafc",
+                      padding: "12px",
+                      borderRadius: "8px",
+                    }}
+                  >
+                    <p
+                      style={{
+                        fontSize: "12px",
+                        color: "#6b7a96",
+                        margin: "0 0 4px 0",
+                      }}
+                    >
                       No Rangka
                     </p>
-                    <p style={{ fontSize: "13px", fontWeight: "600", color: "#1C3967", margin: 0, fontFamily: "monospace" }}>
+                    <p
+                      style={{
+                        fontSize: "13px",
+                        fontWeight: "600",
+                        color: "#1C3967",
+                        margin: 0,
+                        fontFamily: "monospace",
+                      }}
+                    >
                       {vehicleDetailModal.frameNumber || "-"}
                     </p>
                   </div>
-                  <div style={{ background: "#f8fafc", padding: "12px", borderRadius: "8px" }}>
-                    <p style={{ fontSize: "12px", color: "#6b7a96", margin: "0 0 4px 0" }}>
+                  <div
+                    style={{
+                      background: "#f8fafc",
+                      padding: "12px",
+                      borderRadius: "8px",
+                    }}
+                  >
+                    <p
+                      style={{
+                        fontSize: "12px",
+                        color: "#6b7a96",
+                        margin: "0 0 4px 0",
+                      }}
+                    >
                       No Mesin
                     </p>
-                    <p style={{ fontSize: "13px", fontWeight: "600", color: "#1C3967", margin: 0, fontFamily: "monospace" }}>
+                    <p
+                      style={{
+                        fontSize: "13px",
+                        fontWeight: "600",
+                        color: "#1C3967",
+                        margin: 0,
+                        fontFamily: "monospace",
+                      }}
+                    >
                       {vehicleDetailModal.engineNumber || "-"}
                     </p>
                   </div>
-                  <div style={{ background: "#f8fafc", padding: "12px", borderRadius: "8px" }}>
-                    <p style={{ fontSize: "12px", color: "#6b7a96", margin: "0 0 4px 0" }}>
+                  <div
+                    style={{
+                      background: "#f8fafc",
+                      padding: "12px",
+                      borderRadius: "8px",
+                    }}
+                  >
+                    <p
+                      style={{
+                        fontSize: "12px",
+                        color: "#6b7a96",
+                        margin: "0 0 4px 0",
+                      }}
+                    >
                       No Uji Kendaraan
                     </p>
-                    <p style={{ fontSize: "13px", fontWeight: "600", color: "#1C3967", margin: 0, fontFamily: "monospace" }}>
+                    <p
+                      style={{
+                        fontSize: "13px",
+                        fontWeight: "600",
+                        color: "#1C3967",
+                        margin: 0,
+                        fontFamily: "monospace",
+                      }}
+                    >
                       {vehicleDetailModal.testNumber}
                     </p>
                   </div>
@@ -2929,7 +3326,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                     borderBottom: "2px solid #e2e8f0",
                   }}
                 >
-                  🪪 Data Kartu KIR
+                  Data Kartu KIR
                 </h4>
                 <div
                   style={{
@@ -2938,43 +3335,141 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                     gap: "12px",
                   }}
                 >
-                  <div style={{ background: "#f8fafc", padding: "12px", borderRadius: "8px" }}>
-                    <p style={{ fontSize: "12px", color: "#6b7a96", margin: "0 0 4px 0" }}>
+                  <div
+                    style={{
+                      background: "#f8fafc",
+                      padding: "12px",
+                      borderRadius: "8px",
+                    }}
+                  >
+                    <p
+                      style={{
+                        fontSize: "12px",
+                        color: "#6b7a96",
+                        margin: "0 0 4px 0",
+                      }}
+                    >
                       Nama Pemilik
                     </p>
-                    <p style={{ fontSize: "13px", fontWeight: "600", color: "#1C3967", margin: 0 }}>
+                    <p
+                      style={{
+                        fontSize: "13px",
+                        fontWeight: "600",
+                        color: "#1C3967",
+                        margin: 0,
+                      }}
+                    >
                       {vehicleDetailModal.ownerName || "-"}
                     </p>
                   </div>
-                  <div style={{ background: "#f8fafc", padding: "12px", borderRadius: "8px" }}>
-                    <p style={{ fontSize: "12px", color: "#6b7a96", margin: "0 0 4px 0" }}>
+                  <div
+                    style={{
+                      background: "#f8fafc",
+                      padding: "12px",
+                      borderRadius: "8px",
+                    }}
+                  >
+                    <p
+                      style={{
+                        fontSize: "12px",
+                        color: "#6b7a96",
+                        margin: "0 0 4px 0",
+                      }}
+                    >
                       No Pol / Nomor Plat
                     </p>
-                    <p style={{ fontSize: "13px", fontWeight: "600", color: "#1C3967", margin: 0, fontFamily: "monospace" }}>
+                    <p
+                      style={{
+                        fontSize: "13px",
+                        fontWeight: "600",
+                        color: "#1C3967",
+                        margin: 0,
+                        fontFamily: "monospace",
+                      }}
+                    >
                       {vehicleDetailModal.plateNumber}
                     </p>
                   </div>
-                  <div style={{ background: "#f8fafc", padding: "12px", borderRadius: "8px" }}>
-                    <p style={{ fontSize: "12px", color: "#6b7a96", margin: "0 0 4px 0" }}>
+                  <div
+                    style={{
+                      background: "#f8fafc",
+                      padding: "12px",
+                      borderRadius: "8px",
+                    }}
+                  >
+                    <p
+                      style={{
+                        fontSize: "12px",
+                        color: "#6b7a96",
+                        margin: "0 0 4px 0",
+                      }}
+                    >
                       No Uji Kendaraan
                     </p>
-                    <p style={{ fontSize: "13px", fontWeight: "600", color: "#1C3967", margin: 0, fontFamily: "monospace" }}>
+                    <p
+                      style={{
+                        fontSize: "13px",
+                        fontWeight: "600",
+                        color: "#1C3967",
+                        margin: 0,
+                        fontFamily: "monospace",
+                      }}
+                    >
                       {vehicleDetailModal.testNumber}
                     </p>
                   </div>
-                  <div style={{ background: "#f8fafc", padding: "12px", borderRadius: "8px" }}>
-                    <p style={{ fontSize: "12px", color: "#6b7a96", margin: "0 0 4px 0" }}>
+                  <div
+                    style={{
+                      background: "#f8fafc",
+                      padding: "12px",
+                      borderRadius: "8px",
+                    }}
+                  >
+                    <p
+                      style={{
+                        fontSize: "12px",
+                        color: "#6b7a96",
+                        margin: "0 0 4px 0",
+                      }}
+                    >
                       Jenis Kendaraan
                     </p>
-                    <p style={{ fontSize: "13px", fontWeight: "600", color: "#1C3967", margin: 0 }}>
+                    <p
+                      style={{
+                        fontSize: "13px",
+                        fontWeight: "600",
+                        color: "#1C3967",
+                        margin: 0,
+                      }}
+                    >
                       {vehicleDetailModal.vehicleType}
                     </p>
                   </div>
-                  <div style={{ background: "#f8fafc", padding: "12px", borderRadius: "8px", gridColumn: "1 / -1" }}>
-                    <p style={{ fontSize: "12px", color: "#6b7a96", margin: "0 0 4px 0" }}>
+                  <div
+                    style={{
+                      background: "#f8fafc",
+                      padding: "12px",
+                      borderRadius: "8px",
+                      gridColumn: "1 / -1",
+                    }}
+                  >
+                    <p
+                      style={{
+                        fontSize: "12px",
+                        color: "#6b7a96",
+                        margin: "0 0 4px 0",
+                      }}
+                    >
                       Merek / Tipe
                     </p>
-                    <p style={{ fontSize: "13px", fontWeight: "600", color: "#1C3967", margin: 0 }}>
+                    <p
+                      style={{
+                        fontSize: "13px",
+                        fontWeight: "600",
+                        color: "#1C3967",
+                        margin: 0,
+                      }}
+                    >
                       {vehicleDetailModal.brand || "-"}
                     </p>
                   </div>
@@ -2993,7 +3488,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                     borderBottom: "2px solid #e2e8f0",
                   }}
                 >
-                  📋 Data STNK
+                  Data STNK
                 </h4>
                 <div
                   style={{
@@ -3002,83 +3497,277 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                     gap: "12px",
                   }}
                 >
-                  <div style={{ background: "#f8fafc", padding: "12px", borderRadius: "8px" }}>
-                    <p style={{ fontSize: "12px", color: "#6b7a96", margin: "0 0 4px 0" }}>
+                  <div
+                    style={{
+                      background: "#f8fafc",
+                      padding: "12px",
+                      borderRadius: "8px",
+                    }}
+                  >
+                    <p
+                      style={{
+                        fontSize: "12px",
+                        color: "#6b7a96",
+                        margin: "0 0 4px 0",
+                      }}
+                    >
                       Nama Pemilik
                     </p>
-                    <p style={{ fontSize: "13px", fontWeight: "600", color: "#1C3967", margin: 0 }}>
+                    <p
+                      style={{
+                        fontSize: "13px",
+                        fontWeight: "600",
+                        color: "#1C3967",
+                        margin: 0,
+                      }}
+                    >
                       {vehicleDetailModal.ownerName || "-"}
                     </p>
                   </div>
-                  <div style={{ background: "#f8fafc", padding: "12px", borderRadius: "8px" }}>
-                    <p style={{ fontSize: "12px", color: "#6b7a96", margin: "0 0 4px 0" }}>
+                  <div
+                    style={{
+                      background: "#f8fafc",
+                      padding: "12px",
+                      borderRadius: "8px",
+                    }}
+                  >
+                    <p
+                      style={{
+                        fontSize: "12px",
+                        color: "#6b7a96",
+                        margin: "0 0 4px 0",
+                      }}
+                    >
                       No Pol / Nomor Plat
                     </p>
-                    <p style={{ fontSize: "13px", fontWeight: "600", color: "#1C3967", margin: 0, fontFamily: "monospace" }}>
+                    <p
+                      style={{
+                        fontSize: "13px",
+                        fontWeight: "600",
+                        color: "#1C3967",
+                        margin: 0,
+                        fontFamily: "monospace",
+                      }}
+                    >
                       {vehicleDetailModal.plateNumber}
                     </p>
                   </div>
-                  <div style={{ background: "#f8fafc", padding: "12px", borderRadius: "8px", gridColumn: "1 / -1" }}>
-                    <p style={{ fontSize: "12px", color: "#6b7a96", margin: "0 0 4px 0" }}>
+                  <div
+                    style={{
+                      background: "#f8fafc",
+                      padding: "12px",
+                      borderRadius: "8px",
+                      gridColumn: "1 / -1",
+                    }}
+                  >
+                    <p
+                      style={{
+                        fontSize: "12px",
+                        color: "#6b7a96",
+                        margin: "0 0 4px 0",
+                      }}
+                    >
                       Alamat Pemilik
                     </p>
-                    <p style={{ fontSize: "13px", fontWeight: "600", color: "#1C3967", margin: 0 }}>
+                    <p
+                      style={{
+                        fontSize: "13px",
+                        fontWeight: "600",
+                        color: "#1C3967",
+                        margin: 0,
+                      }}
+                    >
                       {vehicleDetailModal.ownerAddress || "-"}
                     </p>
                   </div>
-                  <div style={{ background: "#f8fafc", padding: "12px", borderRadius: "8px" }}>
-                    <p style={{ fontSize: "12px", color: "#6b7a96", margin: "0 0 4px 0" }}>
+                  <div
+                    style={{
+                      background: "#f8fafc",
+                      padding: "12px",
+                      borderRadius: "8px",
+                    }}
+                  >
+                    <p
+                      style={{
+                        fontSize: "12px",
+                        color: "#6b7a96",
+                        margin: "0 0 4px 0",
+                      }}
+                    >
                       Merek
                     </p>
-                    <p style={{ fontSize: "13px", fontWeight: "600", color: "#1C3967", margin: 0 }}>
+                    <p
+                      style={{
+                        fontSize: "13px",
+                        fontWeight: "600",
+                        color: "#1C3967",
+                        margin: 0,
+                      }}
+                    >
                       {vehicleDetailModal.brand || "-"}
                     </p>
                   </div>
-                  <div style={{ background: "#f8fafc", padding: "12px", borderRadius: "8px" }}>
-                    <p style={{ fontSize: "12px", color: "#6b7a96", margin: "0 0 4px 0" }}>
+                  <div
+                    style={{
+                      background: "#f8fafc",
+                      padding: "12px",
+                      borderRadius: "8px",
+                    }}
+                  >
+                    <p
+                      style={{
+                        fontSize: "12px",
+                        color: "#6b7a96",
+                        margin: "0 0 4px 0",
+                      }}
+                    >
                       Type Kendaraan
                     </p>
-                    <p style={{ fontSize: "13px", fontWeight: "600", color: "#1C3967", margin: 0 }}>
+                    <p
+                      style={{
+                        fontSize: "13px",
+                        fontWeight: "600",
+                        color: "#1C3967",
+                        margin: 0,
+                      }}
+                    >
                       {vehicleDetailModal.vehicleType}
                     </p>
                   </div>
-                  <div style={{ background: "#f8fafc", padding: "12px", borderRadius: "8px" }}>
-                    <p style={{ fontSize: "12px", color: "#6b7a96", margin: "0 0 4px 0" }}>
+                  <div
+                    style={{
+                      background: "#f8fafc",
+                      padding: "12px",
+                      borderRadius: "8px",
+                    }}
+                  >
+                    <p
+                      style={{
+                        fontSize: "12px",
+                        color: "#6b7a96",
+                        margin: "0 0 4px 0",
+                      }}
+                    >
                       Jenis Kendaraan
                     </p>
-                    <p style={{ fontSize: "13px", fontWeight: "600", color: "#1C3967", margin: 0 }}>
+                    <p
+                      style={{
+                        fontSize: "13px",
+                        fontWeight: "600",
+                        color: "#1C3967",
+                        margin: 0,
+                      }}
+                    >
                       {vehicleDetailModal.vehicleType}
                     </p>
                   </div>
-                  <div style={{ background: "#f8fafc", padding: "12px", borderRadius: "8px" }}>
-                    <p style={{ fontSize: "12px", color: "#6b7a96", margin: "0 0 4px 0" }}>
+                  <div
+                    style={{
+                      background: "#f8fafc",
+                      padding: "12px",
+                      borderRadius: "8px",
+                    }}
+                  >
+                    <p
+                      style={{
+                        fontSize: "12px",
+                        color: "#6b7a96",
+                        margin: "0 0 4px 0",
+                      }}
+                    >
                       Model Kendaraan
                     </p>
-                    <p style={{ fontSize: "13px", fontWeight: "600", color: "#1C3967", margin: 0 }}>
+                    <p
+                      style={{
+                        fontSize: "13px",
+                        fontWeight: "600",
+                        color: "#1C3967",
+                        margin: 0,
+                      }}
+                    >
                       {vehicleDetailModal.model || "-"}
                     </p>
                   </div>
-                  <div style={{ background: "#f8fafc", padding: "12px", borderRadius: "8px" }}>
-                    <p style={{ fontSize: "12px", color: "#6b7a96", margin: "0 0 4px 0" }}>
+                  <div
+                    style={{
+                      background: "#f8fafc",
+                      padding: "12px",
+                      borderRadius: "8px",
+                    }}
+                  >
+                    <p
+                      style={{
+                        fontSize: "12px",
+                        color: "#6b7a96",
+                        margin: "0 0 4px 0",
+                      }}
+                    >
                       Tahun Buat
                     </p>
-                    <p style={{ fontSize: "13px", fontWeight: "600", color: "#1C3967", margin: 0 }}>
+                    <p
+                      style={{
+                        fontSize: "13px",
+                        fontWeight: "600",
+                        color: "#1C3967",
+                        margin: 0,
+                      }}
+                    >
                       {vehicleDetailModal.yearManufactured || "-"}
                     </p>
                   </div>
-                  <div style={{ background: "#f8fafc", padding: "12px", borderRadius: "8px" }}>
-                    <p style={{ fontSize: "12px", color: "#6b7a96", margin: "0 0 4px 0" }}>
+                  <div
+                    style={{
+                      background: "#f8fafc",
+                      padding: "12px",
+                      borderRadius: "8px",
+                    }}
+                  >
+                    <p
+                      style={{
+                        fontSize: "12px",
+                        color: "#6b7a96",
+                        margin: "0 0 4px 0",
+                      }}
+                    >
                       No Rangka
                     </p>
-                    <p style={{ fontSize: "13px", fontWeight: "600", color: "#1C3967", margin: 0, fontFamily: "monospace" }}>
+                    <p
+                      style={{
+                        fontSize: "13px",
+                        fontWeight: "600",
+                        color: "#1C3967",
+                        margin: 0,
+                        fontFamily: "monospace",
+                      }}
+                    >
                       {vehicleDetailModal.frameNumber || "-"}
                     </p>
                   </div>
-                  <div style={{ background: "#f8fafc", padding: "12px", borderRadius: "8px" }}>
-                    <p style={{ fontSize: "12px", color: "#6b7a96", margin: "0 0 4px 0" }}>
+                  <div
+                    style={{
+                      background: "#f8fafc",
+                      padding: "12px",
+                      borderRadius: "8px",
+                    }}
+                  >
+                    <p
+                      style={{
+                        fontSize: "12px",
+                        color: "#6b7a96",
+                        margin: "0 0 4px 0",
+                      }}
+                    >
                       No Mesin
                     </p>
-                    <p style={{ fontSize: "13px", fontWeight: "600", color: "#1C3967", margin: 0, fontFamily: "monospace" }}>
+                    <p
+                      style={{
+                        fontSize: "13px",
+                        fontWeight: "600",
+                        color: "#1C3967",
+                        margin: 0,
+                        fontFamily: "monospace",
+                      }}
+                    >
                       {vehicleDetailModal.engineNumber || "-"}
                     </p>
                   </div>
@@ -3097,7 +3786,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                     borderBottom: "2px solid #e2e8f0",
                   }}
                 >
-                  📄 Status Dokumen
+                  Status Dokumen
                 </h4>
                 <div
                   style={{
@@ -3108,7 +3797,11 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                 >
                   {[
                     { key: "kartuKir", label: "Kartu KIR", icon: "🪪" },
-                    { key: "sertifikatKir", label: "Sertifikat KIR", icon: "📜" },
+                    {
+                      key: "sertifikatKir",
+                      label: "Sertifikat KIR",
+                      icon: "📜",
+                    },
                     { key: "stnk", label: "STNK", icon: "📋" },
                   ].map(({ key, label, icon }) => {
                     const isHilang = vehicleDetailModal[`${key}Hilang`];
@@ -3139,10 +3832,18 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                             alignItems: "center",
                           }}
                         >
-                          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                            <span style={{ fontSize: "18px" }}>{icon}</span>
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "8px",
+                            }}
+                          >
+                            <span style={{ fontSize: "18px", display: "none" }}>{icon}</span>
                             <div>
-                              <strong style={{ fontSize: "13px", color: "#1C3967" }}>
+                              <strong
+                                style={{ fontSize: "13px", color: "#1C3967" }}
+                              >
                                 {label}
                               </strong>
                               {isHilang ? (
@@ -3198,7 +3899,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                       borderBottom: "2px solid #e2e8f0",
                     }}
                   >
-                    📝 Catatan Tambahan
+                    Catatan Tambahan
                   </h4>
                   <div
                     style={{
