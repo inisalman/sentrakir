@@ -1,0 +1,757 @@
+import React, { useState, useEffect } from "react";
+import { GoogleOAuthProvider, GoogleLogin } from "@react-oauth/google";
+import { jwtDecode } from "jwt-decode";
+import "../../styles/fleet.css";
+import {
+  getFleetDatabase,
+  initFleetData,
+  getAdminByEmail,
+  getAdminByCode,
+  validateRegistrationCode,
+  ADMINS
+} from "../../utils/fleetMockData.js";
+import ClientDashboard from "./ClientDashboard.jsx";
+import AdminDashboard from "./AdminDashboard.jsx";
+
+// Ganti dengan Google Client ID milik Anda dari Google Cloud Console
+const GOOGLE_CLIENT_ID = "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com";
+
+// Custom router hook/logic
+const useFleetPath = () => {
+  const [path, setPath] = useState(window.location.pathname);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      setPath(window.location.pathname);
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
+  const navigate = (toPath) => {
+    window.history.pushState(null, "", toPath);
+    setPath(toPath);
+  };
+
+  return { path, navigate };
+};
+
+export default function FleetPortal() {
+  const { path, navigate } = useFleetPath();
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  // Authentication states
+  useEffect(() => {
+    // Initialize mock database if not already
+    initFleetData();
+
+    // Check localStorage session
+    const loggedIn = localStorage.getItem("fleet_logged_in") === "true";
+    const role = localStorage.getItem("fleet_user_role");
+    const clientId = localStorage.getItem("fleet_client_id");
+    const adminId = localStorage.getItem("fleet_admin_id");
+    const email = localStorage.getItem("fleet_user_email");
+    const companyName = localStorage.getItem("fleet_company_name");
+
+    if (loggedIn && role) {
+      setUser({ role, clientId, adminId, email, companyName });
+    }
+    setLoading(false);
+  }, []);
+
+  const handleLogin = (role, id, email, companyName) => {
+    localStorage.setItem("fleet_logged_in", "true");
+    localStorage.setItem("fleet_user_role", role);
+    localStorage.setItem("fleet_user_email", email);
+    if (role === "admin") {
+      localStorage.setItem("fleet_admin_id", id);
+      localStorage.removeItem("fleet_client_id");
+    } else {
+      localStorage.setItem("fleet_client_id", id);
+      localStorage.removeItem("fleet_admin_id");
+    }
+    if (companyName) localStorage.setItem("fleet_company_name", companyName);
+
+    setUser({
+      role,
+      clientId: role === "client" ? id : null,
+      adminId: role === "admin" ? id : null,
+      email,
+      companyName
+    });
+
+    if (role === "admin") {
+      navigate("/fleet/admin/dashboard");
+    } else {
+      navigate("/fleet/client/dashboard");
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("fleet_logged_in");
+    localStorage.removeItem("fleet_user_role");
+    localStorage.removeItem("fleet_client_id");
+    localStorage.removeItem("fleet_admin_id");
+    localStorage.removeItem("fleet_user_email");
+    localStorage.removeItem("fleet_company_name");
+    setUser(null);
+    navigate("/fleet/login");
+  };
+
+  if (loading) {
+    return (
+      <div
+        className="fleet-portal-wrapper"
+        style={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          height: "100vh",
+        }}
+      >
+        <div className="dashboard-loading-spinner"></div>
+      </div>
+    );
+  }
+
+  // Route protection
+  const isAuthenticated = !!user;
+
+  if (!isAuthenticated) {
+    if (path === "/fleet/register") {
+      return (
+        <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+          <RegisterPage onLogin={handleLogin} navigate={navigate} />
+        </GoogleOAuthProvider>
+      );
+    }
+    // Any other path goes to Login
+    return (
+      <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+        <LoginPage onLogin={handleLogin} navigate={navigate} />
+      </GoogleOAuthProvider>
+    );
+  }
+
+  // Logged-in routing
+  if (user.role === "admin") {
+    // Admin subpages
+    return (
+      <AdminDashboard
+        user={user}
+        onLogout={handleLogout}
+        currentPath={path}
+        navigate={navigate}
+      />
+    );
+  } else {
+    // Client subpages
+    return (
+      <ClientDashboard
+        user={user}
+        onLogout={handleLogout}
+        currentPath={path}
+        navigate={navigate}
+      />
+    );
+  }
+}
+
+// ----------------------------------------------------
+// LOGIN PAGE COMPONENT
+// ----------------------------------------------------
+function LoginPage({ onLogin, navigate }) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [roleTab, setRoleTab] = useState("client"); // client | admin
+  const [error, setError] = useState("");
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    setError("");
+
+    if (!email || !password) {
+      setError("Email dan password harus diisi.");
+      return;
+    }
+
+    const db = getFleetDatabase();
+
+    if (roleTab === "admin") {
+      // Admin Authentication
+      const admin = getAdminByEmail(email);
+      if (admin) {
+        onLogin("admin", admin.id, email, `${admin.name} Admin`);
+      } else {
+        setError("Kredensial Admin tidak valid.");
+      }
+    } else {
+      // Client Authentication
+      const company = db.companies.find(
+        (c) => c.email.toLowerCase() === email.toLowerCase(),
+      );
+      if (company) {
+        if (company.status !== "active") {
+          setError("Akun perusahaan Anda sedang tidak aktif.");
+          return;
+        }
+        onLogin("client", company.id, company.email, company.name);
+      } else {
+        setError("Email perusahaan tidak terdaftar.");
+      }
+    }
+  };
+
+  return (
+    <div className="fleet-login-bg">
+      <div className="fleet-login-card">
+        <div className="fleet-login-header">
+          <img
+            src="/logo-sentra-kir.png"
+            alt="Sentra KIR Logo"
+            className="fleet-login-logo"
+            style={{ objectFit: "contain" }}
+          />
+          <h1 className="fleet-login-title">Sentra Fleet</h1>
+          <p className="fleet-login-subtitle">
+            B2B Compliance Portal & Fleet Administration Management
+          </p>
+        </div>
+
+        <div className="role-tabs">
+          <button
+            type="button"
+            className={`role-tab-btn ${roleTab === "client" ? "active" : ""}`}
+            onClick={() => {
+              setRoleTab("client");
+              setError("");
+            }}
+          >
+            Klien Perusahaan
+          </button>
+          <button
+            type="button"
+            className={`role-tab-btn ${roleTab === "admin" ? "active" : ""}`}
+            onClick={() => {
+              setRoleTab("admin");
+              setError("");
+            }}
+          >
+            Administrator
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit}>
+          <div className="fleet-form-group">
+            <label className="fleet-label">Alamat Email</label>
+            <input
+              type="email"
+              className="fleet-input"
+              placeholder="nama@perusahaan.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </div>
+
+          <div className="fleet-form-group">
+            <label className="fleet-label">Password</label>
+            <input
+              type="password"
+              className="fleet-input"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+          </div>
+
+          {error && (
+            <div
+              style={{
+                color: "#dc2626",
+                fontSize: "13px",
+                margin: "-10px 0 20px 0",
+                textAlign: "left",
+                fontWeight: "600",
+              }}
+            >
+              ⚠️ {error}
+            </div>
+          )}
+
+          <button type="submit" className="fleet-btn-submit">
+            Masuk ke Portal
+          </button>
+        </form>
+
+        {/* Google Login */}
+        <div style={{ marginTop: "20px", textAlign: "center" }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "12px",
+              marginBottom: "16px",
+            }}
+          >
+            <div style={{ flex: 1, borderTop: "1px solid #e2e8f0" }}></div>
+            <span
+              style={{
+                fontSize: "12px",
+                color: "#94a3b8",
+                whiteSpace: "nowrap",
+              }}
+            >
+              atau masuk dengan
+            </span>
+            <div style={{ flex: 1, borderTop: "1px solid #e2e8f0" }}></div>
+          </div>
+          <GoogleLogin
+            onSuccess={(credentialResponse) => {
+              if (credentialResponse.credential) {
+                const decoded = jwtDecode(credentialResponse.credential);
+                const { email, name } = decoded;
+                const db = getFleetDatabase();
+                if (roleTab === "admin") {
+                  const admin = getAdminByEmail(email);
+                  if (admin) {
+                    onLogin("admin", admin.id, email, `${admin.name} Admin`);
+                  } else {
+                    setError("Akun Google tidak terdaftar sebagai Admin.");
+                  }
+                } else {
+                  const company = db.companies.find(
+                    (c) => c.email.toLowerCase() === email.toLowerCase(),
+                  );
+                  if (company) {
+                    if (company.status !== "active") {
+                      setError("Akun perusahaan Anda sedang tidak aktif.");
+                      return;
+                    }
+                    onLogin("client", company.id, email, company.name);
+                  } else {
+                    setError(
+                      "Email Google tidak terdaftar. Silakan daftar terlebih dahulu.",
+                    );
+                  }
+                }
+              }
+            }}
+            onError={() => setError("Login Google gagal. Silakan coba lagi.")}
+            theme="outline"
+            size="large"
+            text="signin_with"
+            shape="rectangular"
+            width="300"
+          />
+        </div>
+
+        {roleTab === "client" && (
+          <p
+            style={{
+              marginTop: "24px",
+              fontSize: "14px",
+              color: "#6b7a96",
+              textAlign: "center",
+            }}
+          >
+            Perusahaan Anda belum terdaftar?{" "}
+            <span
+              style={{
+                color: "#1C3967",
+                fontWeight: "700",
+                cursor: "pointer",
+                textDecoration: "underline",
+              }}
+              onClick={() => navigate("/fleet/register")}
+            >
+              Daftar Sekarang
+            </span>
+          </p>
+        )}
+
+        <div style={{ marginTop: "20px", textAlign: "center" }}>
+          <a
+            href="/"
+            style={{
+              fontSize: "13px",
+              color: "#6b7a96",
+              textDecoration: "none",
+            }}
+          >
+            ← Kembali ke Landing Page
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ----------------------------------------------------
+// REGISTER PAGE COMPONENT
+// ----------------------------------------------------
+function RegisterPage({ onLogin, navigate }) {
+  const [formData, setFormData] = useState({
+    name: "",
+    picName: "",
+    picPhone: "",
+    email: "",
+    password: "",
+    address: "",
+    membershipTier: "kecil", // kecil, menengah, besar
+  });
+  const [registrationCode, setRegistrationCode] = useState("");
+  const [error, setError] = useState("");
+
+  const handleChange = (e) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value,
+    });
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    setError("");
+
+    // Validations
+    if (
+      !formData.name ||
+      !formData.picName ||
+      !formData.picPhone ||
+      !formData.email ||
+      !formData.password ||
+      !registrationCode
+    ) {
+      setError("Mohon lengkapi seluruh kolom wajib termasuk Kode Pendaftaran.");
+      return;
+    }
+
+    // Validate registration code
+    const codeResult = validateRegistrationCode(registrationCode.trim().toUpperCase());
+    if (!codeResult.valid) {
+      setError("Kode Pendaftaran tidak valid. Gunakan 'SENTRA-2024' atau 'PADAJAYA-2024'.");
+      return;
+    }
+
+    const db = getFleetDatabase();
+
+    // Check if email already registered
+    const emailExists = db.companies.some(
+      (c) => c.email.toLowerCase() === formData.email.toLowerCase(),
+    );
+    if (emailExists) {
+      setError(
+        "Email ini sudah terdaftar. Silakan gunakan email lain atau login.",
+      );
+      return;
+    }
+
+    // Add company
+    const newCompanyId = `comp-${Date.now()}`;
+    const pricing = {
+      kecil: 499000,
+      menengah: 999000,
+      besar: "Custom Pricing",
+    };
+
+    const newCompany = {
+      id: newCompanyId,
+      name: formData.name,
+      picName: formData.picName,
+      picPhone: formData.picPhone,
+      email: formData.email,
+      address: formData.address,
+      membershipTier: formData.membershipTier,
+      membershipPrice: pricing[formData.membershipTier],
+      status: "active",
+      adminId: codeResult.admin.id, // Store which admin handles this client
+      registrationCodeUsed: registrationCode.trim().toUpperCase()
+    };
+
+    db.companies.push(newCompany);
+    localStorage.setItem("sentra_fleet_database", JSON.stringify(db));
+
+    // Log in immediately
+    onLogin("client", newCompanyId, formData.email, formData.name);
+  };
+
+  return (
+    <div className="fleet-login-bg">
+      <div className="fleet-login-card" style={{ maxWidth: "560px" }}>
+        <div className="fleet-login-header">
+          <img
+            src="/logo-sentra-kir.png"
+            alt="Sentra KIR Logo"
+            className="fleet-login-logo"
+            style={{ objectFit: "contain" }}
+          />
+          <h1 className="fleet-login-title">Daftar Sentra Fleet</h1>
+          <p className="fleet-login-subtitle">
+            Registrasi Layanan Kepatuhan Armada B2B
+          </p>
+        </div>
+
+        <form onSubmit={handleSubmit}>
+          <div className="fleet-form-group">
+            <label className="fleet-label">Nama Perusahaan *</label>
+            <input
+              type="text"
+              name="name"
+              className="fleet-input"
+              placeholder="PT Maju Bersama Logistik"
+              value={formData.name}
+              onChange={handleChange}
+              required
+            />
+          </div>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: "16px",
+            }}
+          >
+            <div className="fleet-form-group">
+              <label className="fleet-label">Nama PIC *</label>
+              <input
+                type="text"
+                name="picName"
+                className="fleet-input"
+                placeholder="Ahmad Yani"
+                value={formData.picName}
+                onChange={handleChange}
+                required
+              />
+            </div>
+            <div className="fleet-form-group">
+              <label className="fleet-label">No. WhatsApp PIC *</label>
+              <input
+                type="text"
+                name="picPhone"
+                className="fleet-input"
+                placeholder="62812xxxxxx"
+                value={formData.picPhone}
+                onChange={handleChange}
+                required
+              />
+            </div>
+          </div>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: "16px",
+            }}
+          >
+            <div className="fleet-form-group">
+              <label className="fleet-label">Email Perusahaan *</label>
+              <input
+                type="email"
+                name="email"
+                className="fleet-input"
+                placeholder="pic@perusahaan.com"
+                value={formData.email}
+                onChange={handleChange}
+                required
+              />
+            </div>
+            <div className="fleet-form-group">
+              <label className="fleet-label">Password *</label>
+              <input
+                type="password"
+                name="password"
+                className="fleet-input"
+                placeholder="Buat password..."
+                value={formData.password}
+                onChange={handleChange}
+                required
+              />
+            </div>
+          </div>
+
+          <div className="fleet-form-group">
+            <label className="fleet-label">
+              Ukuran Armada (Membership Tier)
+            </label>
+            <select
+              name="membershipTier"
+              className="fleet-input"
+              value={formData.membershipTier}
+              onChange={handleChange}
+              style={{ background: "white" }}
+            >
+              <option value="kecil">
+                Kecil (1-30 Kendaraan) - Rp 499rb/bln
+              </option>
+              <option value="menengah">
+                Menengah (31-100 Kendaraan) - Rp 999rb/bln
+              </option>
+              <option value="besar">
+                Besar (100+ Kendaraan) - Custom Pricing
+              </option>
+            </select>
+          </div>
+
+          <div className="fleet-form-group">
+            <label className="fleet-label">Kode Pendaftaran Administrator *</label>
+            <div style={{
+              background: '#f8fafc',
+              border: '1px solid #cbd5e1',
+              borderRadius: '8px',
+              padding: '12px',
+              fontSize: '12px',
+              color: '#475569',
+              marginBottom: '8px',
+              lineHeight: '1.5'
+            }}>
+              💡 <strong>Pilihan Administrator Anda:</strong>
+              <ul style={{ margin: '6px 0 0 0', paddingLeft: '20px' }}>
+                <li>Untuk <strong>Admin Sentra</strong>, gunakan kode: <strong style={{ color: '#1C3967' }}>SENTRA-2024</strong></li>
+                <li>Untuk <strong>Admin Padajaya</strong>, gunakan kode: <strong style={{ color: '#1C3967' }}>PADAJAYA-2024</strong></li>
+              </ul>
+            </div>
+            <input
+              type="text"
+              name="registrationCode"
+              className="fleet-input"
+              placeholder="Masukkan kode SENTRA-2024 atau PADAJAYA-2024"
+              value={registrationCode}
+              onChange={(e) => setRegistrationCode(e.target.value)}
+              required
+              style={{ textTransform: 'uppercase' }}
+            />
+          </div>
+
+          <div className="fleet-form-group">
+            <label className="fleet-label">Alamat Kantor</label>
+            <textarea
+              name="address"
+              className="fleet-input"
+              placeholder="Jl. Raya Cakung No. 10..."
+              value={formData.address}
+              onChange={handleChange}
+              rows="2"
+              style={{ resize: "vertical", fontFamily: "inherit" }}
+            />
+          </div>
+
+          {error && (
+            <div
+              style={{
+                color: "#dc2626",
+                fontSize: "13px",
+                margin: "-10px 0 20px 0",
+                textAlign: "left",
+                fontWeight: "600",
+              }}
+            >
+              ⚠️ {error}
+            </div>
+          )}
+
+          <button type="submit" className="fleet-btn-submit">
+            Daftar & Masuk Dashboard
+          </button>
+        </form>
+
+        {/* Google Register */}
+        <div style={{ marginTop: "20px", textAlign: "center" }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "12px",
+              marginBottom: "16px",
+            }}
+          >
+            <div style={{ flex: 1, borderTop: "1px solid #e2e8f0" }}></div>
+            <span
+              style={{
+                fontSize: "12px",
+                color: "#94a3b8",
+                whiteSpace: "nowrap",
+              }}
+            >
+              atau daftar dengan
+            </span>
+            <div style={{ flex: 1, borderTop: "1px solid #e2e8f0" }}></div>
+          </div>
+          <GoogleLogin
+            onSuccess={(credentialResponse) => {
+              if (credentialResponse.credential) {
+                const decoded = jwtDecode(credentialResponse.credential);
+                const { email, name } = decoded;
+                const db = getFleetDatabase();
+
+                // Check if already registered
+                const emailExists = db.companies.some(
+                  (c) => c.email.toLowerCase() === email.toLowerCase(),
+                );
+                if (emailExists) {
+                  setError("Email Google sudah terdaftar. Silakan login.");
+                  return;
+                }
+
+                // Auto-create company with Google data
+                const newCompanyId = `comp-${Date.now()}`;
+                const newCompany = {
+                  id: newCompanyId,
+                  name: name || "Perusahaan Baru",
+                  picName: name || "",
+                  picPhone: "",
+                  email: email,
+                  address: "",
+                  membershipTier: "kecil",
+                  membershipPrice: 499000,
+                  status: "active",
+                };
+
+                db.companies.push(newCompany);
+                localStorage.setItem(
+                  "sentra_fleet_database",
+                  JSON.stringify(db),
+                );
+                onLogin("client", newCompanyId, email, newCompany.name);
+              }
+            }}
+            onError={() =>
+              setError("Daftar dengan Google gagal. Silakan coba lagi.")
+            }
+            theme="outline"
+            size="large"
+            text="signup_with"
+            shape="rectangular"
+            width="300"
+          />
+        </div>
+
+        <p
+          style={{
+            marginTop: "24px",
+            fontSize: "14px",
+            color: "#6b7a96",
+            textAlign: "center",
+          }}
+        >
+          Sudah terdaftar?{" "}
+          <span
+            style={{
+              color: "#1C3967",
+              fontWeight: "700",
+              cursor: "pointer",
+              textDecoration: "underline",
+            }}
+            onClick={() => navigate("/fleet/login")}
+          >
+            Masuk Portal
+          </span>
+        </p>
+      </div>
+    </div>
+  );
+}

@@ -13,12 +13,18 @@ import PadajayaAbout from './components/padajaya/PadajayaAbout.jsx'
 import PadajayaWhyUs from './components/padajaya/PadajayaWhyUs.jsx'
 import PadajayaProcess from './components/padajaya/PadajayaProcess.jsx'
 import Dashboard from './components/Dashboard/Dashboard.jsx'
+import FleetPortal from './components/Fleet/FleetPortal.jsx'
 
 export default function App() {
   const pathname = window.location.pathname
 
-  // Dashboard route - hanya bisa diakses lewat /admin secara langsung
-  if (pathname === '/admin') {
+  // Fleet routes (/fleet or /fleet/*)
+  if (pathname === '/fleet' || pathname.startsWith('/fleet/')) {
+    return <FleetPortal />
+  }
+
+  // Dashboard routes (/dashboard or /admin)
+  if (pathname === '/dashboard' || pathname === '/admin') {
     return <Dashboard />
   }
 

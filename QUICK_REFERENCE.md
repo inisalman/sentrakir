@@ -1,3 +1,16 @@
+# 🚀 QUICK REFERENCE GUIDE - SENTRA FLEET PORTAL
+
+## 👥 MULTI-ADMIN SYSTEM (Terbaru)
+
+| Admin | Email Login | Kode Registrasi Client | Layanan |
+|-------|-------------|------------------------|---------|
+| **Sentra** (Utama) | `admin@sentrakir.com` | `SENTRA-2024` | KIR, Buka Blokir, Lapor Hilang, Media Nasional |
+| **Padajaya** (Kedua) | `admin@padajaya.com` | `PADAJAYA-2024` | STNK, Pajak (+ semua dari client sendiri) |
+
+**Routing Otomatis**: Request STNK/Pajak/Multiple dari client Sentra → otomatis ke Admin Padajaya (beserta info PIC, WA, Email, Nama PT untuk komunikasi). Lihat `FEATURE_MULTI_ADMIN_SYSTEM.md`.
+
+---
+
 # 🚀 QUICK REFERENCE GUIDE - FITUR PREVIEW DOKUMEN
 
 ## ⚡ 30-Second Summary

@@ -84,6 +84,9 @@ export default function Footer() {
             <li>
               <a href="#layanan">Pengurusan SIM</a>
             </li>
+            <li>
+              <a href="/fleet">Sentra Fleet (B2B)</a>
+            </li>
           </ul>
         </div>
 

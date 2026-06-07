@@ -10,6 +10,7 @@ import {
   addDocument,
   updateCompany,
   CURRENT_DATE_STR,
+  getAdminById,
 } from "../../utils/fleetMockData.js";
 
 export default function ClientDashboard({
@@ -25,9 +26,14 @@ export default function ClientDashboard({
   useEffect(() => {
     const subPath = currentPath.replace("/fleet/client/", "");
     if (
-      ["dashboard", "vehicles", "timeline", "requests", "billing", "settings"].includes(
-        subPath,
-      )
+      [
+        "dashboard",
+        "vehicles",
+        "timeline",
+        "requests",
+        "billing",
+        "settings",
+      ].includes(subPath)
     ) {
       setActiveTab(subPath);
     } else {
@@ -62,37 +68,31 @@ export default function ClientDashboard({
     {
       id: "dashboard",
       label: "Dashboard",
-      icon: "📊",
       path: "/fleet/client/dashboard",
     },
     {
       id: "vehicles",
       label: "Armada Kendaraan",
-      icon: "🚚",
       path: "/fleet/client/vehicles",
     },
     {
       id: "timeline",
       label: "Timeline Expiry",
-      icon: "📅",
       path: "/fleet/client/timeline",
     },
     {
       id: "requests",
       label: "Status Pengurusan",
-      icon: "📝",
       path: "/fleet/client/requests",
     },
     {
       id: "billing",
       label: "Membership & Billing",
-      icon: "💳",
       path: "/fleet/client/billing",
     },
     {
       id: "settings",
       label: "Pengaturan Akun",
-      icon: "⚙️",
       path: "/fleet/client/settings",
     },
   ];
@@ -117,7 +117,6 @@ export default function ClientDashboard({
                 className={`sidebar-link ${activeTab === item.id ? "active" : ""}`}
                 onClick={() => navigate(item.path)}
               >
-                <span>{item.icon}</span>
                 <span>{item.label}</span>
               </button>
             ))}
@@ -128,7 +127,6 @@ export default function ClientDashboard({
               onClick={onLogout}
               style={{ color: "#fca5a5" }}
             >
-              <span>🚪</span>
               <span>Keluar</span>
             </button>
           </div>
@@ -165,8 +163,26 @@ export default function ClientDashboard({
               </div>
               <div className="user-info">
                 <p className="user-name">{company.picName || "PIC Name"}</p>
-                <p className="user-role">
-                  {company.name || "Company Name"} (B2B Klien)
+                <p className="user-role" style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  <span>{company.name || "Company Name"} (B2B Klien)</span>
+                  {(() => {
+                    const clientAdmin = getAdminById(company.adminId) || { name: 'Sentra' };
+                    return (
+                      <span style={{
+                        fontSize: '10px',
+                        fontWeight: 'bold',
+                        color: '#1e40af',
+                        background: '#eff6ff',
+                        padding: '1px 6px',
+                        borderRadius: '4px',
+                        border: '1px solid #bfdbfe',
+                        alignSelf: 'flex-start',
+                        marginTop: '2px'
+                      }}>
+                        Admin: {clientAdmin.name}
+                      </span>
+                    );
+                  })()}
                 </p>
               </div>
             </div>
@@ -185,6 +201,7 @@ export default function ClientDashboard({
               vehicles={companyVehicles}
               docs={companyDocs}
               clientId={user.clientId}
+              company={company}
               onUpdate={refreshData}
             />
           )}
@@ -419,7 +436,7 @@ function DashboardView({ vehicles, requests, navigate }) {
 // ====================================================
 // SUB-VIEW 2: VEHICLE MANAGEMENT
 // ====================================================
-function VehiclesView({ vehicles, docs, clientId, onUpdate }) {
+function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
   const [search, setSearch] = useState("");
   const [modalType, setModalType] = useState(null); // 'add' | 'edit' | 'upload' | 'urus' | null
   const [selectedVehicle, setSelectedVehicle] = useState(null);
@@ -432,6 +449,7 @@ function VehiclesView({ vehicles, docs, clientId, onUpdate }) {
   const [rescanDocType, setRescanDocType] = useState(null); // 'kartuKir' | 'sertifikatKir' | 'stnk' | null
   const [scanningDoc, setScanningDoc] = useState(null); // docType being scanned right now
   const [previewDoc, setPreviewDoc] = useState(null); // { key, label, fileName, score } for preview modal
+  const [vehicleDetailModal, setVehicleDetailModal] = useState(null); // full vehicle data modal
 
   // Prevent body scroll when modal is open
   useEffect(() => {
@@ -535,36 +553,37 @@ function VehiclesView({ vehicles, docs, clientId, onUpdate }) {
   };
 
   const simulateOcrScan = (docType, fileName, shouldSucceed = true) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [`${docType}Status`]: 'scanning',
+      [`${docType}Status`]: "scanning",
       [`${docType}File`]: fileName,
-      [`${docType}Error`]: ''
+      [`${docType}Error`]: "",
     }));
 
     setTimeout(() => {
       if (shouldSucceed) {
         const score = Math.floor(Math.random() * 16) + 84; // 84% - 99%
-        setFormData(prev => ({
+        setFormData((prev) => ({
           ...prev,
-          [`${docType}Status`]: 'success',
+          [`${docType}Status`]: "success",
           [`${docType}Score`]: score,
-          [`${docType}Error`]: ''
+          [`${docType}Error`]: "",
         }));
       } else {
         const score = Math.floor(Math.random() * 15) + 55; // 55% - 70%
         const failReasons = [
-          'Dokumen blur/kabur pada area Plat Nomor',
-          'Dokumen terpotong pada area Nomor Uji KIR',
-          'Dokumen tidak terlihat jelas pada area Nomor Rangka',
-          'Dokumen buram/tidak terbaca pada area Nomor Mesin'
+          "Dokumen blur/kabur pada area Plat Nomor",
+          "Dokumen terpotong pada area Nomor Uji KIR",
+          "Dokumen tidak terlihat jelas pada area Nomor Rangka",
+          "Dokumen buram/tidak terbaca pada area Nomor Mesin",
         ];
-        const reason = failReasons[Math.floor(Math.random() * failReasons.length)];
-        setFormData(prev => ({
+        const reason =
+          failReasons[Math.floor(Math.random() * failReasons.length)];
+        setFormData((prev) => ({
           ...prev,
-          [`${docType}Status`]: 'failed',
+          [`${docType}Status`]: "failed",
           [`${docType}Score`]: score,
-          [`${docType}Error`]: `${reason} (Keterbacaan: ${score}% - Minimum 80% required)`
+          [`${docType}Error`]: `${reason} (Keterbacaan: ${score}% - Minimum 80% required)`,
         }));
       }
     }, 1500);
@@ -582,13 +601,11 @@ function VehiclesView({ vehicles, docs, clientId, onUpdate }) {
     if (!vehicle) return "";
 
     const descriptions = {
-      kir_renewal: `Pengurusan perpanjangan Uji KIR untuk kendaraan ${vehicle.plateNumber} yang habis tanggal ${vehicle.kirExpiry}. Berkas asli akan dijemput dan diantar kembali oleh kurir kami.`,
+      kir_renewal: `Pengurusan perpanjangan Uji KIR untuk kendaraan ${vehicle.plateNumber} yang habis pada tanggal ${vehicle.kirExpiry}.`,
 
-      stnk_renewal: `Pengurusan perpanjangan STNK (Surat Tanda Nomor Kendaraan) 5 tahunan untuk kendaraan ${vehicle.plateNumber} yang habis tanggal ${vehicle.stnkExpiry}. Permohonan akan diurus ke Polres setempat.`,
+      stnk_renewal: `Pengurusan perpanjangan STNK (Surat Tanda Nomor Kendaraan) 5 tahunan untuk kendaraan ${vehicle.plateNumber} yang habis tanggal ${vehicle.stnkExpiry}.`,
 
       pajak_renewal: `Pengurusan perpanjangan Pajak Kendaraan Tahunan untuk kendaraan ${vehicle.plateNumber} yang habis tanggal ${vehicle.pajakExpiry}. Proses pembayaran dan pengurusan dokumen kami tangani.`,
-
-      multiple: `Pengurusan perpanjangan KIR & STNK/Pajak secara bersamaan untuk kendaraan ${vehicle.plateNumber}. Paket hemat untuk pengurusan lebih dari satu jenis dokumen sekaligus.`,
 
       buka_blokir_kir: `Pengurusan Buka Blokir Data Kendaraan KIR untuk kendaraan ${vehicle.plateNumber} karena KIR telah kadaluwarsa lebih dari 1 tahun (Habis sejak ${vehicle.kirExpiry}). Diperlukan proses khusus ke Dishub untuk membuka status terblokir.`,
     };
@@ -599,7 +616,10 @@ function VehiclesView({ vehicles, docs, clientId, onUpdate }) {
   // Update description automatically when service type changes
   useEffect(() => {
     if (selectedVehicle && requestServiceType) {
-      const newDesc = getDescriptionForServiceType(requestServiceType, selectedVehicle);
+      const newDesc = getDescriptionForServiceType(
+        requestServiceType,
+        selectedVehicle,
+      );
       setRequestDesc(newDesc);
     }
   }, [requestServiceType, selectedVehicle]);
@@ -628,7 +648,10 @@ function VehiclesView({ vehicles, docs, clientId, onUpdate }) {
     }
 
     setRequestServiceType(initialServiceType);
-    const initialDesc = getDescriptionForServiceType(initialServiceType, vehicle);
+    const initialDesc = getDescriptionForServiceType(
+      initialServiceType,
+      vehicle,
+    );
     setRequestDesc(initialDesc);
     setModalType("urus");
   };
@@ -644,12 +667,17 @@ function VehiclesView({ vehicles, docs, clientId, onUpdate }) {
     )
       return;
 
-    const isKartuKirOk = formData.kartuKirHilang || formData.kartuKirStatus === 'success';
-    const isSertifikatKirOk = formData.sertifikatKirHilang || formData.sertifikatKirStatus === 'success';
-    const isStnkOk = formData.stnkStatus === 'success';
+    const isKartuKirOk =
+      formData.kartuKirHilang || formData.kartuKirStatus === "success";
+    const isSertifikatKirOk =
+      formData.sertifikatKirHilang ||
+      formData.sertifikatKirStatus === "success";
+    const isStnkOk = formData.stnkStatus === "success";
 
     if (!isKartuKirOk || !isSertifikatKirOk || !isStnkOk) {
-      alert("Harap unggah dokumen yang valid serta terbaca minimal 80% terlebih dahulu (kecuali dokumen KIR yang dinyatakan Hilang).");
+      alert(
+        "Harap unggah dokumen yang valid serta terbaca minimal 80% terlebih dahulu (kecuali dokumen KIR yang dinyatakan Hilang).",
+      );
       return;
     }
 
@@ -667,7 +695,9 @@ function VehiclesView({ vehicles, docs, clientId, onUpdate }) {
       kartuKirFileName: formData.kartuKirHilang ? null : formData.kartuKirFile,
       kartuKirScanStatus: formData.kartuKirStatus,
       kartuKirScore: formData.kartuKirScore,
-      sertifikatKirFileName: formData.sertifikatKirHilang ? null : formData.sertifikatKirFile,
+      sertifikatKirFileName: formData.sertifikatKirHilang
+        ? null
+        : formData.sertifikatKirFile,
       sertifikatKirScanStatus: formData.sertifikatKirStatus,
       sertifikatKirScore: formData.sertifikatKirScore,
       stnkFileName: formData.stnkFile,
@@ -701,15 +731,31 @@ function VehiclesView({ vehicles, docs, clientId, onUpdate }) {
       notes: formData.notes,
       kartuKirHilang: !!formData.kartuKirHilang,
       sertifikatKirHilang: !!formData.sertifikatKirHilang,
-      kartuKirFileName: formData.kartuKirHilang ? null : (formData.kartuKirFile || selectedVehicle.kartuKirFileName),
-      kartuKirScanStatus: formData.kartuKirFile ? formData.kartuKirStatus : (selectedVehicle.kartuKirScanStatus || "idle"),
-      kartuKirScore: formData.kartuKirFile ? formData.kartuKirScore : (selectedVehicle.kartuKirScore || null),
-      sertifikatKirFileName: formData.sertifikatKirHilang ? null : (formData.sertifikatKirFile || selectedVehicle.sertifikatKirFileName),
-      sertifikatKirScanStatus: formData.sertifikatKirFile ? formData.sertifikatKirStatus : (selectedVehicle.sertifikatKirScanStatus || "idle"),
-      sertifikatKirScore: formData.sertifikatKirFile ? formData.sertifikatKirScore : (selectedVehicle.sertifikatKirScore || null),
+      kartuKirFileName: formData.kartuKirHilang
+        ? null
+        : formData.kartuKirFile || selectedVehicle.kartuKirFileName,
+      kartuKirScanStatus: formData.kartuKirFile
+        ? formData.kartuKirStatus
+        : selectedVehicle.kartuKirScanStatus || "idle",
+      kartuKirScore: formData.kartuKirFile
+        ? formData.kartuKirScore
+        : selectedVehicle.kartuKirScore || null,
+      sertifikatKirFileName: formData.sertifikatKirHilang
+        ? null
+        : formData.sertifikatKirFile || selectedVehicle.sertifikatKirFileName,
+      sertifikatKirScanStatus: formData.sertifikatKirFile
+        ? formData.sertifikatKirStatus
+        : selectedVehicle.sertifikatKirScanStatus || "idle",
+      sertifikatKirScore: formData.sertifikatKirFile
+        ? formData.sertifikatKirScore
+        : selectedVehicle.sertifikatKirScore || null,
       stnkFileName: formData.stnkFile || selectedVehicle.stnkFileName,
-      stnkScanStatus: formData.stnkFile ? formData.stnkStatus : (selectedVehicle.stnkScanStatus || "idle"),
-      stnkScore: formData.stnkFile ? formData.stnkScore : (selectedVehicle.stnkScore || null),
+      stnkScanStatus: formData.stnkFile
+        ? formData.stnkStatus
+        : selectedVehicle.stnkScanStatus || "idle",
+      stnkScore: formData.stnkFile
+        ? formData.stnkScore
+        : selectedVehicle.stnkScore || null,
     });
 
     setModalType(null);
@@ -757,7 +803,8 @@ function VehiclesView({ vehicles, docs, clientId, onUpdate }) {
       setScanningDoc(docType);
 
       setTimeout(() => {
-        const shouldSucceed = isValid && !/blur|buram|crop|terpotong/i.test(fileName);
+        const shouldSucceed =
+          isValid && !/blur|buram|crop|terpotong/i.test(fileName);
         const score = shouldSucceed
           ? Math.floor(Math.random() * 16) + 84
           : Math.floor(Math.random() * 15) + 55;
@@ -821,7 +868,8 @@ function VehiclesView({ vehicles, docs, clientId, onUpdate }) {
               : requestServiceType === "buka_blokir_kir"
                 ? "Buka Blokir KIR"
                 : "Pengurusan KIR & STNK",
-      description: requestDesc + (addOnDesc ? `\n\nLayanan Tambahan:${addOnDesc}` : ""),
+      description:
+        requestDesc + (addOnDesc ? `\n\nLayanan Tambahan:${addOnDesc}` : ""),
       estimatedCost: baseCost + addOnCost,
     });
 
@@ -929,20 +977,47 @@ function VehiclesView({ vehicles, docs, clientId, onUpdate }) {
                       </span>
                     </td>
                     <td>
-                      <span className={v.simDriverExpiry ? getDocStatus(v.simDriverExpiry).textClass : "badge-status neutral"}>
+                      <span
+                        className={
+                          v.simDriverExpiry
+                            ? getDocStatus(v.simDriverExpiry).textClass
+                            : "badge-status neutral"
+                        }
+                      >
                         {v.simDriverExpiry || "-"}
                       </span>
                     </td>
                     <td>
-                      <div style={{ display: "flex", flexDirection: "column", gap: "5px", alignItems: "center" }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: "5px",
+                          alignItems: "center",
+                        }}
+                      >
                         <button
                           className="fleet-btn fleet-btn-secondary fleet-btn-sm"
-                          style={{ padding: "4px 12px", fontSize: "11px", whiteSpace: "nowrap", background: "#eff6ff", color: "#1e40af", border: "1px solid #bfdbfe" }}
-                          onClick={() => { setSelectedVehicle(v); setModalType("dokumen"); }}
+                          style={{
+                            padding: "4px 12px",
+                            fontSize: "11px",
+                            whiteSpace: "nowrap",
+                            background: "#eff6ff",
+                            color: "#1e40af",
+                            border: "1px solid #bfdbfe",
+                          }}
+                          onClick={() => {
+                            setSelectedVehicle(v);
+                            setModalType("dokumen");
+                          }}
                         >
                           📄 Dokumen Diupload
                         </button>
-                        {v.kartuKirHilang && <span style={{ fontSize: "10px", color: "#dc2626" }}>⚠️ Ada dokumen hilang</span>}
+                        {v.kartuKirHilang && (
+                          <span style={{ fontSize: "10px", color: "#dc2626" }}>
+                            ⚠️ Ada dokumen hilang
+                          </span>
+                        )}
                       </div>
                     </td>
                     <td>
@@ -968,6 +1043,13 @@ function VehiclesView({ vehicles, docs, clientId, onUpdate }) {
                             URUS SEKARANG
                           </button>
                         )}
+                        <button
+                          className="fleet-btn fleet-btn-secondary fleet-btn-sm"
+                          onClick={() => setVehicleDetailModal(v)}
+                          title="Lihat Data Lengkap"
+                        >
+                          👁️
+                        </button>
                         <button
                           className="fleet-btn fleet-btn-secondary fleet-btn-sm"
                           onClick={() => handleOpenEdit(v)}
@@ -1082,9 +1164,7 @@ function VehiclesView({ vehicles, docs, clientId, onUpdate }) {
                 </div>
 
                 <div className="fleet-form-group">
-                  <label className="fleet-label">
-                    Nomor Buku Uji KIR *
-                  </label>
+                  <label className="fleet-label">Nomor Buku Uji KIR *</label>
                   <input
                     type="text"
                     className="fleet-input"
@@ -1164,31 +1244,64 @@ function VehiclesView({ vehicles, docs, clientId, onUpdate }) {
                       textAlign: "left",
                     }}
                   >
-                    ℹ️ Surat Izin Mengemudi (SIM) berlaku di seluruh wilayah Indonesia. Tanggal kedaluwarsa yang tercatat akan membantu Anda memantau masa berlaku SIM driver armada perusahaan.
+                    ℹ️ Surat Izin Mengemudi (SIM) berlaku di seluruh wilayah
+                    Indonesia. Tanggal kedaluwarsa yang tercatat akan membantu
+                    Anda memantau masa berlaku SIM driver armada perusahaan.
                   </div>
                   <input
                     type="date"
                     className="fleet-input"
                     value={formData.simDriverExpiry}
                     onChange={(e) =>
-                      setFormData({ ...formData, simDriverExpiry: e.target.value })
+                      setFormData({
+                        ...formData,
+                        simDriverExpiry: e.target.value,
+                      })
                     }
                   />
                 </div>
 
                 {(modalType === "add" || modalType === "edit") && (
-                  <div className="fleet-docs-upload-section" style={{ borderTop: '2px solid #e2e8f0', paddingTop: '20px', marginTop: '8px' }}>
-                    <h4 style={{ fontSize: '14px', fontWeight: '800', color: '#1C3967', margin: '0 0 16px 0' }}>
+                  <div
+                    className="fleet-docs-upload-section"
+                    style={{
+                      borderTop: "2px solid #e2e8f0",
+                      paddingTop: "20px",
+                      marginTop: "8px",
+                    }}
+                  >
+                    <h4
+                      style={{
+                        fontSize: "14px",
+                        fontWeight: "800",
+                        color: "#1C3967",
+                        margin: "0 0 16px 0",
+                      }}
+                    >
                       📄 Unggah Dokumen Pindaian (Wajib — Scan Otomatis)
                     </h4>
-                    <div style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: '8px', padding: '10px 12px', fontSize: '12px', color: '#9a3412', marginBottom: '16px' }}>
-                      ⚠️ <strong>Perhatian:</strong> Semua dokumen Kartu KIR, Sertifikat KIR, dan STNK yang diunggah akan dipindai (di-scan) dengan tingkat keterbacaan minimal <strong>80%</strong>. Dokumen yang blur, terpotong, atau tidak jelas akan ditolak.
+                    <div
+                      style={{
+                        background: "#fff7ed",
+                        border: "1px solid #fed7aa",
+                        borderRadius: "8px",
+                        padding: "10px 12px",
+                        fontSize: "12px",
+                        color: "#9a3412",
+                        marginBottom: "16px",
+                      }}
+                    >
+                      ⚠️ <strong>Perhatian:</strong> Semua dokumen Kartu KIR,
+                      Sertifikat KIR, dan STNK yang diunggah akan dipindai
+                      (di-scan) dengan tingkat keterbacaan minimal{" "}
+                      <strong>80%</strong>. Dokumen yang blur, terpotong, atau
+                      tidak jelas akan ditolak.
                     </div>
 
                     {[
-                      { docType: 'kartuKir', label: 'Kartu KIR' },
-                      { docType: 'sertifikatKir', label: 'Sertifikat KIR' },
-                      { docType: 'stnk', label: 'STNK' },
+                      { docType: "kartuKir", label: "Kartu KIR" },
+                      { docType: "sertifikatKir", label: "Sertifikat KIR" },
+                      { docType: "stnk", label: "STNK" },
                     ].map(({ docType, label }) => {
                       const file = formData[`${docType}File`];
                       const status = formData[`${docType}Status`];
@@ -1197,85 +1310,251 @@ function VehiclesView({ vehicles, docs, clientId, onUpdate }) {
                       const isLost = formData[`${docType}Hilang`];
 
                       return (
-                        <div key={docType} className="fleet-form-group" style={{ border: '1px solid #cbd5e1', padding: '12px', borderRadius: '8px', background: '#f8fafc', marginBottom: '12px' }}>
-                          <label className="fleet-label" style={{ fontWeight: 'bold', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div
+                          key={docType}
+                          className="fleet-form-group"
+                          style={{
+                            border: "1px solid #cbd5e1",
+                            padding: "12px",
+                            borderRadius: "8px",
+                            background: "#f8fafc",
+                            marginBottom: "12px",
+                          }}
+                        >
+                          <label
+                            className="fleet-label"
+                            style={{
+                              fontWeight: "bold",
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "center",
+                            }}
+                          >
                             <span>{label} *</span>
                             {isLost ? (
-                              <span style={{ color: '#c2410c', fontSize: '12px' }}>⚠️ Dinyatakan Hilang</span>
+                              <span
+                                style={{ color: "#c2410c", fontSize: "12px" }}
+                              >
+                                ⚠️ Dinyatakan Hilang
+                              </span>
                             ) : (
                               <>
-                                {status === 'success' && <span style={{ color: '#16a34a', fontSize: '12px' }}>🟢 Terbaca {score}% (Sukses)</span>}
-                                {status === 'failed' && <span style={{ color: '#dc2626', fontSize: '12px' }}>🔴 Terbaca {score}% (Gagal)</span>}
-                                {status === 'scanning' && <span style={{ color: '#0284c7', fontSize: '12px' }}>⏳ Memindai...</span>}
-                                {status === 'idle' && <span style={{ color: '#6b7a96', fontSize: '12px', fontWeight: 'normal' }}>Belum diunggah</span>}
+                                {status === "success" && (
+                                  <span
+                                    style={{
+                                      color: "#16a34a",
+                                      fontSize: "12px",
+                                    }}
+                                  >
+                                    🟢 Terbaca {score}% (Sukses)
+                                  </span>
+                                )}
+                                {status === "failed" && (
+                                  <span
+                                    style={{
+                                      color: "#dc2626",
+                                      fontSize: "12px",
+                                    }}
+                                  >
+                                    🔴 Terbaca {score}% (Gagal)
+                                  </span>
+                                )}
+                                {status === "scanning" && (
+                                  <span
+                                    style={{
+                                      color: "#0284c7",
+                                      fontSize: "12px",
+                                    }}
+                                  >
+                                    ⏳ Memindai...
+                                  </span>
+                                )}
+                                {status === "idle" && (
+                                  <span
+                                    style={{
+                                      color: "#6b7a96",
+                                      fontSize: "12px",
+                                      fontWeight: "normal",
+                                    }}
+                                  >
+                                    Belum diunggah
+                                  </span>
+                                )}
                               </>
                             )}
                           </label>
 
-                          {(docType === 'kartuKir' || docType === 'sertifikatKir') && (
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#c2410c', margin: '4px 0 8px 0', cursor: 'pointer', userSelect: 'none' }}>
+                          {(docType === "kartuKir" ||
+                            docType === "sertifikatKir") && (
+                            <label
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "8px",
+                                fontSize: "12px",
+                                color: "#c2410c",
+                                margin: "4px 0 8px 0",
+                                cursor: "pointer",
+                                userSelect: "none",
+                              }}
+                            >
                               <input
                                 type="checkbox"
                                 checked={!!isLost}
-                                onChange={(e) => setFormData({
-                                  ...formData,
-                                  [`${docType}Hilang`]: e.target.checked,
-                                  ...(e.target.checked ? {
-                                    [`${docType}File`]: null,
-                                    [`${docType}Status`]: 'idle',
-                                    [`${docType}Score`]: null,
-                                    [`${docType}Error`]: ''
-                                  } : {})
-                                })}
+                                onChange={(e) =>
+                                  setFormData({
+                                    ...formData,
+                                    [`${docType}Hilang`]: e.target.checked,
+                                    ...(e.target.checked
+                                      ? {
+                                          [`${docType}File`]: null,
+                                          [`${docType}Status`]: "idle",
+                                          [`${docType}Score`]: null,
+                                          [`${docType}Error`]: "",
+                                        }
+                                      : {}),
+                                  })
+                                }
                               />
-                              <strong>{docType === 'kartuKir' ? 'Buku KIR Hilang' : 'Sertifikat KIR Hilang'}</strong>
+                              <strong>
+                                {docType === "kartuKir"
+                                  ? "Buku KIR Hilang"
+                                  : "Sertifikat KIR Hilang"}
+                              </strong>
                             </label>
                           )}
 
                           {isLost ? (
-                            <div style={{ marginTop: '8px', fontSize: '11px', color: '#b91c1c', background: '#fef2f2', padding: '8px 12px', borderRadius: '6px', border: '1px solid #fecaca', lineHeight: '1.4' }}>
-                              ⚠️ <strong>Dokumen Dinyatakan Hilang:</strong> Kendaraan tetap dapat didaftarkan ke armada. Kelak saat proses pengurusan perpanjangan, Anda wajib menyertakan dokumen pendukung berupa Surat Kehilangan Resmi dari Kepolisian.
+                            <div
+                              style={{
+                                marginTop: "8px",
+                                fontSize: "11px",
+                                color: "#b91c1c",
+                                background: "#fef2f2",
+                                padding: "8px 12px",
+                                borderRadius: "6px",
+                                border: "1px solid #fecaca",
+                                lineHeight: "1.4",
+                              }}
+                            >
+                              ⚠️ <strong>Dokumen Dinyatakan Hilang:</strong>{" "}
+                              Kendaraan tetap dapat didaftarkan ke armada. Kelak
+                              saat proses pengurusan perpanjangan, Anda wajib
+                              menyertakan dokumen pendukung berupa Surat
+                              Kehilangan Resmi dari Kepolisian.
                             </div>
                           ) : (
                             <>
-                              <div style={{ display: 'flex', gap: '8px', marginTop: '8px', flexWrap: 'wrap' }}>
+                              <div
+                                style={{
+                                  display: "flex",
+                                  gap: "8px",
+                                  marginTop: "8px",
+                                  flexWrap: "wrap",
+                                }}
+                              >
                                 <input
                                   type="file"
                                   accept=".pdf,.png,.jpg,.jpeg"
-                                  style={{ display: 'none' }}
+                                  style={{ display: "none" }}
                                   id={`file-input-${docType}`}
                                   onChange={(e) => {
                                     if (e.target.files && e.target.files[0]) {
                                       const name = e.target.files[0].name;
-                                      simulateOcrScan(docType, name, !/blur|buram|crop|terpotong/i.test(name));
+                                      simulateOcrScan(
+                                        docType,
+                                        name,
+                                        !/blur|buram|crop|terpotong/i.test(
+                                          name,
+                                        ),
+                                      );
                                     }
                                   }}
                                 />
                                 <button
                                   type="button"
                                   className="fleet-btn fleet-btn-secondary fleet-btn-sm"
-                                  onClick={() => document.getElementById(`file-input-${docType}`).click()}
-                                  disabled={status === 'scanning'}
+                                  onClick={() =>
+                                    document
+                                      .getElementById(`file-input-${docType}`)
+                                      .click()
+                                  }
+                                  disabled={status === "scanning"}
                                 >
                                   📁 Pilih File
                                 </button>
                               </div>
-                              {file && <p style={{ fontSize: '11px', margin: '6px 0 0 0', color: '#475569' }}>File: <strong>{file}</strong></p>}
-                              {status === 'scanning' && (
-                                <div style={{ marginTop: '8px', fontSize: '12px', color: '#0284c7', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                  <div className="dashboard-loading-spinner" style={{ width: '12px', height: '12px', borderWidth: '2px', margin: 0 }}></div>
-                                  <span>Memindai dokumen... Menganalisis Plat Nomor, Nomor Uji KIR, No. Rangka, No. Mesin...</span>
+                              {file && (
+                                <p
+                                  style={{
+                                    fontSize: "11px",
+                                    margin: "6px 0 0 0",
+                                    color: "#475569",
+                                  }}
+                                >
+                                  File: <strong>{file}</strong>
+                                </p>
+                              )}
+                              {status === "scanning" && (
+                                <div
+                                  style={{
+                                    marginTop: "8px",
+                                    fontSize: "12px",
+                                    color: "#0284c7",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: "8px",
+                                  }}
+                                >
+                                  <div
+                                    className="dashboard-loading-spinner"
+                                    style={{
+                                      width: "12px",
+                                      height: "12px",
+                                      borderWidth: "2px",
+                                      margin: 0,
+                                    }}
+                                  ></div>
+                                  <span>
+                                    Memindai dokumen... Menganalisis Plat Nomor,
+                                    Nomor Uji KIR, No. Rangka, No. Mesin...
+                                  </span>
                                 </div>
                               )}
-                              {status === 'success' && (
-                                <div style={{ marginTop: '8px', fontSize: '11px', color: '#15803d', background: '#f0fdf4', padding: '6px 10px', borderRadius: '4px', border: '1px solid #bbf7d0', lineHeight: '1.4' }}>
-                                  ✨ <strong>Scan Berhasil ({score}%)</strong><br />
-                                  • Plat Nomor, Nomor Uji KIR, No. Rangka &amp; No. Mesin terbaca dengan jelas (Akurasi &gt; 80%).
+                              {status === "success" && (
+                                <div
+                                  style={{
+                                    marginTop: "8px",
+                                    fontSize: "11px",
+                                    color: "#15803d",
+                                    background: "#f0fdf4",
+                                    padding: "6px 10px",
+                                    borderRadius: "4px",
+                                    border: "1px solid #bbf7d0",
+                                    lineHeight: "1.4",
+                                  }}
+                                >
+                                  ✨ <strong>Scan Berhasil ({score}%)</strong>
+                                  <br />• Plat Nomor, Nomor Uji KIR, No. Rangka
+                                  &amp; No. Mesin terbaca dengan jelas (Akurasi
+                                  &gt; 80%).
                                 </div>
                               )}
-                              {status === 'failed' && (
-                                <div style={{ marginTop: '8px', fontSize: '11px', color: '#b91c1c', background: '#fef2f2', padding: '6px 10px', borderRadius: '4px', border: '1px solid #fecaca', lineHeight: '1.4' }}>
-                                  ⚠️ <strong>Scan Gagal ({score}%):</strong> {error}
+                              {status === "failed" && (
+                                <div
+                                  style={{
+                                    marginTop: "8px",
+                                    fontSize: "11px",
+                                    color: "#b91c1c",
+                                    background: "#fef2f2",
+                                    padding: "6px 10px",
+                                    borderRadius: "4px",
+                                    border: "1px solid #fecaca",
+                                    lineHeight: "1.4",
+                                  }}
+                                >
+                                  ⚠️ <strong>Scan Gagal ({score}%):</strong>{" "}
+                                  {error}
                                 </div>
                               )}
                             </>
@@ -1413,85 +1692,155 @@ function VehiclesView({ vehicles, docs, clientId, onUpdate }) {
             </div>
             <form onSubmit={handleUrusSubmit}>
               {(() => {
-                const isKirBlocked = selectedVehicle ? getDaysRemaining(selectedVehicle.kirExpiry) <= -365 : false;
+                const isKirBlocked = selectedVehicle
+                  ? getDaysRemaining(selectedVehicle.kirExpiry) <= -365
+                  : false;
                 const kartuHilang = selectedVehicle?.kartuKirHilang;
                 const sertifikatHilang = selectedVehicle?.sertifikatKirHilang;
                 const adaDokumenHilang = kartuHilang || sertifikatHilang;
                 return (
                   <div className="fleet-modal-body">
                     {isKirBlocked && (
-                      <div style={{
-                        background: '#fef2f2',
-                        border: '1px solid #fca5a5',
-                        borderRadius: '8px',
-                        padding: '12px',
-                        fontSize: '12.5px',
-                        color: '#991b1b',
-                        marginBottom: '16px',
-                        lineHeight: '1.5',
-                        textAlign: 'left'
-                      }}>
-                        ⚠️ <strong>KIR Terblokir (&gt; 1 Tahun):</strong> Data Kendaraan sudah terblokir dari sistem Dishub karena masa berlaku sudah habis melebihi 1 tahun, Harap melakukan pengurusan buka blokir terlebih dahulu!
+                      <div
+                        style={{
+                          background: "#fef2f2",
+                          border: "1px solid #fca5a5",
+                          borderRadius: "8px",
+                          padding: "12px",
+                          fontSize: "12.5px",
+                          color: "#991b1b",
+                          marginBottom: "16px",
+                          lineHeight: "1.5",
+                          textAlign: "left",
+                        }}
+                      >
+                        ⚠️ <strong>KIR Terblokir (&gt; 1 Tahun):</strong> Data
+                        Kendaraan sudah terblokir dari sistem Dishub karena masa
+                        berlaku sudah habis melebihi 1 tahun, Harap melakukan
+                        pengurusan buka blokir terlebih dahulu!
                       </div>
                     )}
 
                     {adaDokumenHilang && (
-                      <div style={{
-                        background: '#fff7ed',
-                        border: '1px solid #fed7aa',
-                        borderRadius: '8px',
-                        padding: '12px',
-                        fontSize: '12.5px',
-                        color: '#9a3412',
-                        marginBottom: '16px',
-                        lineHeight: '1.5',
-                        textAlign: 'left'
-                      }}>
-                        ⚠️ <strong>Dokumen KIR Hilang Terdeteksi:</strong> Kendaraan ini tercatat memiliki dokumen KIR yang hilang:
-                        <ul style={{ margin: '6px 0 0 0', paddingLeft: '20px' }}>
+                      <div
+                        style={{
+                          background: "#fff7ed",
+                          border: "1px solid #fed7aa",
+                          borderRadius: "8px",
+                          padding: "12px",
+                          fontSize: "12.5px",
+                          color: "#9a3412",
+                          marginBottom: "16px",
+                          lineHeight: "1.5",
+                          textAlign: "left",
+                        }}
+                      >
+                        ⚠️ <strong>Dokumen KIR Hilang Terdeteksi:</strong>{" "}
+                        Kendaraan ini tercatat memiliki dokumen KIR yang hilang:
+                        <ul
+                          style={{ margin: "6px 0 0 0", paddingLeft: "20px" }}
+                        >
                           {kartuHilang && <li>Buku/Kartu KIR — Hilang</li>}
                           {sertifikatHilang && <li>Sertifikat KIR — Hilang</li>}
                         </ul>
-                        <p style={{ margin: '8px 0 0 0', fontSize: '12px' }}>
-                          Untuk pengurusan perpanjangan, Anda wajib menyertakan Surat Kehilangan dari Kepolisian dan pengumuman di Media Nasional. Kami dapat membantu pengurusannya.
+                        <p style={{ margin: "8px 0 0 0", fontSize: "12px" }}>
+                          Untuk pengurusan perpanjangan, Anda wajib menyertakan
+                          Surat Kehilangan dari Kepolisian dan pengumuman di
+                          Media Nasional. Kami dapat membantu pengurusannya.
                         </p>
                       </div>
                     )}
 
                     {adaDokumenHilang && (
-                      <div style={{
-                        background: '#f0fdf4',
-                        border: '1px solid #bbf7d0',
-                        borderRadius: '8px',
-                        padding: '14px',
-                        marginBottom: '16px',
-                      }}>
-                        <h4 style={{ margin: '0 0 10px 0', fontSize: '13px', color: '#166534', fontWeight: '800' }}>
+                      <div
+                        style={{
+                          background: "#f0fdf4",
+                          border: "1px solid #bbf7d0",
+                          borderRadius: "8px",
+                          padding: "14px",
+                          marginBottom: "16px",
+                        }}
+                      >
+                        <h4
+                          style={{
+                            margin: "0 0 10px 0",
+                            fontSize: "13px",
+                            color: "#166534",
+                            fontWeight: "800",
+                          }}
+                        >
                           🛠️ Layanan Bantu Pengurusan Kelengkapan Dokumen Hilang
                         </h4>
-                        <p style={{ fontSize: '11.5px', color: '#15803d', margin: '0 0 12px 0', lineHeight: '1.4' }}>
-                          Dokumen KIR yang hilang memerlukan pengurusan tambahan. Centang layanan bantuan yang Anda perlukan:
+                        <p
+                          style={{
+                            fontSize: "11.5px",
+                            color: "#15803d",
+                            margin: "0 0 12px 0",
+                            lineHeight: "1.4",
+                          }}
+                        >
+                          Dokumen KIR yang hilang memerlukan pengurusan
+                          tambahan. Centang layanan bantuan yang Anda perlukan:
                         </p>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 10px', background: '#fafafa', borderRadius: '6px', border: `1px solid ${requestLaporHilang ? '#22c55e' : '#e5e7eb'}`, cursor: 'pointer', marginBottom: '8px', userSelect: 'none' }}>
+                        <label
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "10px",
+                            padding: "8px 10px",
+                            background: "#fafafa",
+                            borderRadius: "6px",
+                            border: `1px solid ${requestLaporHilang ? "#22c55e" : "#e5e7eb"}`,
+                            cursor: "pointer",
+                            marginBottom: "8px",
+                            userSelect: "none",
+                          }}
+                        >
                           <input
                             type="checkbox"
                             checked={requestLaporHilang}
-                            onChange={(e) => setRequestLaporHilang(e.target.checked)}
+                            onChange={(e) =>
+                              setRequestLaporHilang(e.target.checked)
+                            }
                           />
                           <div>
-                            <strong style={{ fontSize: '13px' }}>Bantu Urus Laporan Kehilangan Kepolisian</strong>
-                            <div style={{ fontSize: '12px', color: '#6b7a96' }}>Rp 50.000 — Pembuatan surat laporan kehilangan resmi di kantor polisi</div>
+                            <strong style={{ fontSize: "13px" }}>
+                              Bantu Urus Laporan Kehilangan Kepolisian
+                            </strong>
+                            <div style={{ fontSize: "12px", color: "#6b7a96" }}>
+                              Rp 50.000 — Pembuatan surat laporan kehilangan
+                              resmi di kantor polisi
+                            </div>
                           </div>
                         </label>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 10px', background: '#fafafa', borderRadius: '6px', border: `1px solid ${requestMediaNasional ? '#22c55e' : '#e5e7eb'}`, cursor: 'pointer', userSelect: 'none' }}>
+                        <label
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "10px",
+                            padding: "8px 10px",
+                            background: "#fafafa",
+                            borderRadius: "6px",
+                            border: `1px solid ${requestMediaNasional ? "#22c55e" : "#e5e7eb"}`,
+                            cursor: "pointer",
+                            userSelect: "none",
+                          }}
+                        >
                           <input
                             type="checkbox"
                             checked={requestMediaNasional}
-                            onChange={(e) => setRequestMediaNasional(e.target.checked)}
+                            onChange={(e) =>
+                              setRequestMediaNasional(e.target.checked)
+                            }
                           />
                           <div>
-                            <strong style={{ fontSize: '13px' }}>Bantu Urus Media Nasional</strong>
-                            <div style={{ fontSize: '12px', color: '#6b7a96' }}>Rp 50.000 — Publikasi pengumuman kehilangan di media nasional</div>
+                            <strong style={{ fontSize: "13px" }}>
+                              Bantu Urus Media Nasional
+                            </strong>
+                            <div style={{ fontSize: "12px", color: "#6b7a96" }}>
+                              Rp 50.000 — Publikasi pengumuman kehilangan di
+                              media nasional
+                            </div>
                           </div>
                         </label>
                       </div>
@@ -1508,38 +1857,61 @@ function VehiclesView({ vehicles, docs, clientId, onUpdate }) {
                         {isKirBlocked ? (
                           <>
                             <option value="buka_blokir_kir">
-                              Buka Blokir Data Kendaraan KIR (Estimasi Rp 1.500.000)
+                              Buka Blokir Data Kendaraan KIR
                             </option>
                             <option value="stnk_renewal">
-                              Perpanjangan STNK 5 Tahunan (Estimasi Rp 350.000)
+                              Perpanjangan STNK 5 Tahunan
                             </option>
                             <option value="pajak_renewal">
-                              Perpanjangan Pajak Kendaraan Tahunan (Estimasi Rp 350.000)
+                              Perpanjangan Pajak Kendaraan Tahunan
                             </option>
                           </>
                         ) : (
                           <>
                             <option value="kir_renewal">
-                              Perpanjangan Uji KIR (Estimasi Rp 350.000)
+                              Perpanjangan Uji KIR
                             </option>
                             <option value="stnk_renewal">
-                              Perpanjangan STNK 5 Tahunan (Estimasi Rp 350.000)
+                              Perpanjangan STNK 5 Tahunan
                             </option>
                             <option value="pajak_renewal">
-                              Perpanjangan Pajak Kendaraan Tahunan (Estimasi Rp 350.000)
-                            </option>
-                            <option value="multiple">
-                              Pengurusan KIR & STNK Sekaligus (Estimasi Rp 750.000)
+                              Perpanjangan Pajak Kendaraan Tahunan
                             </option>
                             <option value="buka_blokir_kir">
-                              Buka Blokir Data Kendaraan KIR (Estimasi Rp 1.500.000)
+                              Buka Blokir Data Kendaraan KIR
                             </option>
                           </>
                         )}
                       </select>
                     </div>
 
-                    <div className="fleet-form-group" style={{ marginBottom: 0 }}>
+                    {(() => {
+                      const isStnkPajak = ['stnk_renewal', 'pajak_renewal'].includes(requestServiceType);
+                      const isClientOfAdmin1 = (company.adminId || 'admin-1') === 'admin-1';
+                      if (isStnkPajak && isClientOfAdmin1) {
+                        return (
+                          <div style={{
+                            background: '#fffbe6',
+                            border: '1px solid #ffe58f',
+                            borderRadius: '8px',
+                            padding: '12px',
+                            fontSize: '12.5px',
+                            color: '#d46b08',
+                            marginBottom: '16px',
+                            lineHeight: '1.5',
+                            textAlign: 'left'
+                          }}>
+                            ℹ️ <strong>Rute Administrator Berbeda:</strong> Pengurusan STNK 5 Tahunan & Pajak Tahunan dari client Admin Sentra akan dialihkan secara otomatis ke <strong>Administrator Padajaya</strong>. Admin Padajaya akan dapat melihat info PIC Anda untuk berkomunikasi langsung.
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
+
+                    <div
+                      className="fleet-form-group"
+                      style={{ marginBottom: 0 }}
+                    >
                       <label className="fleet-label">
                         Deskripsi & Instruksi Tambahan
                       </label>
@@ -1557,7 +1929,15 @@ function VehiclesView({ vehicles, docs, clientId, onUpdate }) {
                 );
               })()}
               <div className="fleet-modal-footer">
-                <div style={{ flex: 1, textAlign: 'left', fontSize: '13px', color: '#1e3a8a', fontWeight: '700' }}>
+                <div
+                  style={{
+                    flex: 1,
+                    textAlign: "left",
+                    fontSize: "13px",
+                    color: "#1e3a8a",
+                    fontWeight: "700",
+                  }}
+                >
                   {(() => {
                     let total = (() => {
                       const st = requestServiceType;
@@ -1567,7 +1947,14 @@ function VehiclesView({ vehicles, docs, clientId, onUpdate }) {
                     })();
                     if (requestLaporHilang) total += 50000;
                     if (requestMediaNasional) total += 50000;
-                    return <span>💰 Estimasi Total: <span style={{ fontSize: '15px' }}>Rp {total.toLocaleString('id-ID')}</span></span>;
+                    return (
+                      <span>
+                        💰 Estimasi Total:{" "}
+                        <span style={{ fontSize: "15px" }}>
+                          Rp {total.toLocaleString("id-ID")}
+                        </span>
+                      </span>
+                    );
                   })()}
                 </div>
                 <button
@@ -1592,11 +1979,24 @@ function VehiclesView({ vehicles, docs, clientId, onUpdate }) {
           <div className="fleet-modal" style={{ maxWidth: "520px" }}>
             <div className="fleet-modal-header">
               <h3>📄 Dokumen Diupload — {selectedVehicle.plateNumber}</h3>
-              <span className="btn-close-modal" onClick={() => setModalType(null)}>×</span>
+              <span
+                className="btn-close-modal"
+                onClick={() => setModalType(null)}
+              >
+                ×
+              </span>
             </div>
             <div className="fleet-modal-body">
-              <p style={{ fontSize: "13px", color: "#475569", margin: "0 0 16px 0" }}>
-                Kelola dokumen pindaian untuk kendaraan ini. Klik tombol <strong>Pindai</strong> untuk mengunggah atau mengganti file dokumen.
+              <p
+                style={{
+                  fontSize: "13px",
+                  color: "#475569",
+                  margin: "0 0 16px 0",
+                }}
+              >
+                Kelola dokumen pindaian untuk kendaraan ini. Klik tombol{" "}
+                <strong>Pindai</strong> untuk mengunggah atau mengganti file
+                dokumen.
               </p>
 
               {[
@@ -1611,27 +2011,95 @@ function VehiclesView({ vehicles, docs, clientId, onUpdate }) {
                 const isScanning = scanningDoc === key;
 
                 return (
-                  <div key={key} style={{ border: "1px solid #e2e8f0", borderRadius: "10px", padding: "14px", marginBottom: "12px", background: isHilang ? "#fef2f2" : fileName ? "#f0fdf4" : "#f8fafc" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <div
+                    key={key}
+                    style={{
+                      border: "1px solid #e2e8f0",
+                      borderRadius: "10px",
+                      padding: "14px",
+                      marginBottom: "12px",
+                      background: isHilang
+                        ? "#fef2f2"
+                        : fileName
+                          ? "#f0fdf4"
+                          : "#f8fafc",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        marginBottom: "8px",
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "8px",
+                        }}
+                      >
                         <span style={{ fontSize: "20px" }}>{icon}</span>
                         <div>
-                          <strong style={{ fontSize: "14px", color: "#1C3967" }}>{label}</strong>
+                          <strong
+                            style={{ fontSize: "14px", color: "#1C3967" }}
+                          >
+                            {label}
+                          </strong>
                           {isHilang ? (
-                            <div style={{ fontSize: "11px", color: "#dc2626", marginTop: "2px" }}>⚠️ Dokumen hilang / belum ada</div>
+                            <div
+                              style={{
+                                fontSize: "11px",
+                                color: "#dc2626",
+                                marginTop: "2px",
+                              }}
+                            >
+                              ⚠️ Dokumen hilang / belum ada
+                            </div>
                           ) : fileName ? (
-                            <div style={{ fontSize: "11px", color: "#16a34a", marginTop: "2px" }}>
+                            <div
+                              style={{
+                                fontSize: "11px",
+                                color: "#16a34a",
+                                marginTop: "2px",
+                              }}
+                            >
                               ✓ Terbaca {score}% — {fileName}
                             </div>
                           ) : (
-                            <div style={{ fontSize: "11px", color: "#94a3b8", marginTop: "2px" }}>Belum diunggah</div>
+                            <div
+                              style={{
+                                fontSize: "11px",
+                                color: "#94a3b8",
+                                marginTop: "2px",
+                              }}
+                            >
+                              Belum diunggah
+                            </div>
                           )}
                         </div>
                       </div>
                       <div style={{ display: "flex", gap: "6px" }}>
                         {isScanning ? (
-                          <span style={{ fontSize: "11px", color: "#0284c7", display: "flex", alignItems: "center", gap: "4px" }}>
-                            <div className="dashboard-loading-spinner" style={{ width: "12px", height: "12px", borderWidth: "2px", margin: 0 }}></div>
+                          <span
+                            style={{
+                              fontSize: "11px",
+                              color: "#0284c7",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "4px",
+                            }}
+                          >
+                            <div
+                              className="dashboard-loading-spinner"
+                              style={{
+                                width: "12px",
+                                height: "12px",
+                                borderWidth: "2px",
+                                margin: 0,
+                              }}
+                            ></div>
                             Memindai...
                           </span>
                         ) : (
@@ -1640,8 +2108,18 @@ function VehiclesView({ vehicles, docs, clientId, onUpdate }) {
                               <button
                                 type="button"
                                 className="fleet-btn fleet-btn-sm"
-                                style={{ padding: "4px 8px", fontSize: "11px", background: "#f0fdf4", color: "#16a34a", border: "1px solid #bbf7d0", borderRadius: "6px", cursor: "pointer" }}
-                                onClick={() => setPreviewDoc({ key, label, fileName, score })}
+                                style={{
+                                  padding: "4px 8px",
+                                  fontSize: "11px",
+                                  background: "#f0fdf4",
+                                  color: "#16a34a",
+                                  border: "1px solid #bbf7d0",
+                                  borderRadius: "6px",
+                                  cursor: "pointer",
+                                }}
+                                onClick={() =>
+                                  setPreviewDoc({ key, label, fileName, score })
+                                }
                               >
                                 👁️ Lihat
                               </button>
@@ -1649,8 +2127,19 @@ function VehiclesView({ vehicles, docs, clientId, onUpdate }) {
                             <button
                               type="button"
                               className="fleet-btn fleet-btn-sm"
-                              style={{ padding: "4px 12px", fontSize: "11px", background: "#eff6ff", color: "#1e40af", border: "1px solid #bfdbfe", borderRadius: "6px", cursor: "pointer" }}
-                              onClick={() => { setRescanDocType(key); handleRescanDoc(key); }}
+                              style={{
+                                padding: "4px 12px",
+                                fontSize: "11px",
+                                background: "#eff6ff",
+                                color: "#1e40af",
+                                border: "1px solid #bfdbfe",
+                                borderRadius: "6px",
+                                cursor: "pointer",
+                              }}
+                              onClick={() => {
+                                setRescanDocType(key);
+                                handleRescanDoc(key);
+                              }}
                               disabled={isHilang}
                             >
                               {fileName ? "🔄 Ganti File" : "📤 Pindai"}
@@ -1660,16 +2149,464 @@ function VehiclesView({ vehicles, docs, clientId, onUpdate }) {
                       </div>
                     </div>
                     {isHilang && (
-                      <div style={{ fontSize: "11px", color: "#b91c1c", background: "#fff5f5", padding: "6px 10px", borderRadius: "4px", border: "1px solid #fecaca", lineHeight: "1.4" }}>
-                        Silahkan upload dan scan untuk menambakan dokumen apabila sudah dokumen dimiliki.
+                      <div
+                        style={{
+                          fontSize: "11px",
+                          color: "#b91c1c",
+                          background: "#fff5f5",
+                          padding: "6px 10px",
+                          borderRadius: "4px",
+                          border: "1px solid #fecaca",
+                          lineHeight: "1.4",
+                        }}
+                      >
+                        Silahkan upload dan scan untuk menambakan dokumen
+                        apabila sudah dokumen dimiliki.
                       </div>
                     )}
                   </div>
                 );
               })}
             </div>
-            <div className="fleet-modal-footer" style={{ justifyContent: "flex-end" }}>
-              <button type="button" className="fleet-btn fleet-btn-secondary" onClick={() => setModalType(null)}>
+            <div
+              className="fleet-modal-footer"
+              style={{ justifyContent: "flex-end" }}
+            >
+              <button
+                type="button"
+                className="fleet-btn fleet-btn-secondary"
+                onClick={() => setModalType(null)}
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: DATA LENGKAP KENDARAAN */}
+      {vehicleDetailModal && (
+        <div className="fleet-modal-overlay">
+          <div className="fleet-modal" style={{ maxWidth: "700px" }}>
+            <div className="fleet-modal-header">
+              <h3>📋 Data Lengkap Kendaraan — {vehicleDetailModal.plateNumber}</h3>
+              <span
+                className="btn-close-modal"
+                onClick={() => setVehicleDetailModal(null)}
+              >
+                ×
+              </span>
+            </div>
+            <div className="fleet-modal-body">
+              {/* Informasi Dasar */}
+              <div style={{ marginBottom: "24px" }}>
+                <h4
+                  style={{
+                    fontSize: "14px",
+                    fontWeight: "800",
+                    color: "#1C3967",
+                    margin: "0 0 16px 0",
+                    paddingBottom: "8px",
+                    borderBottom: "2px solid #e2e8f0",
+                  }}
+                >
+                  📌 Informasi Dasar Kendaraan
+                </h4>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: "16px",
+                  }}
+                >
+                  <div style={{ background: "#f8fafc", padding: "12px", borderRadius: "8px" }}>
+                    <p style={{ fontSize: "12px", color: "#6b7a96", margin: "0 0 4px 0" }}>
+                      Plat Nomor
+                    </p>
+                    <p
+                      style={{
+                        fontSize: "14px",
+                        fontWeight: "700",
+                        color: "#1C3967",
+                        margin: 0,
+                      }}
+                    >
+                      {vehicleDetailModal.plateNumber}
+                    </p>
+                  </div>
+                  <div style={{ background: "#f8fafc", padding: "12px", borderRadius: "8px" }}>
+                    <p style={{ fontSize: "12px", color: "#6b7a96", margin: "0 0 4px 0" }}>
+                      Tipe / Jenis Kendaraan
+                    </p>
+                    <p
+                      style={{
+                        fontSize: "14px",
+                        fontWeight: "700",
+                        color: "#1C3967",
+                        margin: 0,
+                      }}
+                    >
+                      {vehicleDetailModal.vehicleType}
+                    </p>
+                  </div>
+                  <div style={{ background: "#f8fafc", padding: "12px", borderRadius: "8px" }}>
+                    <p style={{ fontSize: "12px", color: "#6b7a96", margin: "0 0 4px 0" }}>
+                      Nomor Buku Uji KIR
+                    </p>
+                    <p
+                      style={{
+                        fontSize: "14px",
+                        fontWeight: "700",
+                        color: "#1C3967",
+                        margin: 0,
+                        fontFamily: "monospace",
+                      }}
+                    >
+                      {vehicleDetailModal.testNumber || "-"}
+                    </p>
+                  </div>
+                  <div style={{ background: "#f8fafc", padding: "12px", borderRadius: "8px" }}>
+                    <p style={{ fontSize: "12px", color: "#6b7a96", margin: "0 0 4px 0" }}>
+                      ID Kendaraan (Internal)
+                    </p>
+                    <p
+                      style={{
+                        fontSize: "12px",
+                        fontWeight: "600",
+                        color: "#475569",
+                        margin: 0,
+                        fontFamily: "monospace",
+                        wordBreak: "break-all",
+                      }}
+                    >
+                      {vehicleDetailModal.id}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Masa Berlaku Dokumen */}
+              <div style={{ marginBottom: "24px" }}>
+                <h4
+                  style={{
+                    fontSize: "14px",
+                    fontWeight: "800",
+                    color: "#1C3967",
+                    margin: "0 0 16px 0",
+                    paddingBottom: "8px",
+                    borderBottom: "2px solid #e2e8f0",
+                  }}
+                >
+                  📅 Masa Berlaku Dokumen
+                </h4>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr 1fr",
+                    gap: "12px",
+                  }}
+                >
+                  <div style={{ background: "#f0fdf4", padding: "12px", borderRadius: "8px", border: "1px solid #bbf7d0" }}>
+                    <p style={{ fontSize: "12px", color: "#15803d", margin: "0 0 4px 0", fontWeight: "600" }}>
+                      Uji KIR
+                    </p>
+                    <p
+                      style={{
+                        fontSize: "13px",
+                        fontWeight: "700",
+                        color: "#166534",
+                        margin: "0 0 4px 0",
+                      }}
+                    >
+                      {vehicleDetailModal.kirExpiry}
+                    </p>
+                    <p
+                      style={{
+                        fontSize: "11px",
+                        color: "#15803d",
+                        margin: 0,
+                      }}
+                    >
+                      {(() => {
+                        const days = getDaysRemaining(vehicleDetailModal.kirExpiry);
+                        if (days <= 0) {
+                          return `⚠️ Jatuh Tempo (${Math.abs(days)} hari lalu)`;
+                        } else if (days <= 7) {
+                          return `🔴 H-${days}`;
+                        } else if (days <= 30) {
+                          return `🟡 H-${days}`;
+                        }
+                        return `🟢 H-${days}`;
+                      })()}
+                    </p>
+                  </div>
+                  <div style={{ background: "#f0fdf4", padding: "12px", borderRadius: "8px", border: "1px solid #bbf7d0" }}>
+                    <p style={{ fontSize: "12px", color: "#15803d", margin: "0 0 4px 0", fontWeight: "600" }}>
+                      STNK (5 Tahun)
+                    </p>
+                    <p
+                      style={{
+                        fontSize: "13px",
+                        fontWeight: "700",
+                        color: "#166534",
+                        margin: "0 0 4px 0",
+                      }}
+                    >
+                      {vehicleDetailModal.stnkExpiry}
+                    </p>
+                    <p
+                      style={{
+                        fontSize: "11px",
+                        color: "#15803d",
+                        margin: 0,
+                      }}
+                    >
+                      {(() => {
+                        const days = getDaysRemaining(vehicleDetailModal.stnkExpiry);
+                        if (days <= 0) {
+                          return `⚠️ Jatuh Tempo (${Math.abs(days)} hari lalu)`;
+                        } else if (days <= 7) {
+                          return `🔴 H-${days}`;
+                        } else if (days <= 30) {
+                          return `🟡 H-${days}`;
+                        }
+                        return `🟢 H-${days}`;
+                      })()}
+                    </p>
+                  </div>
+                  <div style={{ background: "#f0fdf4", padding: "12px", borderRadius: "8px", border: "1px solid #bbf7d0" }}>
+                    <p style={{ fontSize: "12px", color: "#15803d", margin: "0 0 4px 0", fontWeight: "600" }}>
+                      Pajak (1 Tahun)
+                    </p>
+                    <p
+                      style={{
+                        fontSize: "13px",
+                        fontWeight: "700",
+                        color: "#166534",
+                        margin: "0 0 4px 0",
+                      }}
+                    >
+                      {vehicleDetailModal.pajakExpiry}
+                    </p>
+                    <p
+                      style={{
+                        fontSize: "11px",
+                        color: "#15803d",
+                        margin: 0,
+                      }}
+                    >
+                      {(() => {
+                        const days = getDaysRemaining(vehicleDetailModal.pajakExpiry);
+                        if (days <= 0) {
+                          return `⚠️ Jatuh Tempo (${Math.abs(days)} hari lalu)`;
+                        } else if (days <= 7) {
+                          return `🔴 H-${days}`;
+                        } else if (days <= 30) {
+                          return `🟡 H-${days}`;
+                        }
+                        return `🟢 H-${days}`;
+                      })()}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* SIM Driver */}
+              {vehicleDetailModal.simDriverExpiry && (
+                <div style={{ marginBottom: "24px" }}>
+                  <h4
+                    style={{
+                      fontSize: "14px",
+                      fontWeight: "800",
+                      color: "#1C3967",
+                      margin: "0 0 16px 0",
+                      paddingBottom: "8px",
+                      borderBottom: "2px solid #e2e8f0",
+                    }}
+                  >
+                    🪪 SIM Driver
+                  </h4>
+                  <div style={{ background: "#f0fdf4", padding: "12px", borderRadius: "8px", border: "1px solid #bbf7d0" }}>
+                    <p style={{ fontSize: "12px", color: "#15803d", margin: "0 0 4px 0", fontWeight: "600" }}>
+                      Masa Berlaku SIM
+                    </p>
+                    <p
+                      style={{
+                        fontSize: "13px",
+                        fontWeight: "700",
+                        color: "#166534",
+                        margin: "0 0 4px 0",
+                      }}
+                    >
+                      {vehicleDetailModal.simDriverExpiry}
+                    </p>
+                    <p
+                      style={{
+                        fontSize: "11px",
+                        color: "#15803d",
+                        margin: 0,
+                      }}
+                    >
+                      {(() => {
+                        const days = getDaysRemaining(vehicleDetailModal.simDriverExpiry);
+                        if (days <= 0) {
+                          return `⚠️ Jatuh Tempo (${Math.abs(days)} hari lalu)`;
+                        } else if (days <= 7) {
+                          return `🔴 H-${days}`;
+                        } else if (days <= 30) {
+                          return `🟡 H-${days}`;
+                        }
+                        return `🟢 H-${days}`;
+                      })()}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Status Dokumen */}
+              <div style={{ marginBottom: "24px" }}>
+                <h4
+                  style={{
+                    fontSize: "14px",
+                    fontWeight: "800",
+                    color: "#1C3967",
+                    margin: "0 0 16px 0",
+                    paddingBottom: "8px",
+                    borderBottom: "2px solid #e2e8f0",
+                  }}
+                >
+                  📄 Status Dokumen Pindaian
+                </h4>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr",
+                    gap: "12px",
+                  }}
+                >
+                  {[
+                    { key: "kartuKir", label: "Kartu KIR", icon: "🪪" },
+                    { key: "sertifikatKir", label: "Sertifikat KIR", icon: "📜" },
+                    { key: "stnk", label: "STNK", icon: "📋" },
+                  ].map(({ key, label, icon }) => {
+                    const isHilang = vehicleDetailModal[`${key}Hilang`];
+                    const fileName = vehicleDetailModal[`${key}FileName`];
+                    const scanStatus = vehicleDetailModal[`${key}ScanStatus`];
+                    const score = vehicleDetailModal[`${key}Score`];
+
+                    return (
+                      <div
+                        key={key}
+                        style={{
+                          background: isHilang
+                            ? "#fef2f2"
+                            : fileName
+                              ? "#f0fdf4"
+                              : "#f8fafc",
+                          padding: "12px",
+                          borderRadius: "8px",
+                          border: isHilang
+                            ? "1px solid #fecaca"
+                            : fileName
+                              ? "1px solid #bbf7d0"
+                              : "1px solid #cbd5e1",
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                          }}
+                        >
+                          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                            <span style={{ fontSize: "18px" }}>{icon}</span>
+                            <div>
+                              <strong style={{ fontSize: "13px", color: "#1C3967" }}>
+                                {label}
+                              </strong>
+                              {isHilang ? (
+                                <div
+                                  style={{
+                                    fontSize: "11px",
+                                    color: "#dc2626",
+                                    marginTop: "2px",
+                                  }}
+                                >
+                                  ⚠️ Hilang / Belum Ada
+                                </div>
+                              ) : fileName ? (
+                                <div
+                                  style={{
+                                    fontSize: "11px",
+                                    color: "#16a34a",
+                                    marginTop: "2px",
+                                  }}
+                                >
+                                  ✓ Terbaca {score}% — {fileName}
+                                </div>
+                              ) : (
+                                <div
+                                  style={{
+                                    fontSize: "11px",
+                                    color: "#94a3b8",
+                                    marginTop: "2px",
+                                  }}
+                                >
+                                  Belum diunggah
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Catatan */}
+              {vehicleDetailModal.notes && (
+                <div style={{ marginBottom: "0" }}>
+                  <h4
+                    style={{
+                      fontSize: "14px",
+                      fontWeight: "800",
+                      color: "#1C3967",
+                      margin: "0 0 16px 0",
+                      paddingBottom: "8px",
+                      borderBottom: "2px solid #e2e8f0",
+                    }}
+                  >
+                    📝 Catatan Tambahan
+                  </h4>
+                  <div
+                    style={{
+                      background: "#f8fafc",
+                      padding: "12px",
+                      borderRadius: "8px",
+                      border: "1px solid #cbd5e1",
+                      color: "#1C3967",
+                      fontSize: "13px",
+                      lineHeight: "1.6",
+                      whiteSpace: "pre-wrap",
+                      wordBreak: "break-word",
+                    }}
+                  >
+                    {vehicleDetailModal.notes}
+                  </div>
+                </div>
+              )}
+            </div>
+            <div
+              className="fleet-modal-footer"
+              style={{ justifyContent: "flex-end" }}
+            >
+              <button
+                type="button"
+                className="fleet-btn fleet-btn-secondary"
+                onClick={() => setVehicleDetailModal(null)}
+              >
                 Tutup
               </button>
             </div>
@@ -1682,123 +2619,180 @@ function VehiclesView({ vehicles, docs, clientId, onUpdate }) {
         <div className="fleet-modal-overlay">
           <div className="fleet-modal" style={{ maxWidth: "600px" }}>
             <div className="fleet-modal-header">
-              <h3>👁️ {previewDoc.label} — {selectedVehicle.plateNumber}</h3>
-              <span className="btn-close-modal" onClick={() => setPreviewDoc(null)}>×</span>
+              <h3>
+                👁️ {previewDoc.label} — {selectedVehicle.plateNumber}
+              </h3>
+              <span
+                className="btn-close-modal"
+                onClick={() => setPreviewDoc(null)}
+              >
+                ×
+              </span>
             </div>
             <div className="fleet-modal-body" style={{ textAlign: "center" }}>
-              <div style={{
-                background: "#f8fafc",
-                border: "2px solid #cbd5e1",
-                borderRadius: "12px",
-                padding: "20px",
-                marginBottom: "16px",
-                minHeight: "300px",
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                overflow: "auto",
-                maxHeight: "500px",
-              }}>
+              <div
+                style={{
+                  background: "#f8fafc",
+                  border: "2px solid #cbd5e1",
+                  borderRadius: "12px",
+                  padding: "20px",
+                  marginBottom: "16px",
+                  minHeight: "300px",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  overflow: "auto",
+                  maxHeight: "500px",
+                }}
+              >
                 {previewDoc.fileName?.toLowerCase().endsWith(".pdf") ? (
-                  <div style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    gap: "12px",
-                  }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      gap: "12px",
+                    }}
+                  >
                     <div style={{ fontSize: "72px" }}>📄</div>
-                    <p style={{ fontSize: "14px", fontWeight: "700", color: "#1C3967", margin: "0" }}>
+                    <p
+                      style={{
+                        fontSize: "14px",
+                        fontWeight: "700",
+                        color: "#1C3967",
+                        margin: "0",
+                      }}
+                    >
                       {previewDoc.fileName}
                     </p>
-                    <p style={{ fontSize: "12px", color: "#6b7a96", margin: 0 }}>
-                      File PDF — {previewDoc.score ? `Keterbacaan: ${previewDoc.score}%` : ""}
+                    <p
+                      style={{ fontSize: "12px", color: "#6b7a96", margin: 0 }}
+                    >
+                      File PDF —{" "}
+                      {previewDoc.score
+                        ? `Keterbacaan: ${previewDoc.score}%`
+                        : ""}
                     </p>
-                    <div style={{
-                      background: "#eff6ff",
-                      border: "1px solid #bfdbfe",
-                      borderRadius: "8px",
-                      padding: "12px",
-                      fontSize: "12px",
-                      color: "#1e40af",
-                      marginTop: "12px",
-                      textAlign: "left",
-                    }}>
-                      💡 Preview PDF tidak tersedia. File PDF berisi dokumen asli yang telah dipindai dan diverifikasi oleh sistem OCR.
+                    <div
+                      style={{
+                        background: "#eff6ff",
+                        border: "1px solid #bfdbfe",
+                        borderRadius: "8px",
+                        padding: "12px",
+                        fontSize: "12px",
+                        color: "#1e40af",
+                        marginTop: "12px",
+                        textAlign: "left",
+                      }}
+                    >
+                      💡 Preview PDF tidak tersedia. File PDF berisi dokumen
+                      asli yang telah dipindai dan diverifikasi oleh sistem OCR.
                     </div>
                   </div>
                 ) : (
-                  <div style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    gap: "12px",
-                  }}>
-                    {/* Simulasi gambar dokumen */}
-                    <div style={{
-                      background: "#ffffff",
-                      border: "1px solid #cbd5e1",
-                      borderRadius: "8px",
-                      padding: "16px",
-                      width: "100%",
-                      maxWidth: "400px",
-                      aspectRatio: "8.5 / 11",
+                  <div
+                    style={{
                       display: "flex",
                       flexDirection: "column",
-                      justifyContent: "center",
                       alignItems: "center",
-                      fontSize: "12px",
-                      color: "#6b7a96",
-                      textAlign: "center",
-                      gap: "8px",
-                    }}>
+                      gap: "12px",
+                    }}
+                  >
+                    {/* Simulasi gambar dokumen */}
+                    <div
+                      style={{
+                        background: "#ffffff",
+                        border: "1px solid #cbd5e1",
+                        borderRadius: "8px",
+                        padding: "16px",
+                        width: "100%",
+                        maxWidth: "400px",
+                        aspectRatio: "8.5 / 11",
+                        display: "flex",
+                        flexDirection: "column",
+                        justifyContent: "center",
+                        alignItems: "center",
+                        fontSize: "12px",
+                        color: "#6b7a96",
+                        textAlign: "center",
+                        gap: "8px",
+                      }}
+                    >
                       <div style={{ fontSize: "40px" }}>🖼️</div>
                       <div>
-                        <strong style={{ display: "block", color: "#1C3967", marginBottom: "4px" }}>
+                        <strong
+                          style={{
+                            display: "block",
+                            color: "#1C3967",
+                            marginBottom: "4px",
+                          }}
+                        >
                           {previewDoc.label}
                         </strong>
                         <span>File: {previewDoc.fileName}</span>
                       </div>
-                      <div style={{
-                        marginTop: "12px",
-                        fontSize: "11px",
-                        padding: "8px",
-                        background: "#f0fdf4",
-                        border: "1px solid #bbf7d0",
-                        borderRadius: "6px",
-                        color: "#15803d",
-                      }}>
+                      <div
+                        style={{
+                          marginTop: "12px",
+                          fontSize: "11px",
+                          padding: "8px",
+                          background: "#f0fdf4",
+                          border: "1px solid #bbf7d0",
+                          borderRadius: "6px",
+                          color: "#15803d",
+                        }}
+                      >
                         ✓ Keterbacaan: {previewDoc.score}%
                       </div>
-                      <div style={{
-                        marginTop: "8px",
-                        fontSize: "10px",
-                        color: "#94a3b8",
-                        fontStyle: "italic",
-                      }}>
+                      <div
+                        style={{
+                          marginTop: "8px",
+                          fontSize: "10px",
+                          color: "#94a3b8",
+                          fontStyle: "italic",
+                        }}
+                      >
                         Gambar asli tersimpan dalam sistem
                       </div>
                     </div>
-                    <p style={{ fontSize: "12px", color: "#6b7a96", margin: 0 }}>
-                      Format: {previewDoc.fileName?.includes(".") ? previewDoc.fileName.split(".").pop().toUpperCase() : "-"}
+                    <p
+                      style={{ fontSize: "12px", color: "#6b7a96", margin: 0 }}
+                    >
+                      Format:{" "}
+                      {previewDoc.fileName?.includes(".")
+                        ? previewDoc.fileName.split(".").pop().toUpperCase()
+                        : "-"}
                     </p>
                   </div>
                 )}
               </div>
-              <div style={{
-                background: "#f0fdf4",
-                border: "1px solid #bbf7d0",
-                borderRadius: "8px",
-                padding: "12px",
-                fontSize: "12px",
-                color: "#15803d",
-                lineHeight: "1.5",
-              }}>
-                ✓ Dokumen ini telah diverifikasi otomatis oleh sistem OCR dengan akurasi {previewDoc.score}%. Data yang terbaca: Plat Nomor, Nomor Uji KIR, Nomor Rangka, dan Nomor Mesin sudah sesuai dengan data yang Anda daftarkan.
+              <div
+                style={{
+                  background: "#f0fdf4",
+                  border: "1px solid #bbf7d0",
+                  borderRadius: "8px",
+                  padding: "12px",
+                  fontSize: "12px",
+                  color: "#15803d",
+                  lineHeight: "1.5",
+                }}
+              >
+                ✓ Dokumen ini telah diverifikasi otomatis oleh sistem OCR dengan
+                akurasi {previewDoc.score}%. Data yang terbaca: Plat Nomor,
+                Nomor Uji KIR, Nomor Rangka, dan Nomor Mesin sudah sesuai dengan
+                data yang Anda daftarkan.
               </div>
             </div>
-            <div className="fleet-modal-footer" style={{ justifyContent: "flex-end" }}>
-              <button type="button" className="fleet-btn fleet-btn-secondary" onClick={() => setPreviewDoc(null)}>
+            <div
+              className="fleet-modal-footer"
+              style={{ justifyContent: "flex-end" }}
+            >
+              <button
+                type="button"
+                className="fleet-btn fleet-btn-secondary"
+                onClick={() => setPreviewDoc(null)}
+              >
                 Tutup
               </button>
             </div>
@@ -2215,7 +3209,7 @@ function SettingsView({ company, onUpdate }) {
   });
 
   const handleChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleSave = (e) => {
@@ -2232,12 +3226,25 @@ function SettingsView({ company, onUpdate }) {
 
   return (
     <div className="fleet-card">
-      <h2 style={{ fontSize: "16px", fontWeight: "800", margin: "0 0 24px 0", color: "#1C3967" }}>
+      <h2
+        style={{
+          fontSize: "16px",
+          fontWeight: "800",
+          margin: "0 0 24px 0",
+          color: "#1C3967",
+        }}
+      >
         ⚙️ Pengaturan Akun & Profil Perusahaan
       </h2>
 
       <form onSubmit={handleSave}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: "20px",
+          }}
+        >
           <div className="fleet-form-group">
             <label className="fleet-label">Nama PIC (Penanggung Jawab) *</label>
             <input
@@ -2286,7 +3293,16 @@ function SettingsView({ company, onUpdate }) {
           />
         </div>
 
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px", marginTop: "24px", paddingTop: "16px", borderTop: "1px solid #e2e8f0" }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "flex-end",
+            gap: "12px",
+            marginTop: "24px",
+            paddingTop: "16px",
+            borderTop: "1px solid #e2e8f0",
+          }}
+        >
           <button type="submit" className="fleet-btn fleet-btn-primary">
             💾 Simpan Perubahan
           </button>
