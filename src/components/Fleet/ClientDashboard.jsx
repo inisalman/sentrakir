@@ -473,6 +473,14 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
     pajakExpiry: "",
     simDriverExpiry: "",
     notes: "",
+    // OCR-scanned data from Sertifikat KIR
+    ownerName: "",
+    ownerAddress: "",
+    frameNumber: "",
+    engineNumber: "",
+    brand: "",
+    model: "",
+    yearManufactured: "",
     kartuKirFile: null,
     kartuKirStatus: "idle", // idle, scanning, success, failed
     kartuKirScore: null,
@@ -505,6 +513,14 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
       pajakExpiry: "",
       simDriverExpiry: "",
       notes: "",
+      // OCR-scanned data from Sertifikat KIR
+      ownerName: "",
+      ownerAddress: "",
+      frameNumber: "",
+      engineNumber: "",
+      brand: "",
+      model: "",
+      yearManufactured: "",
       kartuKirFile: null,
       kartuKirStatus: "idle",
       kartuKirScore: null,
@@ -534,6 +550,14 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
       pajakExpiry: vehicle.pajakExpiry,
       simDriverExpiry: vehicle.simDriverExpiry || "",
       notes: vehicle.notes || "",
+      // OCR-scanned data from Sertifikat KIR
+      ownerName: vehicle.ownerName || "",
+      ownerAddress: vehicle.ownerAddress || "",
+      frameNumber: vehicle.frameNumber || "",
+      engineNumber: vehicle.engineNumber || "",
+      brand: vehicle.brand || "",
+      model: vehicle.model || "",
+      yearManufactured: vehicle.yearManufactured || "",
       kartuKirFile: null,
       kartuKirStatus: "idle",
       kartuKirScore: null,
@@ -563,11 +587,69 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
     setTimeout(() => {
       if (shouldSucceed) {
         const score = Math.floor(Math.random() * 16) + 84; // 84% - 99%
-        setFormData((prev) => ({
-          ...prev,
+
+        // If scanning Sertifikat KIR, auto-fill Data Kartu Kendaraan
+        let updateData = {
           [`${docType}Status`]: "success",
           [`${docType}Score`]: score,
           [`${docType}Error`]: "",
+        };
+
+        if (docType === "sertifikatKir") {
+          // Extract mock OCR data from Sertifikat KIR and auto-fill
+          // Sertifikat KIR contains: Nama Pemilik, Alamat Pemilik, NOPOL, No Rangka, No Mesin, No Uji
+          const plate = (formData.plateNumber || "B0000XX").replace(/\s+/g, "");
+          const ownerNames = [
+            "PT Logistik Nusantara",
+            "PT Trans Jaya Abadi",
+            "CV Karya Mandiri",
+            "PT Sumber Rejeki Transport",
+            "PT Armada Sejahtera",
+          ];
+          const addresses = [
+            "Jl. Raya Bekasi KM 25, Cakung, Jakarta Timur",
+            "Jl. Industri Raya No. 45, Tangerang, Banten",
+            "Jl. Soekarno Hatta No. 88, Bandung, Jawa Barat",
+            "Jl. Gatot Subroto No. 12, Jakarta Selatan",
+            "Jl. Ahmad Yani No. 56, Surabaya, Jawa Timur",
+          ];
+          const brands = [
+            "Mitsubishi / Colt Diesel",
+            "Hino / Dutro 130 HD",
+            "Isuzu / ELF NMR 71",
+            "Toyota / Dyna 110 ST",
+            "Daihatsu / Gran Max",
+          ];
+          // Generate consistent index based on plate number for realistic mock
+          const idx =
+            plate.split("").reduce((sum, c) => sum + c.charCodeAt(0), 0) %
+            ownerNames.length;
+          const yearOptions = ["2018", "2019", "2020", "2021", "2022", "2023"];
+
+          updateData = {
+            ...updateData,
+            // Auto-fill from Sertifikat KIR OCR scan
+            ownerName: formData.ownerName || ownerNames[idx],
+            ownerAddress: formData.ownerAddress || addresses[idx],
+            frameNumber:
+              formData.frameNumber ||
+              `MHF${plate.slice(-4)}${idx}A${score}KIR${plate.length}`.toUpperCase(),
+            engineNumber:
+              formData.engineNumber ||
+              `4D${idx}${score}-${plate.slice(-4)}T`.toUpperCase(),
+            brand: formData.brand || brands[idx],
+            model: formData.model || brands[idx].split(" / ")[1],
+            yearManufactured:
+              formData.yearManufactured ||
+              yearOptions[idx % yearOptions.length],
+            // No Uji from Sertifikat KIR
+            testNumber: formData.testNumber || `JKT-${plate.slice(-6)}`,
+          };
+        }
+
+        setFormData((prev) => ({
+          ...prev,
+          ...updateData,
         }));
       } else {
         const score = Math.floor(Math.random() * 15) + 55; // 55% - 70%
@@ -690,6 +772,14 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
       stnkExpiry: formData.stnkExpiry,
       pajakExpiry: formData.pajakExpiry,
       notes: formData.notes,
+      // OCR-scanned data from Sertifikat KIR
+      ownerName: formData.ownerName || "",
+      ownerAddress: formData.ownerAddress || "",
+      frameNumber: formData.frameNumber || "",
+      engineNumber: formData.engineNumber || "",
+      brand: formData.brand || "",
+      model: formData.model || "",
+      yearManufactured: formData.yearManufactured || "",
       kartuKirHilang: !!formData.kartuKirHilang,
       sertifikatKirHilang: !!formData.sertifikatKirHilang,
       kartuKirFileName: formData.kartuKirHilang ? null : formData.kartuKirFile,
@@ -729,6 +819,15 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
       pajakExpiry: formData.pajakExpiry,
       simDriverExpiry: formData.simDriverExpiry,
       notes: formData.notes,
+      // OCR-scanned data from Sertifikat KIR (preserve existing if not re-scanned)
+      ownerName: formData.ownerName || selectedVehicle.ownerName || "",
+      ownerAddress: formData.ownerAddress || selectedVehicle.ownerAddress || "",
+      frameNumber: formData.frameNumber || selectedVehicle.frameNumber || "",
+      engineNumber: formData.engineNumber || selectedVehicle.engineNumber || "",
+      brand: formData.brand || selectedVehicle.brand || "",
+      model: formData.model || selectedVehicle.model || "",
+      yearManufactured:
+        formData.yearManufactured || selectedVehicle.yearManufactured || "",
       kartuKirHilang: !!formData.kartuKirHilang,
       sertifikatKirHilang: !!formData.sertifikatKirHilang,
       kartuKirFileName: formData.kartuKirHilang
@@ -1559,9 +1658,26 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                                   }}
                                 >
                                   ✨ <strong>Scan Berhasil ({score}%)</strong>
-                                  <br />• Plat Nomor, Nomor Uji KIR, No. Rangka
-                                  &amp; No. Mesin terbaca dengan jelas (Akurasi
-                                  &gt; 80%).
+                                  {docType === "sertifikatKir" ? (
+                                    <>
+                                      <br />
+                                      📋 <strong>Data berhasil diekstrak &amp; mengisi "Data Kartu Kendaraan":</strong>
+                                      <ul style={{ margin: "4px 0 0 0", paddingLeft: "18px" }}>
+                                        <li>Nama Pemilik: <strong>{formData.ownerName || "-"}</strong></li>
+                                        <li>Alamat Pemilik: <strong>{formData.ownerAddress || "-"}</strong></li>
+                                        <li>No Registrasi/NOPOL: <strong>{formData.plateNumber || "-"}</strong></li>
+                                        <li>No Rangka: <strong>{formData.frameNumber || "-"}</strong></li>
+                                        <li>No Mesin: <strong>{formData.engineNumber || "-"}</strong></li>
+                                        <li>No Uji Kendaraan: <strong>{formData.testNumber || "-"}</strong></li>
+                                      </ul>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <br />• Plat Nomor, Nomor Uji KIR, No.
+                                      Rangka &amp; No. Mesin terbaca dengan jelas
+                                      (Akurasi &gt; 80%).
+                                    </>
+                                  )}
                                 </div>
                               )}
                               {status === "failed" && (
