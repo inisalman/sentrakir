@@ -577,6 +577,33 @@ function VehiclesView({ vehicles, docs, clientId, onUpdate }) {
     setModalType("upload");
   };
 
+  // Helper function to get description based on service type and vehicle
+  const getDescriptionForServiceType = (serviceType, vehicle) => {
+    if (!vehicle) return "";
+
+    const descriptions = {
+      kir_renewal: `Pengurusan perpanjangan Uji KIR untuk kendaraan ${vehicle.plateNumber} yang habis tanggal ${vehicle.kirExpiry}. Berkas asli akan dijemput dan diantar kembali oleh kurir kami.`,
+
+      stnk_renewal: `Pengurusan perpanjangan STNK (Surat Tanda Nomor Kendaraan) 5 tahunan untuk kendaraan ${vehicle.plateNumber} yang habis tanggal ${vehicle.stnkExpiry}. Permohonan akan diurus ke Polres setempat.`,
+
+      pajak_renewal: `Pengurusan perpanjangan Pajak Kendaraan Tahunan untuk kendaraan ${vehicle.plateNumber} yang habis tanggal ${vehicle.pajakExpiry}. Proses pembayaran dan pengurusan dokumen kami tangani.`,
+
+      multiple: `Pengurusan perpanjangan KIR & STNK/Pajak secara bersamaan untuk kendaraan ${vehicle.plateNumber}. Paket hemat untuk pengurusan lebih dari satu jenis dokumen sekaligus.`,
+
+      buka_blokir_kir: `Pengurusan Buka Blokir Data Kendaraan KIR untuk kendaraan ${vehicle.plateNumber} karena KIR telah kadaluwarsa lebih dari 1 tahun (Habis sejak ${vehicle.kirExpiry}). Diperlukan proses khusus ke Dishub untuk membuka status terblokir.`,
+    };
+
+    return descriptions[serviceType] || "";
+  };
+
+  // Update description automatically when service type changes
+  useEffect(() => {
+    if (selectedVehicle && requestServiceType) {
+      const newDesc = getDescriptionForServiceType(requestServiceType, selectedVehicle);
+      setRequestDesc(newDesc);
+    }
+  }, [requestServiceType, selectedVehicle]);
+
   const handleOpenUrus = (vehicle) => {
     setSelectedVehicle(vehicle);
     setRequestLaporHilang(false);
@@ -586,33 +613,23 @@ function VehiclesView({ vehicles, docs, clientId, onUpdate }) {
     const stnkDays = getDaysRemaining(vehicle.stnkExpiry);
     const pajakDays = getDaysRemaining(vehicle.pajakExpiry);
 
+    let initialServiceType = "kir_renewal";
+
     if (kirDays <= -365) {
-      setRequestServiceType("buka_blokir_kir");
-      setRequestDesc(
-        `Pengurusan Buka Blokir Data Kendaraan KIR untuk kendaraan ${vehicle.plateNumber} karena KIR telah kadaluwarsa lebih dari 1 tahun (Habis sejak ${vehicle.kirExpiry}).`,
-      );
+      initialServiceType = "buka_blokir_kir";
     } else if (kirDays <= 90 && (stnkDays <= 90 || pajakDays <= 90)) {
-      setRequestServiceType("multiple");
-      setRequestDesc(
-        `Pengurusan perpanjangan KIR & STNK/Pajak untuk kendaraan ${vehicle.plateNumber}`,
-      );
+      initialServiceType = "multiple";
     } else if (kirDays <= 90) {
-      setRequestServiceType("kir_renewal");
-      setRequestDesc(
-        `Pengurusan perpanjangan KIR untuk kendaraan ${vehicle.plateNumber} yang habis tanggal ${vehicle.kirExpiry}`,
-      );
+      initialServiceType = "kir_renewal";
     } else if (stnkDays <= 90) {
-      setRequestServiceType("stnk_renewal");
-      setRequestDesc(
-        `Pengurusan perpanjangan STNK untuk kendaraan ${vehicle.plateNumber} yang habis tanggal ${vehicle.stnkExpiry}`,
-      );
+      initialServiceType = "stnk_renewal";
     } else {
-      setRequestServiceType("pajak_renewal");
-      setRequestDesc(
-        `Pengurusan perpanjangan Pajak untuk kendaraan ${vehicle.plateNumber} yang habis tanggal ${vehicle.pajakExpiry}`,
-      );
+      initialServiceType = "pajak_renewal";
     }
 
+    setRequestServiceType(initialServiceType);
+    const initialDesc = getDescriptionForServiceType(initialServiceType, vehicle);
+    setRequestDesc(initialDesc);
     setModalType("urus");
   };
 
