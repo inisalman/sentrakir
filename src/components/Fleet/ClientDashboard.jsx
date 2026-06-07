@@ -599,11 +599,11 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
       stnkYearManufactured: vehicle.stnkYearManufactured || "",
       stnkFrameNumber: vehicle.stnkFrameNumber || "",
       stnkEngineNumber: vehicle.stnkEngineNumber || "",
-      kartuKirFile: null,
-      kartuKirHilang: false,
-      sertifikatKirFile: null,
-      sertifikatKirHilang: false,
-      stnkFile: null,
+      kartuKirFile: vehicle.kartuKirFileName || null,
+      kartuKirHilang: !!vehicle.kartuKirHilang,
+      sertifikatKirFile: vehicle.sertifikatKirFileName || null,
+      sertifikatKirHilang: !!vehicle.sertifikatKirHilang,
+      stnkFile: vehicle.stnkFileName || null,
     });
     setModalType("edit");
   };
@@ -804,86 +804,43 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
       pajakExpiry: formData.pajakExpiry,
       simDriverExpiry: formData.simDriverExpiry,
       notes: formData.notes,
-      // Legacy data mappings for backward compatibility (preserve existing if empty)
-      ownerName:
-        formData.kkOwnerName ||
-        formData.kirOwnerName ||
-        formData.stnkOwnerName ||
-        selectedVehicle.ownerName ||
-        "",
-      ownerAddress:
-        formData.kkOwnerAddress ||
-        formData.stnkOwnerAddress ||
-        selectedVehicle.ownerAddress ||
-        "",
-      frameNumber:
-        formData.kkFrameNumber ||
-        formData.stnkFrameNumber ||
-        selectedVehicle.frameNumber ||
-        "",
-      engineNumber:
-        formData.kkEngineNumber ||
-        formData.stnkEngineNumber ||
-        selectedVehicle.engineNumber ||
-        "",
-      brand:
-        formData.kirBrand || formData.stnkBrand || selectedVehicle.brand || "",
-      model: formData.stnkModel || selectedVehicle.model || "",
-      yearManufactured:
-        formData.stnkYearManufactured || selectedVehicle.yearManufactured || "",
-      // Data Kartu Kendaraan
-      kkOwnerName: formData.kkOwnerName || selectedVehicle.kkOwnerName || "",
-      kkOwnerAddress:
-        formData.kkOwnerAddress || selectedVehicle.kkOwnerAddress || "",
-      kkPlateNumber:
-        formData.kkPlateNumber || selectedVehicle.kkPlateNumber || "",
-      kkFrameNumber:
-        formData.kkFrameNumber || selectedVehicle.kkFrameNumber || "",
-      kkEngineNumber:
-        formData.kkEngineNumber || selectedVehicle.kkEngineNumber || "",
-      kkTestNumber: formData.kkTestNumber || selectedVehicle.kkTestNumber || "",
+      // Legacy data mappings — use formData directly (user may have cleared a field)
+      ownerName: formData.kkOwnerName || formData.kirOwnerName || formData.stnkOwnerName || "",
+      ownerAddress: formData.kkOwnerAddress || formData.stnkOwnerAddress || "",
+      frameNumber: formData.kkFrameNumber || formData.stnkFrameNumber || "",
+      engineNumber: formData.kkEngineNumber || formData.stnkEngineNumber || "",
+      brand: formData.kirBrand || formData.stnkBrand || "",
+      model: formData.stnkModel || "",
+      yearManufactured: formData.stnkYearManufactured || "",
+      // Data Kartu Kendaraan (use formData directly, not || with selectedVehicle)
+      kkOwnerName: formData.kkOwnerName || "",
+      kkOwnerAddress: formData.kkOwnerAddress || "",
+      kkPlateNumber: formData.kkPlateNumber || "",
+      kkFrameNumber: formData.kkFrameNumber || "",
+      kkEngineNumber: formData.kkEngineNumber || "",
+      kkTestNumber: formData.kkTestNumber || "",
       // Data Kartu KIR
-      kirOwnerName: formData.kirOwnerName || selectedVehicle.kirOwnerName || "",
-      kirPlateNumber:
-        formData.kirPlateNumber || selectedVehicle.kirPlateNumber || "",
-      kirTestNumber:
-        formData.kirTestNumber || selectedVehicle.kirTestNumber || "",
-      kirVehicleType:
-        formData.kirVehicleType || selectedVehicle.kirVehicleType || "Delvan",
-      kirBrand: formData.kirBrand || selectedVehicle.kirBrand || "",
+      kirOwnerName: formData.kirOwnerName || "",
+      kirPlateNumber: formData.kirPlateNumber || "",
+      kirTestNumber: formData.kirTestNumber || "",
+      kirVehicleType: formData.kirVehicleType || "Delvan",
+      kirBrand: formData.kirBrand || "",
       // Data STNK
-      stnkOwnerName:
-        formData.stnkOwnerName || selectedVehicle.stnkOwnerName || "",
-      stnkPlateNumber:
-        formData.stnkPlateNumber || selectedVehicle.stnkPlateNumber || "",
-      stnkOwnerAddress:
-        formData.stnkOwnerAddress || selectedVehicle.stnkOwnerAddress || "",
-      stnkBrand: formData.stnkBrand || selectedVehicle.stnkBrand || "",
-      stnkVehicleType:
-        formData.stnkVehicleType || selectedVehicle.stnkVehicleType || "",
-      stnkVehicleJenis:
-        formData.stnkVehicleJenis ||
-        selectedVehicle.stnkVehicleJenis ||
-        "Delvan",
-      stnkModel: formData.stnkModel || selectedVehicle.stnkModel || "",
-      stnkYearManufactured:
-        formData.stnkYearManufactured ||
-        selectedVehicle.stnkYearManufactured ||
-        "",
-      stnkFrameNumber:
-        formData.stnkFrameNumber || selectedVehicle.stnkFrameNumber || "",
-      stnkEngineNumber:
-        formData.stnkEngineNumber || selectedVehicle.stnkEngineNumber || "",
+      stnkOwnerName: formData.stnkOwnerName || "",
+      stnkPlateNumber: formData.stnkPlateNumber || "",
+      stnkOwnerAddress: formData.stnkOwnerAddress || "",
+      stnkBrand: formData.stnkBrand || "",
+      stnkVehicleType: formData.stnkVehicleType || "",
+      stnkVehicleJenis: formData.stnkVehicleJenis || "Delvan",
+      stnkModel: formData.stnkModel || "",
+      stnkYearManufactured: formData.stnkYearManufactured || "",
+      stnkFrameNumber: formData.stnkFrameNumber || "",
+      stnkEngineNumber: formData.stnkEngineNumber || "",
       kartuKirHilang: !!formData.kartuKirHilang,
       sertifikatKirHilang: !!formData.sertifikatKirHilang,
-      kartuKirFileName: formData.kartuKirHilang
-        ? null
-        : formData.kartuKirFile || selectedVehicle.kartuKirFileName,
-      sertifikatKirFileName: formData.sertifikatKirHilang
-        ? null
-        : formData.sertifikatKirFile || selectedVehicle.sertifikatKirFileName,
-      stnkFileName: formData.stnkFile || selectedVehicle.stnkFileName,
-    });
+      kartuKirFileName: formData.kartuKirHilang ? null : formData.kartuKirFile,
+      sertifikatKirFileName: formData.sertifikatKirHilang ? null : formData.sertifikatKirFile,
+      stnkFileName: formData.stnkFile,    });
 
     setModalType(null);
     onUpdate();
