@@ -457,6 +457,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
   const [requestDesc, setRequestDesc] = useState("");
   const [requestLaporHilang, setRequestLaporHilang] = useState(false);
   const [requestMediaNasional, setRequestMediaNasional] = useState(false);
+  const [requestSimService, setRequestSimService] = useState(null); // null | 'sim_baru' | 'sim_perpanjang' | 'sim_konsultasi'
   const [rescanDocType, setRescanDocType] = useState(null); // 'kartuKir' | 'sertifikatKir' | 'stnk' | null
   const [previewDoc, setPreviewDoc] = useState(null); // { key, label, fileName } for preview modal
   const [vehicleDetailModal, setVehicleDetailModal] = useState(null); // full vehicle data modal
@@ -643,7 +644,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
 
       buka_blokir_kir: `Pengurusan Buka Blokir Data Kendaraan KIR untuk kendaraan ${vehicle.plateNumber} karena KIR telah kadaluwarsa lebih dari 1 tahun (Habis sejak ${vehicle.kirExpiry}). Diperlukan proses khusus ke Dishub untuk membuka status terblokir.`,
 
-      balik_nama: `Pengurusan Balik Nama Kendaraan (BBN-KB) untuk kendaraan ${vehicle.plateNumber} karena data pemilik/NOPOL pada STNK tidak sesuai dengan data pada Sertifikat KIR. Wajib dilakukan sebelum perpanjangan KIR dapat diproses.`,
+      balik_nama: `Pengurusan Balik Nama Kendaraan (BBN-KB) untuk kendaraan ${vehicle.plateNumber} karena data pemilik/NOPOL pada STNK tidak sesuai dengan data pada Sertifikat KIR. Wajib menyesuaikan data saat perpanjangan KIR.`,
     };
 
     return descriptions[serviceType] || "";
@@ -664,6 +665,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
     setSelectedVehicle(vehicle);
     setRequestLaporHilang(false);
     setRequestMediaNasional(false);
+    setRequestSimService(null);
 
     // Check if STNK name/plate don't match Sertifikat KIR → force balik nama
     const dataMismatch = isDataMismatch(vehicle);
@@ -951,6 +953,18 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
       addOnCost += 50000;
       addOnDesc += "\n• Bantu Urus Media Nasional (Rp 50.000)";
     }
+    if (requestSimService === "sim_baru") {
+      addOnCost += 500000;
+      addOnDesc += "\n• Pembuatan SIM A Baru (Rp 500.000)";
+    }
+    if (requestSimService === "sim_perpanjang") {
+      addOnCost += 350000;
+      addOnDesc += "\n• Perpanjangan SIM A (Rp 350.000)";
+    }
+    if (requestSimService === "sim_konsultasi") {
+      addOnCost += 100000;
+      addOnDesc += "\n• Konsultasi Pengurusan SIM Khusus (Rp 100.000)";
+    }
 
     let baseCost;
     if (requestServiceType === "multiple") {
@@ -1013,12 +1027,58 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
     const ownerMatch = !stnkOwner || !kkOwner || stnkOwner === kkOwner;
 
     // Compare STNK plate vs Sertifikat KIR plate
-    const stnkPlate = (vehicle.stnkPlateNumber || "").toLowerCase().replace(/\s+/g, "");
-    const kkPlate = (vehicle.kkPlateNumber || "").toLowerCase().replace(/\s+/g, "");
+    const stnkPlate = (vehicle.stnkPlateNumber || "")
+      .toLowerCase()
+      .replace(/\s+/g, "");
+    const kkPlate = (vehicle.kkPlateNumber || "")
+      .toLowerCase()
+      .replace(/\s+/g, "");
     const plateMatch = !stnkPlate || !kkPlate || stnkPlate === kkPlate;
 
     // Mismatch happens only when both fields are filled AND they differ
-    return stnkOwner && kkOwner && !ownerMatch && stnkPlate && kkPlate && !plateMatch;
+    return (
+      stnkOwner && kkOwner && !ownerMatch && stnkPlate && kkPlate && !plateMatch
+    );
+  };
+
+  // Determine SIM requirements based on vehicle type and SIM expiry
+  // Returns: null (not applicable) | 'sim_baru' | 'sim_perpanjang' | 'sim_konsultasi'
+  const getSimRequirement = (vehicle) => {
+    if (!vehicle || !vehicle.simDriverExpiry) return null;
+
+    const simDays = getDaysRemaining(vehicle.simDriverExpiry);
+    const type = (vehicle.vehicleType || "").toLowerCase();
+
+    // Vehicle types that require SIM beyond A & C (heavy vehicles, buses, trailers)
+    const heavyTypes = [
+      "bus",
+      "truck",
+      "truck cde",
+      "truck cdd",
+      "light truck",
+      "box",
+      "truck wingbox",
+      "truk gandeng",
+      "kereta tempelan",
+      "trailer",
+    ];
+    const isHeavy = heavyTypes.some((t) => type.includes(t) || type === t);
+
+    if (isHeavy) {
+      // These vehicles need SIM B1 or B2 - tidak bisa diproses otomatis
+      return "sim_konsultasi";
+    }
+
+    // SIM A is for passenger vehicles < 3000kg (suitable for mobil/SUV/sedan)
+    if (simDays <= 0) {
+      // SIM sudah habis → perlu bikin baru
+      return "sim_baru";
+    } else if (simDays <= 90) {
+      // SIM hampir habis → bisa diperpanjang
+      return "sim_perpanjang";
+    }
+
+    return null;
   };
 
   // Returns color scheme for an expiry card based on days remaining
@@ -1784,43 +1844,20 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                       />
                     </div>
                   </div>
-                  <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "1.5fr 1fr",
-                      gap: "12px",
-                    }}
-                  >
-                    <div className="fleet-form-group">
-                      <label className="fleet-label">Type Kendaraan</label>
-                      <input
-                        type="text"
-                        className="fleet-input"
-                        placeholder="Contoh: FE 74 HD"
-                        value={formData.stnkVehicleType}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            stnkVehicleType: e.target.value,
-                          })
-                        }
-                      />
-                    </div>
-                    <div className="fleet-form-group">
-                      <label className="fleet-label">Tahun Buat</label>
-                      <input
-                        type="text"
-                        className="fleet-input"
-                        placeholder="Contoh: 2021"
-                        value={formData.stnkYearManufactured}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            stnkYearManufactured: e.target.value,
-                          })
-                        }
-                      />
-                    </div>
+                  <div className="fleet-form-group">
+                    <label className="fleet-label">Tahun Buat</label>
+                    <input
+                      type="text"
+                      className="fleet-input"
+                      placeholder="Contoh: 2021"
+                      value={formData.stnkYearManufactured}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          stnkYearManufactured: e.target.value,
+                        })
+                      }
+                    />
                   </div>
                   <div
                     style={{
@@ -2097,7 +2134,13 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                                       overflow: "hidden",
                                     }}
                                   >
-                                    <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                    <div
+                                      style={{
+                                        overflow: "hidden",
+                                        textOverflow: "ellipsis",
+                                        whiteSpace: "nowrap",
+                                      }}
+                                    >
                                       <span
                                         style={{
                                           fontSize: "13px",
@@ -2108,7 +2151,12 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                                       >
                                         {file}
                                       </span>
-                                      <span style={{ fontSize: "11px", color: "#15803d" }}>
+                                      <span
+                                        style={{
+                                          fontSize: "11px",
+                                          color: "#15803d",
+                                        }}
+                                      >
                                         Terpilih (PDF/Gambar)
                                       </span>
                                     </div>
@@ -2131,7 +2179,9 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                                     </label>
                                     <button
                                       type="button"
-                                      onClick={() => removeDocumentFile(docType)}
+                                      onClick={() =>
+                                        removeDocumentFile(docType)
+                                      }
                                       style={{
                                         fontSize: "11px",
                                         fontWeight: "600",
@@ -2164,12 +2214,16 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                                     textAlign: "center",
                                   }}
                                   onMouseEnter={(e) => {
-                                    e.currentTarget.style.borderColor = "#3b82f6";
-                                    e.currentTarget.style.background = "#f8fafc";
+                                    e.currentTarget.style.borderColor =
+                                      "#3b82f6";
+                                    e.currentTarget.style.background =
+                                      "#f8fafc";
                                   }}
                                   onMouseLeave={(e) => {
-                                    e.currentTarget.style.borderColor = "#cbd5e1";
-                                    e.currentTarget.style.background = "#ffffff";
+                                    e.currentTarget.style.borderColor =
+                                      "#cbd5e1";
+                                    e.currentTarget.style.background =
+                                      "#ffffff";
                                   }}
                                 >
                                   <span
@@ -2182,8 +2236,14 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                                   >
                                     Pilih Berkas Dokumen
                                   </span>
-                                  <span style={{ fontSize: "11px", color: "#6b7a96" }}>
-                                    Klik untuk mengunggah file (PDF, PNG, JPG, JPEG)
+                                  <span
+                                    style={{
+                                      fontSize: "11px",
+                                      color: "#6b7a96",
+                                    }}
+                                  >
+                                    Klik untuk mengunggah file (PDF, PNG, JPG,
+                                    JPEG)
                                   </span>
                                 </label>
                               )}
@@ -2365,7 +2425,10 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                           textAlign: "left",
                         }}
                       >
-                        ⚠️ <strong>Data Tidak Sesuai:</strong> Data pemilik dan/atau NOPOL pada STNK tidak sesuai dengan data pada Sertifikat KIR. Perpanjangan KIR tidak dapat diproses sebelum dilakukan{" "}
+                        ⚠️ <strong>Data Tidak Sesuai:</strong> Data pemilik
+                        dan/atau NOPOL pada STNK tidak sesuai dengan data pada
+                        Sertifikat KIR. Perpanjangan KIR tidak dapat diproses
+                        sebelum dilakukan{" "}
                         <strong>Balik Nama Kendaraan (BBN-KB)</strong>.
                       </div>
                     )}
@@ -2495,6 +2558,108 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                       </div>
                     )}
 
+                    {/* Layanan SIM Driver */}
+                    {selectedVehicle?.simDriverExpiry && (
+                      <div
+                        style={{
+                          background: "#f0fdf4",
+                          border: "1px solid #bbf7d0",
+                          borderRadius: "8px",
+                          padding: "14px",
+                          marginBottom: "16px",
+                        }}
+                      >
+                        <h4
+                          style={{
+                            margin: "0 0 10px 0",
+                            fontSize: "13px",
+                            color: "#166534",
+                            fontWeight: "800",
+                          }}
+                        >
+                          🪪 Layanan Pengurusan SIM
+                        </h4>
+                        <p
+                          style={{
+                            fontSize: "11.5px",
+                            color: "#15803d",
+                            margin: "0 0 12px 0",
+                            lineHeight: "1.4",
+                          }}
+                        >
+                          {(() => {
+                            const req = getSimRequirement(selectedVehicle);
+                            if (req === "sim_baru")
+                              return "Masa berlaku SIM driver sudah habis. Kami dapat membantu pembuatan SIM A baru.";
+                            if (req === "sim_perpanjang")
+                              return "Masa berlaku SIM driver akan segera habis. Kami dapat membantu perpanjangan SIM A.";
+                            if (req === "sim_konsultasi")
+                              return "Kendaraan ini memerlukan SIM khusus (B1/B2). Hubungi kami untuk konsultasi pengurusan SIM.";
+                            return null;
+                          })()}
+                        </p>
+                        {(() => {
+                          const req = getSimRequirement(selectedVehicle);
+                          if (req === "sim_baru" || req === "sim_perpanjang" || req === "sim_konsultasi") {
+                            return (
+                              <label
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: "10px",
+                                  padding: "8px 10px",
+                                  background: "#fafafa",
+                                  borderRadius: "6px",
+                                  border: `1px solid ${requestSimService === req ? "#22c55e" : "#e5e7eb"}`,
+                                  cursor: "pointer",
+                                  userSelect: "none",
+                                }}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={requestSimService === req}
+                                  onChange={(e) =>
+                                    setRequestSimService(
+                                      e.target.checked ? req : null,
+                                    )
+                                  }
+                                />
+                                <div>
+                                  <strong style={{ fontSize: "13px" }}>
+                                    {req === "sim_baru" && "Bantu Pembuatan SIM A Baru"}
+                                    {req === "sim_perpanjang" && "Bantu Perpanjangan SIM A"}
+                                    {req === "sim_konsultasi" && "Konsultasi Pengurusan SIM Khusus"}
+                                  </strong>
+                                  <div style={{ fontSize: "12px", color: "#6b7a96" }}>
+                                    {req === "sim_baru" && "Rp 500.000 — Pembuatan SIM A baru"}
+                                    {req === "sim_perpanjang" && "Rp 350.000 — Perpanjangan SIM A"}
+                                    {req === "sim_konsultasi" && "Rp 100.000 — Konsultasi persyaratan & proses SIM B1/B2"}
+                                  </div>
+                                </div>
+                              </label>
+                            );
+                          }
+                          if (req === null && selectedVehicle.simDriverExpiry) {
+                            return (
+                              <div
+                                style={{
+                                  padding: "8px 10px",
+                                  fontSize: "12px",
+                                  color: "#15803d",
+                                  background: "#f0fdf4",
+                                  borderRadius: "6px",
+                                  border: "1px solid #bbf7d0",
+                                }}
+                              >
+                                ✓ Masa berlaku SIM driver masih panjang ({getDaysRemaining(selectedVehicle.simDriverExpiry)} hari).
+                              </div>
+                            );
+                          }
+                          return null;
+                        })()}
+                      </div>
+                    )}
+
                     <div className="fleet-form-group">
                       <label className="fleet-label">Jenis Pengurusan</label>
                       <select
@@ -2505,8 +2670,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                       >
                         {(() => {
                           const dataMismatch =
-                            selectedVehicle &&
-                            isDataMismatch(selectedVehicle);
+                            selectedVehicle && isDataMismatch(selectedVehicle);
                           if (dataMismatch) {
                             return (
                               <>
@@ -2522,7 +2686,11 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                                 <option value="pajak_renewal">
                                   Perpanjangan Pajak Kendaraan Tahunan
                                 </option>
-                                <option value="buka_blokir_kir" disabled style={{ color: "#94a3b8" }}>
+                                <option
+                                  value="buka_blokir_kir"
+                                  disabled
+                                  style={{ color: "#94a3b8" }}
+                                >
                                   ⛔ Buka Blokir KIR (Data Tidak Sesuai)
                                 </option>
                               </>
@@ -2850,9 +3018,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
         <div className="fleet-modal-overlay">
           <div className="fleet-modal" style={{ maxWidth: "700px" }}>
             <div className="fleet-modal-header">
-              <h3>
-                Data Lengkap Kendaraan — {vehicleDetailModal.plateNumber}
-              </h3>
+              <h3>Data Lengkap Kendaraan — {vehicleDetailModal.plateNumber}</h3>
               <span
                 className="btn-close-modal"
                 onClick={() => setVehicleDetailModal(null)}
@@ -3020,166 +3186,170 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                   {(() => {
                     const cs = getExpiryCardStyle(vehicleDetailModal.kirExpiry);
                     return (
-                  <div
-                    style={{
-                      background: cs.background,
-                      padding: "12px",
-                      borderRadius: "8px",
-                      border: cs.border,
-                    }}
-                  >
-                    <p
-                      style={{
-                        fontSize: "12px",
-                        color: cs.labelColor,
-                        margin: "0 0 4px 0",
-                        fontWeight: "600",
-                      }}
-                    >
-                      Uji KIR
-                    </p>
-                    <p
-                      style={{
-                        fontSize: "13px",
-                        fontWeight: "700",
-                        color: cs.valueColor,
-                        margin: "0 0 4px 0",
-                      }}
-                    >
-                      {vehicleDetailModal.kirExpiry}
-                    </p>
-                    <p
-                      style={{
-                        fontSize: "11px",
-                        color: cs.statusColor,
-                        margin: 0,
-                      }}
-                    >
-                      {(() => {
-                        const days = getDaysRemaining(
-                          vehicleDetailModal.kirExpiry,
-                        );
-                        if (days <= 0) {
-                          return `⚠️ Jatuh Tempo (${Math.abs(days)} hari lalu)`;
-                        } else if (days <= 7) {
-                          return `🔴 H-${days}`;
-                        } else if (days <= 30) {
-                          return `🟡 H-${days}`;
-                        }
-                        return `🟢 H-${days}`;
-                      })()}
-                    </p>
-                  </div>
+                      <div
+                        style={{
+                          background: cs.background,
+                          padding: "12px",
+                          borderRadius: "8px",
+                          border: cs.border,
+                        }}
+                      >
+                        <p
+                          style={{
+                            fontSize: "12px",
+                            color: cs.labelColor,
+                            margin: "0 0 4px 0",
+                            fontWeight: "600",
+                          }}
+                        >
+                          Uji KIR
+                        </p>
+                        <p
+                          style={{
+                            fontSize: "13px",
+                            fontWeight: "700",
+                            color: cs.valueColor,
+                            margin: "0 0 4px 0",
+                          }}
+                        >
+                          {vehicleDetailModal.kirExpiry}
+                        </p>
+                        <p
+                          style={{
+                            fontSize: "11px",
+                            color: cs.statusColor,
+                            margin: 0,
+                          }}
+                        >
+                          {(() => {
+                            const days = getDaysRemaining(
+                              vehicleDetailModal.kirExpiry,
+                            );
+                            if (days <= 0) {
+                              return `⚠️ Jatuh Tempo (${Math.abs(days)} hari lalu)`;
+                            } else if (days <= 7) {
+                              return `🔴 H-${days}`;
+                            } else if (days <= 30) {
+                              return `🟡 H-${days}`;
+                            }
+                            return `🟢 H-${days}`;
+                          })()}
+                        </p>
+                      </div>
                     );
                   })()}
                   {(() => {
-                    const cs = getExpiryCardStyle(vehicleDetailModal.stnkExpiry);
+                    const cs = getExpiryCardStyle(
+                      vehicleDetailModal.stnkExpiry,
+                    );
                     return (
-                  <div
-                    style={{
-                      background: cs.background,
-                      padding: "12px",
-                      borderRadius: "8px",
-                      border: cs.border,
-                    }}
-                  >
-                    <p
-                      style={{
-                        fontSize: "12px",
-                        color: cs.labelColor,
-                        margin: "0 0 4px 0",
-                        fontWeight: "600",
-                      }}
-                    >
-                      STNK (5 Tahun)
-                    </p>
-                    <p
-                      style={{
-                        fontSize: "13px",
-                        fontWeight: "700",
-                        color: cs.valueColor,
-                        margin: "0 0 4px 0",
-                      }}
-                    >
-                      {vehicleDetailModal.stnkExpiry}
-                    </p>
-                    <p
-                      style={{
-                        fontSize: "11px",
-                        color: cs.statusColor,
-                        margin: 0,
-                      }}
-                    >
-                      {(() => {
-                        const days = getDaysRemaining(
-                          vehicleDetailModal.stnkExpiry,
-                        );
-                        if (days <= 0) {
-                          return `⚠️ Jatuh Tempo (${Math.abs(days)} hari lalu)`;
-                        } else if (days <= 7) {
-                          return `🔴 H-${days}`;
-                        } else if (days <= 30) {
-                          return `🟡 H-${days}`;
-                        }
-                        return `🟢 H-${days}`;
-                      })()}
-                    </p>
-                  </div>
+                      <div
+                        style={{
+                          background: cs.background,
+                          padding: "12px",
+                          borderRadius: "8px",
+                          border: cs.border,
+                        }}
+                      >
+                        <p
+                          style={{
+                            fontSize: "12px",
+                            color: cs.labelColor,
+                            margin: "0 0 4px 0",
+                            fontWeight: "600",
+                          }}
+                        >
+                          STNK (5 Tahun)
+                        </p>
+                        <p
+                          style={{
+                            fontSize: "13px",
+                            fontWeight: "700",
+                            color: cs.valueColor,
+                            margin: "0 0 4px 0",
+                          }}
+                        >
+                          {vehicleDetailModal.stnkExpiry}
+                        </p>
+                        <p
+                          style={{
+                            fontSize: "11px",
+                            color: cs.statusColor,
+                            margin: 0,
+                          }}
+                        >
+                          {(() => {
+                            const days = getDaysRemaining(
+                              vehicleDetailModal.stnkExpiry,
+                            );
+                            if (days <= 0) {
+                              return `⚠️ Jatuh Tempo (${Math.abs(days)} hari lalu)`;
+                            } else if (days <= 7) {
+                              return `🔴 H-${days}`;
+                            } else if (days <= 30) {
+                              return `🟡 H-${days}`;
+                            }
+                            return `🟢 H-${days}`;
+                          })()}
+                        </p>
+                      </div>
                     );
                   })()}
                   {(() => {
-                    const cs = getExpiryCardStyle(vehicleDetailModal.pajakExpiry);
+                    const cs = getExpiryCardStyle(
+                      vehicleDetailModal.pajakExpiry,
+                    );
                     return (
-                  <div
-                    style={{
-                      background: cs.background,
-                      padding: "12px",
-                      borderRadius: "8px",
-                      border: cs.border,
-                    }}
-                  >
-                    <p
-                      style={{
-                        fontSize: "12px",
-                        color: cs.labelColor,
-                        margin: "0 0 4px 0",
-                        fontWeight: "600",
-                      }}
-                    >
-                      Pajak (1 Tahun)
-                    </p>
-                    <p
-                      style={{
-                        fontSize: "13px",
-                        fontWeight: "700",
-                        color: cs.valueColor,
-                        margin: "0 0 4px 0",
-                      }}
-                    >
-                      {vehicleDetailModal.pajakExpiry}
-                    </p>
-                    <p
-                      style={{
-                        fontSize: "11px",
-                        color: cs.statusColor,
-                        margin: 0,
-                      }}
-                    >
-                      {(() => {
-                        const days = getDaysRemaining(
-                          vehicleDetailModal.pajakExpiry,
-                        );
-                        if (days <= 0) {
-                          return `⚠️ Jatuh Tempo (${Math.abs(days)} hari lalu)`;
-                        } else if (days <= 7) {
-                          return `🔴 H-${days}`;
-                        } else if (days <= 30) {
-                          return `🟡 H-${days}`;
-                        }
-                        return `🟢 H-${days}`;
-                      })()}
-                    </p>
-                  </div>
+                      <div
+                        style={{
+                          background: cs.background,
+                          padding: "12px",
+                          borderRadius: "8px",
+                          border: cs.border,
+                        }}
+                      >
+                        <p
+                          style={{
+                            fontSize: "12px",
+                            color: cs.labelColor,
+                            margin: "0 0 4px 0",
+                            fontWeight: "600",
+                          }}
+                        >
+                          Pajak (1 Tahun)
+                        </p>
+                        <p
+                          style={{
+                            fontSize: "13px",
+                            fontWeight: "700",
+                            color: cs.valueColor,
+                            margin: "0 0 4px 0",
+                          }}
+                        >
+                          {vehicleDetailModal.pajakExpiry}
+                        </p>
+                        <p
+                          style={{
+                            fontSize: "11px",
+                            color: cs.statusColor,
+                            margin: 0,
+                          }}
+                        >
+                          {(() => {
+                            const days = getDaysRemaining(
+                              vehicleDetailModal.pajakExpiry,
+                            );
+                            if (days <= 0) {
+                              return `⚠️ Jatuh Tempo (${Math.abs(days)} hari lalu)`;
+                            } else if (days <= 7) {
+                              return `🔴 H-${days}`;
+                            } else if (days <= 30) {
+                              return `🟡 H-${days}`;
+                            }
+                            return `🟢 H-${days}`;
+                          })()}
+                        </p>
+                      </div>
                     );
                   })()}
                 </div>
@@ -3205,56 +3375,56 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                       vehicleDetailModal.simDriverExpiry,
                     );
                     return (
-                  <div
-                    style={{
-                      background: cs.background,
-                      padding: "12px",
-                      borderRadius: "8px",
-                      border: cs.border,
-                    }}
-                  >
-                    <p
-                      style={{
-                        fontSize: "12px",
-                        color: cs.labelColor,
-                        margin: "0 0 4px 0",
-                        fontWeight: "600",
-                      }}
-                    >
-                      Masa Berlaku SIM
-                    </p>
-                    <p
-                      style={{
-                        fontSize: "13px",
-                        fontWeight: "700",
-                        color: cs.valueColor,
-                        margin: "0 0 4px 0",
-                      }}
-                    >
-                      {vehicleDetailModal.simDriverExpiry}
-                    </p>
-                    <p
-                      style={{
-                        fontSize: "11px",
-                        color: cs.statusColor,
-                        margin: 0,
-                      }}
-                    >
-                      {(() => {
-                        const days = getDaysRemaining(
-                          vehicleDetailModal.simDriverExpiry,
-                        );
-                        if (days <= 0) {
-                          return `⚠️ Jatuh Tempo (${Math.abs(days)} hari lalu)`;
-                        } else if (days <= 7) {
-                          return `🔴 H-${days}`;
-                        } else if (days <= 30) {
-                          return `🟡 H-${days}`;
-                        }
-                        return `🟢 H-${days}`;
-                      })()}
-                    </p>
-                  </div>
+                      <div
+                        style={{
+                          background: cs.background,
+                          padding: "12px",
+                          borderRadius: "8px",
+                          border: cs.border,
+                        }}
+                      >
+                        <p
+                          style={{
+                            fontSize: "12px",
+                            color: cs.labelColor,
+                            margin: "0 0 4px 0",
+                            fontWeight: "600",
+                          }}
+                        >
+                          Masa Berlaku SIM
+                        </p>
+                        <p
+                          style={{
+                            fontSize: "13px",
+                            fontWeight: "700",
+                            color: cs.valueColor,
+                            margin: "0 0 4px 0",
+                          }}
+                        >
+                          {vehicleDetailModal.simDriverExpiry}
+                        </p>
+                        <p
+                          style={{
+                            fontSize: "11px",
+                            color: cs.statusColor,
+                            margin: 0,
+                          }}
+                        >
+                          {(() => {
+                            const days = getDaysRemaining(
+                              vehicleDetailModal.simDriverExpiry,
+                            );
+                            if (days <= 0) {
+                              return `⚠️ Jatuh Tempo (${Math.abs(days)} hari lalu)`;
+                            } else if (days <= 7) {
+                              return `🔴 H-${days}`;
+                            } else if (days <= 30) {
+                              return `🟡 H-${days}`;
+                            }
+                            return `🟢 H-${days}`;
+                          })()}
+                        </p>
+                      </div>
                     );
                   })()}
                 </div>
@@ -3757,33 +3927,6 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                         margin: "0 0 4px 0",
                       }}
                     >
-                      Type Kendaraan
-                    </p>
-                    <p
-                      style={{
-                        fontSize: "13px",
-                        fontWeight: "600",
-                        color: "#1C3967",
-                        margin: 0,
-                      }}
-                    >
-                      {vehicleDetailModal.vehicleType}
-                    </p>
-                  </div>
-                  <div
-                    style={{
-                      background: "#f8fafc",
-                      padding: "12px",
-                      borderRadius: "8px",
-                    }}
-                  >
-                    <p
-                      style={{
-                        fontSize: "12px",
-                        color: "#6b7a96",
-                        margin: "0 0 4px 0",
-                      }}
-                    >
                       Jenis Kendaraan
                     </p>
                     <p
@@ -3975,7 +4118,9 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                               gap: "8px",
                             }}
                           >
-                            <span style={{ fontSize: "18px", display: "none" }}>{icon}</span>
+                            <span style={{ fontSize: "18px", display: "none" }}>
+                              {icon}
+                            </span>
                             <div>
                               <strong
                                 style={{ fontSize: "13px", color: "#1C3967" }}
