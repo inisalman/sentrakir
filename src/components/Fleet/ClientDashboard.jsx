@@ -988,6 +988,38 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
     return { code: "success", label: "Aman" };
   };
 
+  // Returns color scheme for an expiry card based on days remaining
+  const getExpiryCardStyle = (expiryStr) => {
+    const days = getDaysRemaining(expiryStr);
+    if (days <= 0) {
+      // Jatuh tempo - merah
+      return {
+        background: "#fef2f2",
+        border: "1px solid #fecaca",
+        labelColor: "#b91c1c",
+        valueColor: "#991b1b",
+        statusColor: "#b91c1c",
+      };
+    } else if (days <= 30) {
+      // Mendekati jatuh tempo - kuning
+      return {
+        background: "#fffbeb",
+        border: "1px solid #fde68a",
+        labelColor: "#b45309",
+        valueColor: "#92400e",
+        statusColor: "#b45309",
+      };
+    }
+    // Aman - hijau
+    return {
+      background: "#f0fdf4",
+      border: "1px solid #bbf7d0",
+      labelColor: "#15803d",
+      valueColor: "#166534",
+      statusColor: "#15803d",
+    };
+  };
+
   return (
     <div className="fleet-card">
       {/* hidden file input for document upload */}
@@ -2903,18 +2935,21 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                     gap: "12px",
                   }}
                 >
+                  {(() => {
+                    const cs = getExpiryCardStyle(vehicleDetailModal.kirExpiry);
+                    return (
                   <div
                     style={{
-                      background: "#f0fdf4",
+                      background: cs.background,
                       padding: "12px",
                       borderRadius: "8px",
-                      border: "1px solid #bbf7d0",
+                      border: cs.border,
                     }}
                   >
                     <p
                       style={{
                         fontSize: "12px",
-                        color: "#15803d",
+                        color: cs.labelColor,
                         margin: "0 0 4px 0",
                         fontWeight: "600",
                       }}
@@ -2925,7 +2960,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                       style={{
                         fontSize: "13px",
                         fontWeight: "700",
-                        color: "#166534",
+                        color: cs.valueColor,
                         margin: "0 0 4px 0",
                       }}
                     >
@@ -2934,7 +2969,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                     <p
                       style={{
                         fontSize: "11px",
-                        color: "#15803d",
+                        color: cs.statusColor,
                         margin: 0,
                       }}
                     >
@@ -2953,18 +2988,23 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                       })()}
                     </p>
                   </div>
+                    );
+                  })()}
+                  {(() => {
+                    const cs = getExpiryCardStyle(vehicleDetailModal.stnkExpiry);
+                    return (
                   <div
                     style={{
-                      background: "#f0fdf4",
+                      background: cs.background,
                       padding: "12px",
                       borderRadius: "8px",
-                      border: "1px solid #bbf7d0",
+                      border: cs.border,
                     }}
                   >
                     <p
                       style={{
                         fontSize: "12px",
-                        color: "#15803d",
+                        color: cs.labelColor,
                         margin: "0 0 4px 0",
                         fontWeight: "600",
                       }}
@@ -2975,7 +3015,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                       style={{
                         fontSize: "13px",
                         fontWeight: "700",
-                        color: "#166534",
+                        color: cs.valueColor,
                         margin: "0 0 4px 0",
                       }}
                     >
@@ -2984,7 +3024,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                     <p
                       style={{
                         fontSize: "11px",
-                        color: "#15803d",
+                        color: cs.statusColor,
                         margin: 0,
                       }}
                     >
@@ -3003,18 +3043,23 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                       })()}
                     </p>
                   </div>
+                    );
+                  })()}
+                  {(() => {
+                    const cs = getExpiryCardStyle(vehicleDetailModal.pajakExpiry);
+                    return (
                   <div
                     style={{
-                      background: "#f0fdf4",
+                      background: cs.background,
                       padding: "12px",
                       borderRadius: "8px",
-                      border: "1px solid #bbf7d0",
+                      border: cs.border,
                     }}
                   >
                     <p
                       style={{
                         fontSize: "12px",
-                        color: "#15803d",
+                        color: cs.labelColor,
                         margin: "0 0 4px 0",
                         fontWeight: "600",
                       }}
@@ -3025,7 +3070,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                       style={{
                         fontSize: "13px",
                         fontWeight: "700",
-                        color: "#166534",
+                        color: cs.valueColor,
                         margin: "0 0 4px 0",
                       }}
                     >
@@ -3034,7 +3079,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                     <p
                       style={{
                         fontSize: "11px",
-                        color: "#15803d",
+                        color: cs.statusColor,
                         margin: 0,
                       }}
                     >
@@ -3053,6 +3098,8 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                       })()}
                     </p>
                   </div>
+                    );
+                  })()}
                 </div>
               </div>
 
@@ -3071,18 +3118,23 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                   >
                     SIM Driver
                   </h4>
+                  {(() => {
+                    const cs = getExpiryCardStyle(
+                      vehicleDetailModal.simDriverExpiry,
+                    );
+                    return (
                   <div
                     style={{
-                      background: "#f0fdf4",
+                      background: cs.background,
                       padding: "12px",
                       borderRadius: "8px",
-                      border: "1px solid #bbf7d0",
+                      border: cs.border,
                     }}
                   >
                     <p
                       style={{
                         fontSize: "12px",
-                        color: "#15803d",
+                        color: cs.labelColor,
                         margin: "0 0 4px 0",
                         fontWeight: "600",
                       }}
@@ -3093,7 +3145,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                       style={{
                         fontSize: "13px",
                         fontWeight: "700",
-                        color: "#166534",
+                        color: cs.valueColor,
                         margin: "0 0 4px 0",
                       }}
                     >
@@ -3102,7 +3154,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                     <p
                       style={{
                         fontSize: "11px",
-                        color: "#15803d",
+                        color: cs.statusColor,
                         margin: 0,
                       }}
                     >
@@ -3121,6 +3173,8 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                       })()}
                     </p>
                   </div>
+                    );
+                  })()}
                 </div>
               )}
 
