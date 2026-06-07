@@ -955,7 +955,20 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                 const vehicleDocs = docs.filter((d) => d.vehicleId === v.id);
 
                 return (
-                  <tr key={v.id}>
+                  <tr
+                    key={v.id}
+                    onClick={() => setVehicleDetailModal(v)}
+                    style={{
+                      cursor: "pointer",
+                      transition: "background-color 0.2s ease",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = "#f0fdf4";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = "transparent";
+                    }}
+                  >
                     <td style={{ fontWeight: "700" }}>{v.plateNumber}</td>
                     <td>{v.vehicleType}</td>
                     <td style={{ fontFamily: "monospace" }}>
@@ -1006,7 +1019,8 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                             color: "#1e40af",
                             border: "1px solid #bfdbfe",
                           }}
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation();
                             setSelectedVehicle(v);
                             setModalType("dokumen");
                           }}
@@ -1025,7 +1039,15 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                         {overall.label}
                       </span>
                     </td>
-                    <td>
+                    <td
+                      onClick={(e) => e.stopPropagation()}
+                      style={{
+                        display: "flex",
+                        gap: "8px",
+                        justifyContent: "center",
+                        alignItems: "center",
+                      }}
+                    >
                       <div
                         style={{
                           display: "flex",
@@ -1038,28 +1060,30 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                           overall.code === "danger") && (
                           <button
                             className="fleet-btn fleet-btn-accent fleet-btn-sm"
-                            onClick={() => handleOpenUrus(v)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenUrus(v);
+                            }}
                           >
                             URUS SEKARANG
                           </button>
                         )}
                         <button
                           className="fleet-btn fleet-btn-secondary fleet-btn-sm"
-                          onClick={() => setVehicleDetailModal(v)}
-                          title="Lihat Data Lengkap"
-                        >
-                          👁️
-                        </button>
-                        <button
-                          className="fleet-btn fleet-btn-secondary fleet-btn-sm"
-                          onClick={() => handleOpenEdit(v)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenEdit(v);
+                          }}
                           title="Edit Kendaraan"
                         >
                           ✏️
                         </button>
                         <button
                           className="fleet-btn fleet-btn-danger fleet-btn-sm"
-                          onClick={() => handleDelete(v.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDelete(v.id);
+                          }}
                           title="Hapus"
                           style={{ padding: "6px" }}
                         >
