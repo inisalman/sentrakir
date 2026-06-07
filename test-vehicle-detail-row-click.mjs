@@ -113,7 +113,7 @@ if (content.includes('{vehicleDetailModal && (') &&
 console.log('\n✓ Test 10: Modal content sections');
 if (content.includes('📌 Informasi Dasar Kendaraan') &&
     content.includes('📅 Masa Berlaku Dokumen') &&
-    content.includes('📄 Status Dokumen Pindaian')) {
+    content.includes('📄 Status Dokumen')) {
   console.log('  ✅ All modal sections intact');
 } else {
   console.error('  ❌ Modal sections missing');

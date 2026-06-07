@@ -148,7 +148,7 @@ export default function ClientDashboard({
                 {activeTab === "dashboard" &&
                   "Pantau masa berlaku KIR, STNK, dan Pajak kendaraan Anda."}
                 {activeTab === "vehicles" &&
-                  "Tambahkan, edit, dan unggah pindaian dokumen armada perusahaan."}
+                  "Tambahkan, edit, dan unggah dokumen armada perusahaan."}
                 {activeTab === "timeline" &&
                   "Visualisasi kadaluwarsa dokumen bulanan armada perusahaan."}
                 {activeTab === "requests" &&
@@ -447,8 +447,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
   const [requestLaporHilang, setRequestLaporHilang] = useState(false);
   const [requestMediaNasional, setRequestMediaNasional] = useState(false);
   const [rescanDocType, setRescanDocType] = useState(null); // 'kartuKir' | 'sertifikatKir' | 'stnk' | null
-  const [scanningDoc, setScanningDoc] = useState(null); // docType being scanned right now
-  const [previewDoc, setPreviewDoc] = useState(null); // { key, label, fileName, score } for preview modal
+  const [previewDoc, setPreviewDoc] = useState(null); // { key, label, fileName } for preview modal
   const [vehicleDetailModal, setVehicleDetailModal] = useState(null); // full vehicle data modal
 
   // Prevent body scroll when modal is open
@@ -473,7 +472,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
     pajakExpiry: "",
     simDriverExpiry: "",
     notes: "",
-    // OCR-scanned data from Sertifikat KIR
+    // Vehicle document data (manual input)
     ownerName: "",
     ownerAddress: "",
     frameNumber: "",
@@ -482,19 +481,10 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
     model: "",
     yearManufactured: "",
     kartuKirFile: null,
-    kartuKirStatus: "idle", // idle, scanning, success, failed
-    kartuKirScore: null,
-    kartuKirError: "",
     kartuKirHilang: false,
     sertifikatKirFile: null,
-    sertifikatKirStatus: "idle",
-    sertifikatKirScore: null,
-    sertifikatKirError: "",
     sertifikatKirHilang: false,
     stnkFile: null,
-    stnkStatus: "idle",
-    stnkScore: null,
-    stnkError: "",
   });
 
   const filteredVehicles = vehicles.filter(
@@ -513,7 +503,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
       pajakExpiry: "",
       simDriverExpiry: "",
       notes: "",
-      // OCR-scanned data from Sertifikat KIR
+      // Vehicle document data (manual input)
       ownerName: "",
       ownerAddress: "",
       frameNumber: "",
@@ -522,19 +512,10 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
       model: "",
       yearManufactured: "",
       kartuKirFile: null,
-      kartuKirStatus: "idle",
-      kartuKirScore: null,
-      kartuKirError: "",
       kartuKirHilang: false,
       sertifikatKirFile: null,
-      sertifikatKirStatus: "idle",
-      sertifikatKirScore: null,
-      sertifikatKirError: "",
       sertifikatKirHilang: false,
       stnkFile: null,
-      stnkStatus: "idle",
-      stnkScore: null,
-      stnkError: "",
     });
     setModalType("add");
   };
@@ -550,7 +531,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
       pajakExpiry: vehicle.pajakExpiry,
       simDriverExpiry: vehicle.simDriverExpiry || "",
       notes: vehicle.notes || "",
-      // OCR-scanned data from Sertifikat KIR
+      // Vehicle document data (manual input)
       ownerName: vehicle.ownerName || "",
       ownerAddress: vehicle.ownerAddress || "",
       frameNumber: vehicle.frameNumber || "",
@@ -559,116 +540,20 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
       model: vehicle.model || "",
       yearManufactured: vehicle.yearManufactured || "",
       kartuKirFile: null,
-      kartuKirStatus: "idle",
-      kartuKirScore: null,
-      kartuKirError: "",
       kartuKirHilang: false,
       sertifikatKirFile: null,
-      sertifikatKirStatus: "idle",
-      sertifikatKirScore: null,
-      sertifikatKirError: "",
       sertifikatKirHilang: false,
       stnkFile: null,
-      stnkStatus: "idle",
-      stnkScore: null,
-      stnkError: "",
     });
     setModalType("edit");
   };
 
-  const simulateOcrScan = (docType, fileName, shouldSucceed = true) => {
+  // Set selected document file (no scanning, just stores the file name)
+  const setDocumentFile = (docType, fileName) => {
     setFormData((prev) => ({
       ...prev,
-      [`${docType}Status`]: "scanning",
       [`${docType}File`]: fileName,
-      [`${docType}Error`]: "",
     }));
-
-    setTimeout(() => {
-      if (shouldSucceed) {
-        const score = Math.floor(Math.random() * 16) + 84; // 84% - 99%
-
-        // If scanning Sertifikat KIR, auto-fill Data Kartu Kendaraan
-        let updateData = {
-          [`${docType}Status`]: "success",
-          [`${docType}Score`]: score,
-          [`${docType}Error`]: "",
-        };
-
-        if (docType === "sertifikatKir") {
-          // Extract mock OCR data from Sertifikat KIR and auto-fill
-          // Sertifikat KIR contains: Nama Pemilik, Alamat Pemilik, NOPOL, No Rangka, No Mesin, No Uji
-          const plate = (formData.plateNumber || "B0000XX").replace(/\s+/g, "");
-          const ownerNames = [
-            "PT Logistik Nusantara",
-            "PT Trans Jaya Abadi",
-            "CV Karya Mandiri",
-            "PT Sumber Rejeki Transport",
-            "PT Armada Sejahtera",
-          ];
-          const addresses = [
-            "Jl. Raya Bekasi KM 25, Cakung, Jakarta Timur",
-            "Jl. Industri Raya No. 45, Tangerang, Banten",
-            "Jl. Soekarno Hatta No. 88, Bandung, Jawa Barat",
-            "Jl. Gatot Subroto No. 12, Jakarta Selatan",
-            "Jl. Ahmad Yani No. 56, Surabaya, Jawa Timur",
-          ];
-          const brands = [
-            "Mitsubishi / Colt Diesel",
-            "Hino / Dutro 130 HD",
-            "Isuzu / ELF NMR 71",
-            "Toyota / Dyna 110 ST",
-            "Daihatsu / Gran Max",
-          ];
-          // Generate consistent index based on plate number for realistic mock
-          const idx =
-            plate.split("").reduce((sum, c) => sum + c.charCodeAt(0), 0) %
-            ownerNames.length;
-          const yearOptions = ["2018", "2019", "2020", "2021", "2022", "2023"];
-
-          updateData = {
-            ...updateData,
-            // Auto-fill from Sertifikat KIR OCR scan
-            ownerName: formData.ownerName || ownerNames[idx],
-            ownerAddress: formData.ownerAddress || addresses[idx],
-            frameNumber:
-              formData.frameNumber ||
-              `MHF${plate.slice(-4)}${idx}A${score}KIR${plate.length}`.toUpperCase(),
-            engineNumber:
-              formData.engineNumber ||
-              `4D${idx}${score}-${plate.slice(-4)}T`.toUpperCase(),
-            brand: formData.brand || brands[idx],
-            model: formData.model || brands[idx].split(" / ")[1],
-            yearManufactured:
-              formData.yearManufactured ||
-              yearOptions[idx % yearOptions.length],
-            // No Uji from Sertifikat KIR
-            testNumber: formData.testNumber || `JKT-${plate.slice(-6)}`,
-          };
-        }
-
-        setFormData((prev) => ({
-          ...prev,
-          ...updateData,
-        }));
-      } else {
-        const score = Math.floor(Math.random() * 15) + 55; // 55% - 70%
-        const failReasons = [
-          "Dokumen blur/kabur pada area Plat Nomor",
-          "Dokumen terpotong pada area Nomor Uji KIR",
-          "Dokumen tidak terlihat jelas pada area Nomor Rangka",
-          "Dokumen buram/tidak terbaca pada area Nomor Mesin",
-        ];
-        const reason =
-          failReasons[Math.floor(Math.random() * failReasons.length)];
-        setFormData((prev) => ({
-          ...prev,
-          [`${docType}Status`]: "failed",
-          [`${docType}Score`]: score,
-          [`${docType}Error`]: `${reason} (Keterbacaan: ${score}% - Minimum 80% required)`,
-        }));
-      }
-    }, 1500);
   };
 
   const handleOpenUpload = (vehicle) => {
@@ -750,15 +635,14 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
       return;
 
     const isKartuKirOk =
-      formData.kartuKirHilang || formData.kartuKirStatus === "success";
+      formData.kartuKirHilang || !!formData.kartuKirFile;
     const isSertifikatKirOk =
-      formData.sertifikatKirHilang ||
-      formData.sertifikatKirStatus === "success";
-    const isStnkOk = formData.stnkStatus === "success";
+      formData.sertifikatKirHilang || !!formData.sertifikatKirFile;
+    const isStnkOk = !!formData.stnkFile;
 
     if (!isKartuKirOk || !isSertifikatKirOk || !isStnkOk) {
       alert(
-        "Harap unggah dokumen yang valid serta terbaca minimal 80% terlebih dahulu (kecuali dokumen KIR yang dinyatakan Hilang).",
+        "Harap unggah dokumen Kartu KIR, Sertifikat KIR, dan STNK terlebih dahulu (kecuali dokumen KIR yang dinyatakan Hilang).",
       );
       return;
     }
@@ -772,7 +656,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
       stnkExpiry: formData.stnkExpiry,
       pajakExpiry: formData.pajakExpiry,
       notes: formData.notes,
-      // OCR-scanned data from Sertifikat KIR
+      // Vehicle document data (manual input)
       ownerName: formData.ownerName || "",
       ownerAddress: formData.ownerAddress || "",
       frameNumber: formData.frameNumber || "",
@@ -783,16 +667,10 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
       kartuKirHilang: !!formData.kartuKirHilang,
       sertifikatKirHilang: !!formData.sertifikatKirHilang,
       kartuKirFileName: formData.kartuKirHilang ? null : formData.kartuKirFile,
-      kartuKirScanStatus: formData.kartuKirStatus,
-      kartuKirScore: formData.kartuKirScore,
       sertifikatKirFileName: formData.sertifikatKirHilang
         ? null
         : formData.sertifikatKirFile,
-      sertifikatKirScanStatus: formData.sertifikatKirStatus,
-      sertifikatKirScore: formData.sertifikatKirScore,
       stnkFileName: formData.stnkFile,
-      stnkScanStatus: formData.stnkStatus,
-      stnkScore: formData.stnkScore,
     });
 
     setModalType(null);
@@ -819,7 +697,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
       pajakExpiry: formData.pajakExpiry,
       simDriverExpiry: formData.simDriverExpiry,
       notes: formData.notes,
-      // OCR-scanned data from Sertifikat KIR (preserve existing if not re-scanned)
+      // Vehicle document data (manual input, preserve existing if empty)
       ownerName: formData.ownerName || selectedVehicle.ownerName || "",
       ownerAddress: formData.ownerAddress || selectedVehicle.ownerAddress || "",
       frameNumber: formData.frameNumber || selectedVehicle.frameNumber || "",
@@ -833,28 +711,10 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
       kartuKirFileName: formData.kartuKirHilang
         ? null
         : formData.kartuKirFile || selectedVehicle.kartuKirFileName,
-      kartuKirScanStatus: formData.kartuKirFile
-        ? formData.kartuKirStatus
-        : selectedVehicle.kartuKirScanStatus || "idle",
-      kartuKirScore: formData.kartuKirFile
-        ? formData.kartuKirScore
-        : selectedVehicle.kartuKirScore || null,
       sertifikatKirFileName: formData.sertifikatKirHilang
         ? null
         : formData.sertifikatKirFile || selectedVehicle.sertifikatKirFileName,
-      sertifikatKirScanStatus: formData.sertifikatKirFile
-        ? formData.sertifikatKirStatus
-        : selectedVehicle.sertifikatKirScanStatus || "idle",
-      sertifikatKirScore: formData.sertifikatKirFile
-        ? formData.sertifikatKirScore
-        : selectedVehicle.sertifikatKirScore || null,
       stnkFileName: formData.stnkFile || selectedVehicle.stnkFileName,
-      stnkScanStatus: formData.stnkFile
-        ? formData.stnkStatus
-        : selectedVehicle.stnkScanStatus || "idle",
-      stnkScore: formData.stnkFile
-        ? formData.stnkScore
-        : selectedVehicle.stnkScore || null,
     });
 
     setModalType(null);
@@ -889,35 +749,17 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
     onUpdate();
   };
 
-  // hidden file input ref for document scanning
+  // hidden file input ref for document upload
   const scanInputRef = useRef(null);
 
   const handleFileSelected = (e, docType) => {
     if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      const fileName = file.name;
-      const isValid = /\.(jpe?g|png|pdf)$/i.test(fileName);
-
-      // Set scanning state
-      setScanningDoc(docType);
-
-      setTimeout(() => {
-        const shouldSucceed =
-          isValid && !/blur|buram|crop|terpotong/i.test(fileName);
-        const score = shouldSucceed
-          ? Math.floor(Math.random() * 16) + 84
-          : Math.floor(Math.random() * 15) + 55;
-
-        const update = {};
-        update[`${docType}FileName`] = fileName;
-        update[`${docType}ScanStatus`] = shouldSucceed ? "success" : "failed";
-        update[`${docType}Score`] = score;
-
-        updateVehicle(selectedVehicle.id, update);
-        setScanningDoc(null);
-        setRescanDocType(null);
-        onUpdate();
-      }, 1500);
+      const fileName = e.target.files[0].name;
+      const update = {};
+      update[`${docType}FileName`] = fileName;
+      updateVehicle(selectedVehicle.id, update);
+      setRescanDocType(null);
+      onUpdate();
     }
   };
 
@@ -993,7 +835,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
 
   return (
     <div className="fleet-card">
-      {/* hidden file input for document scanning */}
+      {/* hidden file input for document upload */}
       <input
         type="file"
         ref={scanInputRef}
@@ -1384,6 +1226,140 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                   />
                 </div>
 
+                {/* Data Dokumen Kendaraan (manual input) */}
+                <div
+                  style={{
+                    borderTop: "2px solid #e2e8f0",
+                    paddingTop: "20px",
+                    marginTop: "8px",
+                  }}
+                >
+                  <h4
+                    style={{
+                      fontSize: "14px",
+                      fontWeight: "800",
+                      color: "#1C3967",
+                      margin: "0 0 16px 0",
+                    }}
+                  >
+                    🎫 Data Dokumen Kendaraan
+                  </h4>
+                  <div className="fleet-form-group">
+                    <label className="fleet-label">Nama Pemilik</label>
+                    <input
+                      type="text"
+                      className="fleet-input"
+                      placeholder="Nama pemilik sesuai STNK/KIR"
+                      value={formData.ownerName}
+                      onChange={(e) =>
+                        setFormData({ ...formData, ownerName: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div className="fleet-form-group">
+                    <label className="fleet-label">Alamat Pemilik</label>
+                    <input
+                      type="text"
+                      className="fleet-input"
+                      placeholder="Alamat pemilik sesuai STNK"
+                      value={formData.ownerAddress}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          ownerAddress: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "1fr 1fr",
+                      gap: "12px",
+                    }}
+                  >
+                    <div className="fleet-form-group">
+                      <label className="fleet-label">No Rangka</label>
+                      <input
+                        type="text"
+                        className="fleet-input"
+                        placeholder="Nomor rangka"
+                        value={formData.frameNumber}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            frameNumber: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+                    <div className="fleet-form-group">
+                      <label className="fleet-label">
+                        No Mesin / Motor Penggerak
+                      </label>
+                      <input
+                        type="text"
+                        className="fleet-input"
+                        placeholder="Nomor mesin"
+                        value={formData.engineNumber}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            engineNumber: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+                  </div>
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "1fr 1fr 1fr",
+                      gap: "12px",
+                    }}
+                  >
+                    <div className="fleet-form-group">
+                      <label className="fleet-label">Merek</label>
+                      <input
+                        type="text"
+                        className="fleet-input"
+                        placeholder="Merek"
+                        value={formData.brand}
+                        onChange={(e) =>
+                          setFormData({ ...formData, brand: e.target.value })
+                        }
+                      />
+                    </div>
+                    <div className="fleet-form-group">
+                      <label className="fleet-label">Model</label>
+                      <input
+                        type="text"
+                        className="fleet-input"
+                        placeholder="Model"
+                        value={formData.model}
+                        onChange={(e) =>
+                          setFormData({ ...formData, model: e.target.value })
+                        }
+                      />
+                    </div>
+                    <div className="fleet-form-group">
+                      <label className="fleet-label">Tahun Buat</label>
+                      <input
+                        type="text"
+                        className="fleet-input"
+                        placeholder="Tahun"
+                        value={formData.yearManufactured}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            yearManufactured: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+                  </div>
+                </div>
+
                 {(modalType === "add" || modalType === "edit") && (
                   <div
                     className="fleet-docs-upload-section"
@@ -1401,24 +1377,22 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                         margin: "0 0 16px 0",
                       }}
                     >
-                      📄 Unggah Dokumen Pindaian (Wajib — Scan Otomatis)
+                      📄 Unggah Dokumen Kendaraan (Wajib)
                     </h4>
                     <div
                       style={{
-                        background: "#fff7ed",
-                        border: "1px solid #fed7aa",
+                        background: "#eff6ff",
+                        border: "1px solid #bfdbfe",
                         borderRadius: "8px",
                         padding: "10px 12px",
                         fontSize: "12px",
-                        color: "#9a3412",
+                        color: "#1e40af",
                         marginBottom: "16px",
                       }}
                     >
-                      ⚠️ <strong>Perhatian:</strong> Semua dokumen Kartu KIR,
-                      Sertifikat KIR, dan STNK yang diunggah akan dipindai
-                      (di-scan) dengan tingkat keterbacaan minimal{" "}
-                      <strong>80%</strong>. Dokumen yang blur, terpotong, atau
-                      tidak jelas akan ditolak.
+                      ℹ️ Unggah file dokumen Kartu KIR, Sertifikat KIR, dan STNK
+                      (format PDF/PNG/JPG). Centang opsi "Hilang" apabila dokumen
+                      KIR tidak tersedia.
                     </div>
 
                     {[
@@ -1427,9 +1401,6 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                       { docType: "stnk", label: "STNK" },
                     ].map(({ docType, label }) => {
                       const file = formData[`${docType}File`];
-                      const status = formData[`${docType}Status`];
-                      const score = formData[`${docType}Score`];
-                      const error = formData[`${docType}Error`];
                       const isLost = formData[`${docType}Hilang`];
 
                       return (
@@ -1460,50 +1431,22 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                               >
                                 ⚠️ Dinyatakan Hilang
                               </span>
+                            ) : file ? (
+                              <span
+                                style={{ color: "#16a34a", fontSize: "12px" }}
+                              >
+                                ✓ Terunggah
+                              </span>
                             ) : (
-                              <>
-                                {status === "success" && (
-                                  <span
-                                    style={{
-                                      color: "#16a34a",
-                                      fontSize: "12px",
-                                    }}
-                                  >
-                                    🟢 Terbaca {score}% (Sukses)
-                                  </span>
-                                )}
-                                {status === "failed" && (
-                                  <span
-                                    style={{
-                                      color: "#dc2626",
-                                      fontSize: "12px",
-                                    }}
-                                  >
-                                    🔴 Terbaca {score}% (Gagal)
-                                  </span>
-                                )}
-                                {status === "scanning" && (
-                                  <span
-                                    style={{
-                                      color: "#0284c7",
-                                      fontSize: "12px",
-                                    }}
-                                  >
-                                    ⏳ Memindai...
-                                  </span>
-                                )}
-                                {status === "idle" && (
-                                  <span
-                                    style={{
-                                      color: "#6b7a96",
-                                      fontSize: "12px",
-                                      fontWeight: "normal",
-                                    }}
-                                  >
-                                    Belum diunggah
-                                  </span>
-                                )}
-                              </>
+                              <span
+                                style={{
+                                  color: "#6b7a96",
+                                  fontSize: "12px",
+                                  fontWeight: "normal",
+                                }}
+                              >
+                                Belum diunggah
+                              </span>
                             )}
                           </label>
 
@@ -1529,12 +1472,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                                     ...formData,
                                     [`${docType}Hilang`]: e.target.checked,
                                     ...(e.target.checked
-                                      ? {
-                                          [`${docType}File`]: null,
-                                          [`${docType}Status`]: "idle",
-                                          [`${docType}Score`]: null,
-                                          [`${docType}Error`]: "",
-                                        }
+                                      ? { [`${docType}File`]: null }
                                       : {}),
                                   })
                                 }
@@ -1583,13 +1521,9 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                                   id={`file-input-${docType}`}
                                   onChange={(e) => {
                                     if (e.target.files && e.target.files[0]) {
-                                      const name = e.target.files[0].name;
-                                      simulateOcrScan(
+                                      setDocumentFile(
                                         docType,
-                                        name,
-                                        !/blur|buram|crop|terpotong/i.test(
-                                          name,
-                                        ),
+                                        e.target.files[0].name,
                                       );
                                     }
                                   }}
@@ -1602,9 +1536,8 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                                       .getElementById(`file-input-${docType}`)
                                       .click()
                                   }
-                                  disabled={status === "scanning"}
                                 >
-                                  📁 Pilih File
+                                  📁 {file ? "Ganti File" : "Pilih File"}
                                 </button>
                               </div>
                               {file && (
@@ -1617,85 +1550,6 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                                 >
                                   File: <strong>{file}</strong>
                                 </p>
-                              )}
-                              {status === "scanning" && (
-                                <div
-                                  style={{
-                                    marginTop: "8px",
-                                    fontSize: "12px",
-                                    color: "#0284c7",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: "8px",
-                                  }}
-                                >
-                                  <div
-                                    className="dashboard-loading-spinner"
-                                    style={{
-                                      width: "12px",
-                                      height: "12px",
-                                      borderWidth: "2px",
-                                      margin: 0,
-                                    }}
-                                  ></div>
-                                  <span>
-                                    Memindai dokumen... Menganalisis Plat Nomor,
-                                    Nomor Uji KIR, No. Rangka, No. Mesin...
-                                  </span>
-                                </div>
-                              )}
-                              {status === "success" && (
-                                <div
-                                  style={{
-                                    marginTop: "8px",
-                                    fontSize: "11px",
-                                    color: "#15803d",
-                                    background: "#f0fdf4",
-                                    padding: "6px 10px",
-                                    borderRadius: "4px",
-                                    border: "1px solid #bbf7d0",
-                                    lineHeight: "1.4",
-                                  }}
-                                >
-                                  ✨ <strong>Scan Berhasil ({score}%)</strong>
-                                  {docType === "sertifikatKir" ? (
-                                    <>
-                                      <br />
-                                      📋 <strong>Data berhasil diekstrak &amp; mengisi "Data Kartu Kendaraan":</strong>
-                                      <ul style={{ margin: "4px 0 0 0", paddingLeft: "18px" }}>
-                                        <li>Nama Pemilik: <strong>{formData.ownerName || "-"}</strong></li>
-                                        <li>Alamat Pemilik: <strong>{formData.ownerAddress || "-"}</strong></li>
-                                        <li>No Registrasi/NOPOL: <strong>{formData.plateNumber || "-"}</strong></li>
-                                        <li>No Rangka: <strong>{formData.frameNumber || "-"}</strong></li>
-                                        <li>No Mesin: <strong>{formData.engineNumber || "-"}</strong></li>
-                                        <li>No Uji Kendaraan: <strong>{formData.testNumber || "-"}</strong></li>
-                                      </ul>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <br />• Plat Nomor, Nomor Uji KIR, No.
-                                      Rangka &amp; No. Mesin terbaca dengan jelas
-                                      (Akurasi &gt; 80%).
-                                    </>
-                                  )}
-                                </div>
-                              )}
-                              {status === "failed" && (
-                                <div
-                                  style={{
-                                    marginTop: "8px",
-                                    fontSize: "11px",
-                                    color: "#b91c1c",
-                                    background: "#fef2f2",
-                                    padding: "6px 10px",
-                                    borderRadius: "4px",
-                                    border: "1px solid #fecaca",
-                                    lineHeight: "1.4",
-                                  }}
-                                >
-                                  ⚠️ <strong>Scan Gagal ({score}%):</strong>{" "}
-                                  {error}
-                                </div>
                               )}
                             </>
                           )}
@@ -2134,8 +1988,8 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                   margin: "0 0 16px 0",
                 }}
               >
-                Kelola dokumen pindaian untuk kendaraan ini. Klik tombol{" "}
-                <strong>Pindai</strong> untuk mengunggah atau mengganti file
+                Kelola dokumen untuk kendaraan ini. Klik tombol{" "}
+                <strong>Unggah</strong> untuk mengunggah atau mengganti file
                 dokumen.
               </p>
 
@@ -2146,9 +2000,6 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
               ].map(({ key, label, icon }) => {
                 const isHilang = selectedVehicle[`${key}Hilang`];
                 const fileName = selectedVehicle[`${key}FileName`];
-                const scanStatus = selectedVehicle[`${key}ScanStatus`];
-                const score = selectedVehicle[`${key}Score`];
-                const isScanning = scanningDoc === key;
 
                 return (
                   <div
@@ -2205,7 +2056,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                                 marginTop: "2px",
                               }}
                             >
-                              ✓ Terbaca {score}% — {fileName}
+                              ✓ {fileName}
                             </div>
                           ) : (
                             <div
@@ -2221,71 +2072,46 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                         </div>
                       </div>
                       <div style={{ display: "flex", gap: "6px" }}>
-                        {isScanning ? (
-                          <span
+                        {fileName && (
+                          <button
+                            type="button"
+                            className="fleet-btn fleet-btn-sm"
                             style={{
+                              padding: "4px 8px",
                               fontSize: "11px",
-                              color: "#0284c7",
-                              display: "flex",
-                              alignItems: "center",
-                              gap: "4px",
+                              background: "#f0fdf4",
+                              color: "#16a34a",
+                              border: "1px solid #bbf7d0",
+                              borderRadius: "6px",
+                              cursor: "pointer",
                             }}
+                            onClick={() =>
+                              setPreviewDoc({ key, label, fileName })
+                            }
                           >
-                            <div
-                              className="dashboard-loading-spinner"
-                              style={{
-                                width: "12px",
-                                height: "12px",
-                                borderWidth: "2px",
-                                margin: 0,
-                              }}
-                            ></div>
-                            Memindai...
-                          </span>
-                        ) : (
-                          <>
-                            {fileName && (
-                              <button
-                                type="button"
-                                className="fleet-btn fleet-btn-sm"
-                                style={{
-                                  padding: "4px 8px",
-                                  fontSize: "11px",
-                                  background: "#f0fdf4",
-                                  color: "#16a34a",
-                                  border: "1px solid #bbf7d0",
-                                  borderRadius: "6px",
-                                  cursor: "pointer",
-                                }}
-                                onClick={() =>
-                                  setPreviewDoc({ key, label, fileName, score })
-                                }
-                              >
-                                👁️ Lihat
-                              </button>
-                            )}
-                            <button
-                              type="button"
-                              className="fleet-btn fleet-btn-sm"
-                              style={{
-                                padding: "4px 12px",
-                                fontSize: "11px",
-                                background: "#eff6ff",
-                                color: "#1e40af",
-                                border: "1px solid #bfdbfe",
-                                borderRadius: "6px",
-                                cursor: "pointer",
-                              }}
-                              onClick={() => {
-                                setRescanDocType(key);
-                                handleRescanDoc(key);
-                              }}
-                              disabled={isHilang}
-                            >
-                              {fileName ? "🔄 Ganti File" : "📤 Pindai"}
-                            </button>
-                          </>
+                            👁️ Lihat
+                          </button>
                         )}
+                        <button
+                          type="button"
+                          className="fleet-btn fleet-btn-sm"
+                          style={{
+                            padding: "4px 12px",
+                            fontSize: "11px",
+                            background: "#eff6ff",
+                            color: "#1e40af",
+                            border: "1px solid #bfdbfe",
+                            borderRadius: "6px",
+                            cursor: "pointer",
+                          }}
+                          onClick={() => {
+                            setRescanDocType(key);
+                            handleRescanDoc(key);
+                          }}
+                          disabled={isHilang}
+                        >
+                          {fileName ? "🔄 Ganti File" : "📤 Unggah"}
+                        </button>
                       </div>
                     </div>
                     {isHilang && (
@@ -2300,8 +2126,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                           lineHeight: "1.4",
                         }}
                       >
-                        Silahkan upload dan scan untuk menambakan dokumen
-                        apabila sudah dokumen dimiliki.
+                        Silahkan unggah dokumen apabila dokumen sudah dimiliki.
                       </div>
                     )}
                   </div>
@@ -2855,7 +2680,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                     borderBottom: "2px solid #e2e8f0",
                   }}
                 >
-                  📄 Status Dokumen Pindaian
+                  📄 Status Dokumen
                 </h4>
                 <div
                   style={{
@@ -2871,8 +2696,6 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                   ].map(({ key, label, icon }) => {
                     const isHilang = vehicleDetailModal[`${key}Hilang`];
                     const fileName = vehicleDetailModal[`${key}FileName`];
-                    const scanStatus = vehicleDetailModal[`${key}ScanStatus`];
-                    const score = vehicleDetailModal[`${key}Score`];
 
                     return (
                       <div
@@ -2923,7 +2746,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                                     marginTop: "2px",
                                   }}
                                 >
-                                  ✓ Terbaca {score}% — {fileName}
+                                  ✓ {fileName}
                                 </div>
                               ) : (
                                 <div
@@ -3049,10 +2872,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                     <p
                       style={{ fontSize: "12px", color: "#6b7a96", margin: 0 }}
                     >
-                      File PDF —{" "}
-                      {previewDoc.score
-                        ? `Keterbacaan: ${previewDoc.score}%`
-                        : ""}
+                      File PDF
                     </p>
                     <div
                       style={{
@@ -3067,7 +2887,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                       }}
                     >
                       💡 Preview PDF tidak tersedia. File PDF berisi dokumen
-                      asli yang telah dipindai dan diverifikasi oleh sistem OCR.
+                      asli yang telah diunggah.
                     </div>
                   </div>
                 ) : (
@@ -3114,19 +2934,6 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                       </div>
                       <div
                         style={{
-                          marginTop: "12px",
-                          fontSize: "11px",
-                          padding: "8px",
-                          background: "#f0fdf4",
-                          border: "1px solid #bbf7d0",
-                          borderRadius: "6px",
-                          color: "#15803d",
-                        }}
-                      >
-                        ✓ Keterbacaan: {previewDoc.score}%
-                      </div>
-                      <div
-                        style={{
                           marginTop: "8px",
                           fontSize: "10px",
                           color: "#94a3b8",
@@ -3158,10 +2965,8 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                   lineHeight: "1.5",
                 }}
               >
-                ✓ Dokumen ini telah diverifikasi otomatis oleh sistem OCR dengan
-                akurasi {previewDoc.score}%. Data yang terbaca: Plat Nomor,
-                Nomor Uji KIR, Nomor Rangka, dan Nomor Mesin sudah sesuai dengan
-                data yang Anda daftarkan.
+                ✓ Dokumen ini telah diunggah ke dalam sistem dan akan
+                diverifikasi oleh admin.
               </div>
             </div>
             <div

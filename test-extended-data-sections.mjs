@@ -146,7 +146,7 @@ console.log('\n✓ Test 9: Modal sections order');
 const kartuKendaraanPos = content.indexOf('🎫 Data Kartu Kendaraan');
 const kartuKirPos = content.indexOf('🪪 Data Kartu KIR');
 const dataStnkPos = content.indexOf('📋 Data STNK');
-const statusDokumenPos = content.indexOf('📄 Status Dokumen Pindaian');
+const statusDokumenPos = content.indexOf('📄 Status Dokumen');
 
 if (kartuKendaraanPos < kartuKirPos && kartuKirPos < dataStnkPos && dataStnkPos < statusDokumenPos) {
   console.log('  ✅ Sections in correct order:');
