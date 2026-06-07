@@ -2487,6 +2487,246 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                 </div>
               )}
 
+              {/* Data Kartu Kendaraan */}
+              <div style={{ marginBottom: "24px" }}>
+                <h4
+                  style={{
+                    fontSize: "14px",
+                    fontWeight: "800",
+                    color: "#1C3967",
+                    margin: "0 0 16px 0",
+                    paddingBottom: "8px",
+                    borderBottom: "2px solid #e2e8f0",
+                  }}
+                >
+                  🎫 Data Kartu Kendaraan
+                </h4>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: "12px",
+                  }}
+                >
+                  <div style={{ background: "#f8fafc", padding: "12px", borderRadius: "8px" }}>
+                    <p style={{ fontSize: "12px", color: "#6b7a96", margin: "0 0 4px 0" }}>
+                      Nama Pemilik
+                    </p>
+                    <p style={{ fontSize: "13px", fontWeight: "600", color: "#1C3967", margin: 0 }}>
+                      {vehicleDetailModal.ownerName || "-"}
+                    </p>
+                  </div>
+                  <div style={{ background: "#f8fafc", padding: "12px", borderRadius: "8px" }}>
+                    <p style={{ fontSize: "12px", color: "#6b7a96", margin: "0 0 4px 0" }}>
+                      Alamat Pemilik
+                    </p>
+                    <p style={{ fontSize: "13px", fontWeight: "600", color: "#1C3967", margin: 0 }}>
+                      {vehicleDetailModal.ownerAddress || "-"}
+                    </p>
+                  </div>
+                  <div style={{ background: "#f8fafc", padding: "12px", borderRadius: "8px" }}>
+                    <p style={{ fontSize: "12px", color: "#6b7a96", margin: "0 0 4px 0" }}>
+                      No Pol / Nomor Plat
+                    </p>
+                    <p style={{ fontSize: "13px", fontWeight: "600", color: "#1C3967", margin: 0, fontFamily: "monospace" }}>
+                      {vehicleDetailModal.plateNumber}
+                    </p>
+                  </div>
+                  <div style={{ background: "#f8fafc", padding: "12px", borderRadius: "8px" }}>
+                    <p style={{ fontSize: "12px", color: "#6b7a96", margin: "0 0 4px 0" }}>
+                      No Rangka
+                    </p>
+                    <p style={{ fontSize: "13px", fontWeight: "600", color: "#1C3967", margin: 0, fontFamily: "monospace" }}>
+                      {vehicleDetailModal.frameNumber || "-"}
+                    </p>
+                  </div>
+                  <div style={{ background: "#f8fafc", padding: "12px", borderRadius: "8px" }}>
+                    <p style={{ fontSize: "12px", color: "#6b7a96", margin: "0 0 4px 0" }}>
+                      No Mesin
+                    </p>
+                    <p style={{ fontSize: "13px", fontWeight: "600", color: "#1C3967", margin: 0, fontFamily: "monospace" }}>
+                      {vehicleDetailModal.engineNumber || "-"}
+                    </p>
+                  </div>
+                  <div style={{ background: "#f8fafc", padding: "12px", borderRadius: "8px" }}>
+                    <p style={{ fontSize: "12px", color: "#6b7a96", margin: "0 0 4px 0" }}>
+                      No Uji Kendaraan
+                    </p>
+                    <p style={{ fontSize: "13px", fontWeight: "600", color: "#1C3967", margin: 0, fontFamily: "monospace" }}>
+                      {vehicleDetailModal.testNumber}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Data Kartu KIR */}
+              <div style={{ marginBottom: "24px" }}>
+                <h4
+                  style={{
+                    fontSize: "14px",
+                    fontWeight: "800",
+                    color: "#1C3967",
+                    margin: "0 0 16px 0",
+                    paddingBottom: "8px",
+                    borderBottom: "2px solid #e2e8f0",
+                  }}
+                >
+                  🪪 Data Kartu KIR
+                </h4>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: "12px",
+                  }}
+                >
+                  <div style={{ background: "#f8fafc", padding: "12px", borderRadius: "8px" }}>
+                    <p style={{ fontSize: "12px", color: "#6b7a96", margin: "0 0 4px 0" }}>
+                      Nama Pemilik
+                    </p>
+                    <p style={{ fontSize: "13px", fontWeight: "600", color: "#1C3967", margin: 0 }}>
+                      {vehicleDetailModal.ownerName || "-"}
+                    </p>
+                  </div>
+                  <div style={{ background: "#f8fafc", padding: "12px", borderRadius: "8px" }}>
+                    <p style={{ fontSize: "12px", color: "#6b7a96", margin: "0 0 4px 0" }}>
+                      No Pol / Nomor Plat
+                    </p>
+                    <p style={{ fontSize: "13px", fontWeight: "600", color: "#1C3967", margin: 0, fontFamily: "monospace" }}>
+                      {vehicleDetailModal.plateNumber}
+                    </p>
+                  </div>
+                  <div style={{ background: "#f8fafc", padding: "12px", borderRadius: "8px" }}>
+                    <p style={{ fontSize: "12px", color: "#6b7a96", margin: "0 0 4px 0" }}>
+                      No Uji Kendaraan
+                    </p>
+                    <p style={{ fontSize: "13px", fontWeight: "600", color: "#1C3967", margin: 0, fontFamily: "monospace" }}>
+                      {vehicleDetailModal.testNumber}
+                    </p>
+                  </div>
+                  <div style={{ background: "#f8fafc", padding: "12px", borderRadius: "8px" }}>
+                    <p style={{ fontSize: "12px", color: "#6b7a96", margin: "0 0 4px 0" }}>
+                      Jenis Kendaraan
+                    </p>
+                    <p style={{ fontSize: "13px", fontWeight: "600", color: "#1C3967", margin: 0 }}>
+                      {vehicleDetailModal.vehicleType}
+                    </p>
+                  </div>
+                  <div style={{ background: "#f8fafc", padding: "12px", borderRadius: "8px", gridColumn: "1 / -1" }}>
+                    <p style={{ fontSize: "12px", color: "#6b7a96", margin: "0 0 4px 0" }}>
+                      Merek / Tipe
+                    </p>
+                    <p style={{ fontSize: "13px", fontWeight: "600", color: "#1C3967", margin: 0 }}>
+                      {vehicleDetailModal.brand || "-"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Data STNK */}
+              <div style={{ marginBottom: "24px" }}>
+                <h4
+                  style={{
+                    fontSize: "14px",
+                    fontWeight: "800",
+                    color: "#1C3967",
+                    margin: "0 0 16px 0",
+                    paddingBottom: "8px",
+                    borderBottom: "2px solid #e2e8f0",
+                  }}
+                >
+                  📋 Data STNK
+                </h4>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: "12px",
+                  }}
+                >
+                  <div style={{ background: "#f8fafc", padding: "12px", borderRadius: "8px" }}>
+                    <p style={{ fontSize: "12px", color: "#6b7a96", margin: "0 0 4px 0" }}>
+                      Nama Pemilik
+                    </p>
+                    <p style={{ fontSize: "13px", fontWeight: "600", color: "#1C3967", margin: 0 }}>
+                      {vehicleDetailModal.ownerName || "-"}
+                    </p>
+                  </div>
+                  <div style={{ background: "#f8fafc", padding: "12px", borderRadius: "8px" }}>
+                    <p style={{ fontSize: "12px", color: "#6b7a96", margin: "0 0 4px 0" }}>
+                      No Pol / Nomor Plat
+                    </p>
+                    <p style={{ fontSize: "13px", fontWeight: "600", color: "#1C3967", margin: 0, fontFamily: "monospace" }}>
+                      {vehicleDetailModal.plateNumber}
+                    </p>
+                  </div>
+                  <div style={{ background: "#f8fafc", padding: "12px", borderRadius: "8px", gridColumn: "1 / -1" }}>
+                    <p style={{ fontSize: "12px", color: "#6b7a96", margin: "0 0 4px 0" }}>
+                      Alamat Pemilik
+                    </p>
+                    <p style={{ fontSize: "13px", fontWeight: "600", color: "#1C3967", margin: 0 }}>
+                      {vehicleDetailModal.ownerAddress || "-"}
+                    </p>
+                  </div>
+                  <div style={{ background: "#f8fafc", padding: "12px", borderRadius: "8px" }}>
+                    <p style={{ fontSize: "12px", color: "#6b7a96", margin: "0 0 4px 0" }}>
+                      Merek
+                    </p>
+                    <p style={{ fontSize: "13px", fontWeight: "600", color: "#1C3967", margin: 0 }}>
+                      {vehicleDetailModal.brand || "-"}
+                    </p>
+                  </div>
+                  <div style={{ background: "#f8fafc", padding: "12px", borderRadius: "8px" }}>
+                    <p style={{ fontSize: "12px", color: "#6b7a96", margin: "0 0 4px 0" }}>
+                      Type Kendaraan
+                    </p>
+                    <p style={{ fontSize: "13px", fontWeight: "600", color: "#1C3967", margin: 0 }}>
+                      {vehicleDetailModal.vehicleType}
+                    </p>
+                  </div>
+                  <div style={{ background: "#f8fafc", padding: "12px", borderRadius: "8px" }}>
+                    <p style={{ fontSize: "12px", color: "#6b7a96", margin: "0 0 4px 0" }}>
+                      Jenis Kendaraan
+                    </p>
+                    <p style={{ fontSize: "13px", fontWeight: "600", color: "#1C3967", margin: 0 }}>
+                      {vehicleDetailModal.vehicleType}
+                    </p>
+                  </div>
+                  <div style={{ background: "#f8fafc", padding: "12px", borderRadius: "8px" }}>
+                    <p style={{ fontSize: "12px", color: "#6b7a96", margin: "0 0 4px 0" }}>
+                      Model Kendaraan
+                    </p>
+                    <p style={{ fontSize: "13px", fontWeight: "600", color: "#1C3967", margin: 0 }}>
+                      {vehicleDetailModal.model || "-"}
+                    </p>
+                  </div>
+                  <div style={{ background: "#f8fafc", padding: "12px", borderRadius: "8px" }}>
+                    <p style={{ fontSize: "12px", color: "#6b7a96", margin: "0 0 4px 0" }}>
+                      Tahun Buat
+                    </p>
+                    <p style={{ fontSize: "13px", fontWeight: "600", color: "#1C3967", margin: 0 }}>
+                      {vehicleDetailModal.yearManufactured || "-"}
+                    </p>
+                  </div>
+                  <div style={{ background: "#f8fafc", padding: "12px", borderRadius: "8px" }}>
+                    <p style={{ fontSize: "12px", color: "#6b7a96", margin: "0 0 4px 0" }}>
+                      No Rangka
+                    </p>
+                    <p style={{ fontSize: "13px", fontWeight: "600", color: "#1C3967", margin: 0, fontFamily: "monospace" }}>
+                      {vehicleDetailModal.frameNumber || "-"}
+                    </p>
+                  </div>
+                  <div style={{ background: "#f8fafc", padding: "12px", borderRadius: "8px" }}>
+                    <p style={{ fontSize: "12px", color: "#6b7a96", margin: "0 0 4px 0" }}>
+                      No Mesin
+                    </p>
+                    <p style={{ fontSize: "13px", fontWeight: "600", color: "#1C3967", margin: 0, fontFamily: "monospace" }}>
+                      {vehicleDetailModal.engineNumber || "-"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               {/* Status Dokumen */}
               <div style={{ marginBottom: "24px" }}>
                 <h4
