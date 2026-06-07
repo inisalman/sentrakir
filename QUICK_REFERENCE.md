@@ -63,7 +63,7 @@
 | **Informasi Dasar** | 📌 | Plat, Tipe, KIR #, ID | 2 kolom |
 | **Masa Berlaku** | 📅 | KIR, STNK, Pajak + countdown | 3 kolom |
 | **SIM Driver** | 🪪 | Masa berlaku SIM (optional) | 1 kolom |
-| **Dokumen Pindaian** | 📄 | Kartu/Sertifikat KIR, STNK | 3 items |
+| **Dokumen** | 📄 | Kartu/Sertifikat KIR, STNK | 3 items |
 | **Catatan** | 📝 | Notes (optional) | Full width |
 
 ---
@@ -89,7 +89,7 @@ Modal: 5 Sections Informasi Lengkap
 ├─ 📌 Informasi Dasar Kendaraan
 ├─ 📅 Masa Berlaku Dokumen (countdown)
 ├─ 🪪 SIM Driver (jika ada)
-├─ 📄 Status Dokumen Pindaian (scan score)
+├─ 📄 Status Dokumen (filename)
 └─ 📝 Catatan Tambahan (jika ada)
 ```
 
@@ -123,7 +123,7 @@ test-vehicle-detail-modal.mjs
 
 ### Document Status
 - **Hilang** ⚠️ - Dokumen dinyatakan hilang
-- **Terbaca X%** ✓ - Scan berhasil dengan akurasi
+- **Terunggah** ✓ - File berhasil diunggah
 - **Belum Upload** - Dokumen belum diunggah
 
 ### Responsive Design
@@ -233,7 +233,7 @@ npm run build
 ✅ **Fitur**: Preview dokumen (Kartu KIR, Sertifikat KIR, STNK)
 ✅ **Status**: Production Ready
 ✅ **Tombol**: 👁️ "Lihat" di modal "Dokumen Diupload"
-✅ **Hasil**: Modal preview dengan file metadata & OCR score
+✅ **Hasil**: Modal preview dengan file metadata & preview layout
 ✅ **Build**: Success (4.32s, 0 errors)
 
 ---
