@@ -120,8 +120,8 @@ export const getRouting = (serviceType, originatingAdminId) => {
     };
   }
 
-  // KIR requests stay with originating admin
-  if (serviceType === 'kir_renewal' || serviceType === 'buka_blokir_kir') {
+  // KIR & Balik Nama requests stay with originating admin
+  if (serviceType === 'kir_renewal' || serviceType === 'buka_blokir_kir' || serviceType === 'balik_nama') {
     return {
       assignedAdminId: originatingAdminId,
       routingReason: 'Permintaan KIR ditangani oleh administrator yang mengelola client'

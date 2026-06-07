@@ -642,6 +642,8 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
       pajak_renewal: `Pengurusan perpanjangan Pajak Kendaraan Tahunan untuk kendaraan ${vehicle.plateNumber} yang habis tanggal ${vehicle.pajakExpiry}. Proses pembayaran dan pengurusan dokumen kami tangani.`,
 
       buka_blokir_kir: `Pengurusan Buka Blokir Data Kendaraan KIR untuk kendaraan ${vehicle.plateNumber} karena KIR telah kadaluwarsa lebih dari 1 tahun (Habis sejak ${vehicle.kirExpiry}). Diperlukan proses khusus ke Dishub untuk membuka status terblokir.`,
+
+      balik_nama: `Pengurusan Balik Nama Kendaraan (BBN-KB) untuk kendaraan ${vehicle.plateNumber} karena data pemilik/NOPOL pada STNK tidak sesuai dengan data pada Sertifikat KIR. Wajib dilakukan sebelum perpanjangan KIR dapat diproses.`,
     };
 
     return descriptions[serviceType] || "";
@@ -662,23 +664,32 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
     setSelectedVehicle(vehicle);
     setRequestLaporHilang(false);
     setRequestMediaNasional(false);
-    // Auto detect what needs renewal
+
+    // Check if STNK name/plate don't match Sertifikat KIR → force balik nama
+    const dataMismatch = isDataMismatch(vehicle);
     const kirDays = getDaysRemaining(vehicle.kirExpiry);
-    const stnkDays = getDaysRemaining(vehicle.stnkExpiry);
-    const pajakDays = getDaysRemaining(vehicle.pajakExpiry);
 
-    let initialServiceType = "kir_renewal";
+    let initialServiceType;
 
-    if (kirDays <= -365) {
+    if (dataMismatch) {
+      // Data tidak sesuai, harus balik nama dulu
+      initialServiceType = "balik_nama";
+    } else if (kirDays <= -365) {
       initialServiceType = "buka_blokir_kir";
-    } else if (kirDays <= 90 && (stnkDays <= 90 || pajakDays <= 90)) {
-      initialServiceType = "multiple";
-    } else if (kirDays <= 90) {
-      initialServiceType = "kir_renewal";
-    } else if (stnkDays <= 90) {
-      initialServiceType = "stnk_renewal";
     } else {
-      initialServiceType = "pajak_renewal";
+      // Auto detect what needs renewal
+      const stnkDays = getDaysRemaining(vehicle.stnkExpiry);
+      const pajakDays = getDaysRemaining(vehicle.pajakExpiry);
+
+      if (kirDays <= 90 && (stnkDays <= 90 || pajakDays <= 90)) {
+        initialServiceType = "multiple";
+      } else if (kirDays <= 90) {
+        initialServiceType = "kir_renewal";
+      } else if (stnkDays <= 90) {
+        initialServiceType = "stnk_renewal";
+      } else {
+        initialServiceType = "pajak_renewal";
+      }
     }
 
     setRequestServiceType(initialServiceType);
@@ -946,6 +957,8 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
       baseCost = 750000;
     } else if (requestServiceType === "buka_blokir_kir") {
       baseCost = 1500000;
+    } else if (requestServiceType === "balik_nama") {
+      baseCost = 2000000;
     } else {
       baseCost = 350000;
     }
@@ -963,7 +976,9 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
               ? "Perpanjangan Pajak"
               : requestServiceType === "buka_blokir_kir"
                 ? "Buka Blokir KIR"
-                : "Pengurusan KIR & STNK",
+                : requestServiceType === "balik_nama"
+                  ? "Balik Nama Kendaraan"
+                  : "Pengurusan KIR & STNK",
       description:
         requestDesc + (addOnDesc ? `\n\nLayanan Tambahan:${addOnDesc}` : ""),
       estimatedCost: baseCost + addOnCost,
@@ -986,6 +1001,24 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
     if (minDays <= 0) return { code: "danger", label: "Jatuh Tempo" };
     if (minDays <= 90) return { code: "warning", label: "Warning" };
     return { code: "success", label: "Aman" };
+  };
+
+  // Check if STNK data (owner name, plate) doesn't match Sertifikat KIR data
+  // If mismatch, disable KIR renewal/block-unblock and show "balik nama" instead
+  const isDataMismatch = (vehicle) => {
+    if (!vehicle) return false;
+    // Compare STNK owner name vs Sertifikat KIR owner name
+    const stnkOwner = (vehicle.stnkOwnerName || "").toLowerCase().trim();
+    const kkOwner = (vehicle.kkOwnerName || "").toLowerCase().trim();
+    const ownerMatch = !stnkOwner || !kkOwner || stnkOwner === kkOwner;
+
+    // Compare STNK plate vs Sertifikat KIR plate
+    const stnkPlate = (vehicle.stnkPlateNumber || "").toLowerCase().replace(/\s+/g, "");
+    const kkPlate = (vehicle.kkPlateNumber || "").toLowerCase().replace(/\s+/g, "");
+    const plateMatch = !stnkPlate || !kkPlate || stnkPlate === kkPlate;
+
+    // Mismatch happens only when both fields are filled AND they differ
+    return stnkOwner && kkOwner && !ownerMatch && stnkPlate && kkPlate && !plateMatch;
   };
 
   // Returns color scheme for an expiry card based on days remaining
@@ -2318,6 +2351,25 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                       </div>
                     )}
 
+                    {selectedVehicle && isDataMismatch(selectedVehicle) && (
+                      <div
+                        style={{
+                          background: "#fef2f2",
+                          border: "1px solid #fca5a5",
+                          borderRadius: "8px",
+                          padding: "12px",
+                          fontSize: "12.5px",
+                          color: "#991b1b",
+                          marginBottom: "16px",
+                          lineHeight: "1.5",
+                          textAlign: "left",
+                        }}
+                      >
+                        ⚠️ <strong>Data Tidak Sesuai:</strong> Data pemilik dan/atau NOPOL pada STNK tidak sesuai dengan data pada Sertifikat KIR. Perpanjangan KIR tidak dapat diproses sebelum dilakukan{" "}
+                        <strong>Balik Nama Kendaraan (BBN-KB)</strong>.
+                      </div>
+                    )}
+
                     {adaDokumenHilang && (
                       <div
                         style={{
@@ -2451,34 +2503,63 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                         onChange={(e) => setRequestServiceType(e.target.value)}
                         style={{ background: "white" }}
                       >
-                        {isKirBlocked ? (
-                          <>
-                            <option value="buka_blokir_kir">
-                              Buka Blokir Data Kendaraan KIR
-                            </option>
-                            <option value="stnk_renewal">
-                              Perpanjangan STNK 5 Tahunan
-                            </option>
-                            <option value="pajak_renewal">
-                              Perpanjangan Pajak Kendaraan Tahunan
-                            </option>
-                          </>
-                        ) : (
-                          <>
-                            <option value="kir_renewal">
-                              Perpanjangan Uji KIR
-                            </option>
-                            <option value="stnk_renewal">
-                              Perpanjangan STNK 5 Tahunan
-                            </option>
-                            <option value="pajak_renewal">
-                              Perpanjangan Pajak Kendaraan Tahunan
-                            </option>
-                            <option value="buka_blokir_kir">
-                              Buka Blokir Data Kendaraan KIR
-                            </option>
-                          </>
-                        )}
+                        {(() => {
+                          const dataMismatch =
+                            selectedVehicle &&
+                            isDataMismatch(selectedVehicle);
+                          if (dataMismatch) {
+                            return (
+                              <>
+                                <option value="balik_nama">
+                                  Balik Nama Kendaraan (BBN-KB)
+                                </option>
+                                <option disabled style={{ opacity: 0.5 }}>
+                                  ────── Lainnya ──────
+                                </option>
+                                <option value="stnk_renewal">
+                                  Perpanjangan STNK 5 Tahunan
+                                </option>
+                                <option value="pajak_renewal">
+                                  Perpanjangan Pajak Kendaraan Tahunan
+                                </option>
+                                <option value="buka_blokir_kir" disabled style={{ color: "#94a3b8" }}>
+                                  ⛔ Buka Blokir KIR (Data Tidak Sesuai)
+                                </option>
+                              </>
+                            );
+                          }
+                          if (isKirBlocked) {
+                            return (
+                              <>
+                                <option value="buka_blokir_kir">
+                                  Buka Blokir Data Kendaraan KIR
+                                </option>
+                                <option value="stnk_renewal">
+                                  Perpanjangan STNK 5 Tahunan
+                                </option>
+                                <option value="pajak_renewal">
+                                  Perpanjangan Pajak Kendaraan Tahunan
+                                </option>
+                              </>
+                            );
+                          }
+                          return (
+                            <>
+                              <option value="kir_renewal">
+                                Perpanjangan Uji KIR
+                              </option>
+                              <option value="stnk_renewal">
+                                Perpanjangan STNK 5 Tahunan
+                              </option>
+                              <option value="pajak_renewal">
+                                Perpanjangan Pajak Kendaraan Tahunan
+                              </option>
+                              <option value="buka_blokir_kir">
+                                Buka Blokir Data Kendaraan KIR
+                              </option>
+                            </>
+                          );
+                        })()}
                       </select>
                     </div>
 
@@ -2551,6 +2632,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                       const st = requestServiceType;
                       if (st === "multiple") return 750000;
                       if (st === "buka_blokir_kir") return 1500000;
+                      if (st === "balik_nama") return 2000000;
                       return 350000;
                     })();
                     if (requestLaporHilang) total += 50000;
@@ -4293,6 +4375,7 @@ function RequestsView({ requests }) {
     if (type === "stnk_renewal") return "Perpanjangan STNK";
     if (type === "pajak_renewal") return "Perpanjangan Pajak";
     if (type === "buka_blokir_kir") return "Buka Blokir KIR";
+    if (type === "balik_nama") return "Balik Nama Kendaraan";
     return "Pengurusan KIR & STNK";
   };
 
