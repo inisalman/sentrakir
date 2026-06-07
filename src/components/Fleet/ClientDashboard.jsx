@@ -840,7 +840,15 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
       sertifikatKirHilang: !!formData.sertifikatKirHilang,
       kartuKirFileName: formData.kartuKirHilang ? null : formData.kartuKirFile,
       sertifikatKirFileName: formData.sertifikatKirHilang ? null : formData.sertifikatKirFile,
-      stnkFileName: formData.stnkFile,    });
+      stnkFileName: formData.stnkFile,
+    });
+
+    // Jika modal Data Lengkap terbuka untuk kendaraan ini, refresh datanya
+    if (vehicleDetailModal && vehicleDetailModal.id === selectedVehicle.id) {
+      const db = getFleetDatabase();
+      const updated = db.vehicles.find(v => v.id === selectedVehicle.id);
+      if (updated) setVehicleDetailModal(updated);
+    }
 
     setModalType(null);
     onUpdate();
