@@ -9,7 +9,6 @@ const links = [
   { href: '#daftar-jasa', label: 'Daftar Jasa' },
   { href: '#lokasi', label: 'Lokasi' },
   { href: '#mitra', label: 'Mitra Kami' },
-  { href: '/fleet', label: 'Sentra Fleet (B2B)' },
 ]
 
 export default function Navbar() {

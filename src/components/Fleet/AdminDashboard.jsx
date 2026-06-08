@@ -927,6 +927,20 @@ function OrderTrackerView({ db, adminId, onUpdate }) {
                             "stnk_renewal",
                             "pajak_renewal",
                             "multiple",
+                            "kir_uji_baru",
+                            "kir_numpang_uji",
+                            "kir_mutasi_masuk",
+                            "kir_mutasi_keluar",
+                            "kir_balik_nama",
+                            "kir_ganti_nopol",
+                            "balik_nama_stnk",
+                            "mutasi",
+                            "stnk_hilang",
+                            "ganti_alamat",
+                            "blokir_progresif",
+                            "cek_fisik_bantuan",
+                            "urus_e_tilang",
+                            "cabut_berkas_stnk",
                           ].includes(r.serviceType);
                         if (isRestricted) {
                           return (

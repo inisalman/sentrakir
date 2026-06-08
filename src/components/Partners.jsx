@@ -1,25 +1,27 @@
-import './Partners.css'
-import { trackButtonClick } from '../utils/analytics.js'
+import "./Partners.css";
+import { trackButtonClick } from "../utils/analytics.js";
 
 const partners = [
   {
-    name: 'Birojasa PT. Padajaya',
-    logo: '/logo-padajaya.png',
-    desc: 'Birojasa terpercaya melayani pengurusan STNK Motor & Mobil Jabodetabek.',
+    name: "Birojasa PT. Padajaya",
+    logo: "/logo-padajaya.png",
+    desc: "Birojasa terpercaya melayani pengurusan STNK Motor & Mobil Jabodetabek.",
     waLink:
-      'https://wa.me/6281295125811?text=' +
-      encodeURIComponent('Halo, saya ingin info tentang kerja sama dengan PT. Padajaya.'),
+      "https://wa.me/6281295125811?text=" +
+      encodeURIComponent(
+        "Halo, saya ingin info tentang kerja sama dengan PT. Padajaya.",
+      ),
   },
-]
+];
 
 export default function Partners() {
   return (
     <section className="partners-section" id="mitra">
       <div className="partners-inner">
-        <h2 className="partners-title">MITRA KAMI</h2>
+        <h2 className="partners-title">BERKOLABORASI</h2>
         <p className="partners-subtitle">
-          Kami bekerja bersama mitra terpercaya untuk memperluas jangkauan
-          layanan dan menjamin proses yang sah di setiap wilayah.
+          Kami berkolaborasi dengan birojasa Padajaya terpercaya untuk
+          memperluas jangkauan layanan.
         </p>
 
         <div className="partners-grid">
@@ -36,11 +38,19 @@ export default function Partners() {
                   href={p.waLink}
                   target="_blank"
                   rel="noreferrer"
-                  onClick={() => { trackButtonClick('WhatsApp Click', 'Partners') }}
+                  onClick={() => {
+                    trackButtonClick("WhatsApp Click", "Partners");
+                  }}
                 >
                   Hubungi
                 </a>
-                <a className="btn btn-ghost partner-btn" href="/padajaya" onClick={() => { trackButtonClick('CTA Click', 'Partner Beranda') }}>
+                <a
+                  className="btn btn-ghost partner-btn"
+                  href="/padajaya"
+                  onClick={() => {
+                    trackButtonClick("CTA Click", "Partner Beranda");
+                  }}
+                >
                   Beranda
                 </a>
               </div>
@@ -49,5 +59,5 @@ export default function Partners() {
         </div>
       </div>
     </section>
-  )
+  );
 }

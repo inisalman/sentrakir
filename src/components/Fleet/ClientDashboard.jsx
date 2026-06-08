@@ -458,6 +458,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
   const [requestLaporHilang, setRequestLaporHilang] = useState(false);
   const [requestMediaNasional, setRequestMediaNasional] = useState(false);
   const [requestSimService, setRequestSimService] = useState(null); // null | 'sim_baru' | 'sim_perpanjang' | 'sim_konsultasi'
+  const [chosenAdminId, setChosenAdminId] = useState(null); // for SIM services where client chooses admin
   const [rescanDocType, setRescanDocType] = useState(null); // 'kartuKir' | 'sertifikatKir' | 'stnk' | null
   const [previewDoc, setPreviewDoc] = useState(null); // { key, label, fileName } for preview modal
   const [vehicleDetailModal, setVehicleDetailModal] = useState(null); // full vehicle data modal
@@ -476,6 +477,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
 
   // Form states for Add/Edit
   const [formData, setFormData] = useState({
+    ownerName: "",
     plateNumber: "",
     vehicleType: "Delvan",
     testNumber: "",
@@ -510,10 +512,79 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
     stnkEngineNumber: "",
     kartuKirFile: null,
     kartuKirHilang: false,
+    kartuKirMobilBaru: false,
     sertifikatKirFile: null,
     sertifikatKirHilang: false,
+    sertifikatKirMobilBaru: false,
     stnkFile: null,
+    stnkHilang: false,
   });
+
+  const prevValuesRef = useRef({
+    ownerName: "",
+    plateNumber: "",
+    testNumber: "",
+    vehicleType: "Delvan",
+  });
+
+  useEffect(() => {
+    const prev = prevValuesRef.current;
+    setFormData((curr) => {
+      const updated = { ...curr };
+
+      // Sync kkOwnerName if it matches previous ownerName (or is empty)
+      if (curr.kkOwnerName === prev.ownerName || curr.kkOwnerName === "") {
+        updated.kkOwnerName = curr.ownerName;
+      }
+      // Sync kkPlateNumber
+      if (curr.kkPlateNumber === prev.plateNumber || curr.kkPlateNumber === "") {
+        updated.kkPlateNumber = curr.plateNumber;
+      }
+      // Sync kkTestNumber
+      if (curr.kkTestNumber === prev.testNumber || curr.kkTestNumber === "") {
+        updated.kkTestNumber = curr.testNumber;
+      }
+
+      // Sync kirOwnerName
+      if (curr.kirOwnerName === prev.ownerName || curr.kirOwnerName === "") {
+        updated.kirOwnerName = curr.ownerName;
+      }
+      // Sync kirPlateNumber
+      if (curr.kirPlateNumber === prev.plateNumber || curr.kirPlateNumber === "") {
+        updated.kirPlateNumber = curr.plateNumber;
+      }
+      // Sync kirTestNumber
+      if (curr.kirTestNumber === prev.testNumber || curr.kirTestNumber === "") {
+        updated.kirTestNumber = curr.testNumber;
+      }
+      // Sync kirVehicleType
+      if (curr.kirVehicleType === prev.vehicleType || curr.kirVehicleType === "Delvan") {
+        updated.kirVehicleType = curr.vehicleType;
+      }
+
+      return updated;
+    });
+
+    // Update refs
+    prevValuesRef.current = {
+      ownerName: formData.ownerName,
+      plateNumber: formData.plateNumber,
+      testNumber: formData.testNumber,
+      vehicleType: formData.vehicleType,
+    };
+  }, [formData.ownerName, formData.plateNumber, formData.vehicleType, formData.testNumber]);
+
+  // Keep vehicleDetailModal in sync with latest props
+  useEffect(() => {
+    if (vehicleDetailModal) {
+      const updated = vehicles.find((v) => v.id === vehicleDetailModal.id);
+      if (updated) {
+        setVehicleDetailModal(updated);
+      } else {
+        setVehicleDetailModal(null); // closed if deleted
+      }
+    }
+  }, [vehicles, vehicleDetailModal?.id]);
 
   const filteredVehicles = vehicles.filter(
     (v) =>
@@ -523,6 +594,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
 
   const handleOpenAdd = () => {
     setFormData({
+      ownerName: "",
       plateNumber: "",
       vehicleType: "Delvan",
       testNumber: "",
@@ -560,6 +632,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
       sertifikatKirFile: null,
       sertifikatKirHilang: false,
       stnkFile: null,
+    stnkHilang: false,
     });
     setModalType("add");
   };
@@ -567,6 +640,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
   const handleOpenEdit = (vehicle) => {
     setSelectedVehicle(vehicle);
     setFormData({
+      ownerName: vehicle.ownerName || "",
       plateNumber: vehicle.plateNumber,
       vehicleType: vehicle.vehicleType,
       testNumber: vehicle.testNumber || "",
@@ -645,6 +719,28 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
       buka_blokir_kir: `Pengurusan Buka Blokir Data Kendaraan KIR untuk kendaraan ${vehicle.plateNumber} karena KIR telah kadaluwarsa lebih dari 1 tahun (Habis sejak ${vehicle.kirExpiry}). Diperlukan proses khusus ke Dishub untuk membuka status terblokir.`,
 
       balik_nama: `Pengurusan Balik Nama Kendaraan (BBN-KB) untuk kendaraan ${vehicle.plateNumber} karena data pemilik/NOPOL pada STNK tidak sesuai dengan data pada Sertifikat KIR. Wajib menyesuaikan data saat perpanjangan KIR.`,
+
+      // New Jakarta-area STNK services (routed to Padajaya)
+      balik_nama_stnk: `Pengurusan Balik Nama STNK untuk kendaraan ${vehicle.plateNumber}. Proses administrasi perubahan nama pemilik pada STNK.`,
+      mutasi: `Pengurusan Mutasi Kendaraan untuk kendaraan ${vehicle.plateNumber}. Proses administrasi perpindahan kepemilikan atau domisili kendaraan.`,
+      stnk_hilang: `Pengurusan penggantian STNK Hilang untuk kendaraan ${vehicle.plateNumber}. Proses permohonan penerbitan STNK baru karena kehilangan.`,
+      ganti_alamat: `Pengurusan perubahan alamat pada STNK untuk kendaraan ${vehicle.plateNumber}. Penyesuaian data alamat pemilik kendaraan.`,
+      blokir_progresif: `Pengurusan Blokir Progresif Pajak Kendaraan untuk ${vehicle.plateNumber}. Pemblokiran STNK sementara untuk menghindari akumulasi pajak.`,
+      cek_fisik_bantuan: `Pengurusan Cek Fisik Bantuan kendaraan untuk ${vehicle.plateNumber}. Pendampingan proses pemeriksaan fisik kendaraan.`,
+      urus_e_tilang: `Pengurusan E-Tilang untuk kendaraan ${vehicle.plateNumber}. Bantuan penanganan dan penyelesaian tilang elektronik.`,
+      cabut_berkas_stnk: `Pengurusan Cabut Berkas STNK untuk kendaraan ${vehicle.plateNumber}. Proses pengambilan berkas STNK dari kepolisian/Samsat.`,
+
+      // New SIM services (client chooses admin)
+      bikin_sim_a: `Pembuatan SIM A baru untuk ${vehicle.plateNumber}. Proses pembuatan Surat Izin Mengemudi golongan A (kendaraan penumpang < 3000kg).`,
+      bikin_sim_c: `Pembuatan SIM C baru untuk ${vehicle.plateNumber}. Proses pembuatan Surat Izin Mengemudi golongan C (sepeda motor).`,
+
+      // New Jakarta-area KIR services
+      kir_uji_baru: `Pengurusan Uji KIR Baru (pertama kali) untuk kendaraan ${vehicle.plateNumber}. Proses pendaftaran dan pengujian KIR untuk kendaraan yang belum pernah diuji.`,
+      kir_numpang_uji: `Pengurusan Numpang Uji KIR untuk kendaraan ${vehicle.plateNumber}. Pengujian KIR di wilayah Jakarta untuk kendaraan dengan domisili luar Jakarta.`,
+      kir_mutasi_masuk: `Pengurusan Mutasi Masuk (Ke-Jakarta) data KIR untuk kendaraan ${vehicle.plateNumber}. Proses perpindahan data uji KIR ke wilayah Jakarta.`,
+      kir_mutasi_keluar: `Pengurusan Mutasi Keluar (Cabut Berkas) data KIR untuk kendaraan ${vehicle.plateNumber}. Proses pencabutan berkas uji KIR dari wilayah Jakarta.`,
+      kir_balik_nama: `Pengurusan Balik Nama data KIR untuk kendaraan ${vehicle.plateNumber}. ⚠️ Catatan: Pengurusan balik nama KIR hanya dapat dilakukan bersamaan dengan proses Perpanjang Uji KIR atau Buka Blokir Data.`,
+      kir_ganti_nopol: `Pengurusan Ganti Nopol data KIR untuk kendaraan ${vehicle.plateNumber}. ⚠️ Catatan: Pengurusan ganti nopol KIR hanya dapat dilakukan bersamaan dengan proses Perpanjang Uji KIR atau Buka Blokir Data.`,
     };
 
     return descriptions[serviceType] || "";
@@ -661,51 +757,28 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
     }
   }, [requestServiceType, selectedVehicle]);
 
+  // Auto-set chosen admin for SIM services based on company admin
+  useEffect(() => {
+    if (['bikin_sim_a', 'bikin_sim_c'].includes(requestServiceType) && !chosenAdminId) {
+      setChosenAdminId(company.adminId || "admin-1");
+    }
+  }, [requestServiceType, company.adminId]);
+
   const handleOpenUrus = (vehicle) => {
     setSelectedVehicle(vehicle);
     setRequestLaporHilang(false);
     setRequestMediaNasional(false);
     setRequestSimService(null);
-
-    // Check if STNK name/plate don't match Sertifikat KIR → force balik nama
-    const dataMismatch = isDataMismatch(vehicle);
-    const kirDays = getDaysRemaining(vehicle.kirExpiry);
-
-    let initialServiceType;
-
-    if (dataMismatch) {
-      // Data tidak sesuai, harus balik nama dulu
-      initialServiceType = "balik_nama";
-    } else if (kirDays <= -365) {
-      initialServiceType = "buka_blokir_kir";
-    } else {
-      // Auto detect what needs renewal
-      const stnkDays = getDaysRemaining(vehicle.stnkExpiry);
-      const pajakDays = getDaysRemaining(vehicle.pajakExpiry);
-
-      if (kirDays <= 90 && (stnkDays <= 90 || pajakDays <= 90)) {
-        initialServiceType = "multiple";
-      } else if (kirDays <= 90) {
-        initialServiceType = "kir_renewal";
-      } else if (stnkDays <= 90) {
-        initialServiceType = "stnk_renewal";
-      } else {
-        initialServiceType = "pajak_renewal";
-      }
-    }
-
-    setRequestServiceType(initialServiceType);
-    const initialDesc = getDescriptionForServiceType(
-      initialServiceType,
-      vehicle,
-    );
-    setRequestDesc(initialDesc);
+    setChosenAdminId(null);
+    setRequestServiceType("");
+    setRequestDesc("");
     setModalType("urus");
   };
 
   const handleAddSubmit = (e) => {
     e.preventDefault();
     if (
+      !formData.ownerName ||
       !formData.plateNumber ||
       !formData.testNumber ||
       !formData.kirExpiry ||
@@ -714,14 +787,14 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
     )
       return;
 
-    const isKartuKirOk = formData.kartuKirHilang || !!formData.kartuKirFile;
+    const isKartuKirOk = formData.kartuKirHilang || formData.kartuKirMobilBaru || !!formData.kartuKirFile;
     const isSertifikatKirOk =
-      formData.sertifikatKirHilang || !!formData.sertifikatKirFile;
-    const isStnkOk = !!formData.stnkFile;
+      formData.sertifikatKirHilang || formData.sertifikatKirMobilBaru || !!formData.sertifikatKirFile;
+    const isStnkOk = formData.stnkHilang || !!formData.stnkFile;
 
     if (!isKartuKirOk || !isSertifikatKirOk || !isStnkOk) {
       alert(
-        "Harap unggah dokumen Kartu KIR, Sertifikat KIR, dan STNK terlebih dahulu (kecuali dokumen KIR yang dinyatakan Hilang).",
+        "Harap unggah dokumen Kartu KIR, Sertifikat KIR, dan STNK terlebih dahulu (kecuali dinyatakan Mobil Baru / Hilang).",
       );
       return;
     }
@@ -737,6 +810,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
       notes: formData.notes,
       // Legacy data mappings for backward compatibility
       ownerName:
+        formData.ownerName ||
         formData.kkOwnerName ||
         formData.kirOwnerName ||
         formData.stnkOwnerName ||
@@ -772,12 +846,13 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
       stnkFrameNumber: formData.stnkFrameNumber || "",
       stnkEngineNumber: formData.stnkEngineNumber || "",
       kartuKirHilang: !!formData.kartuKirHilang,
+      kartuKirMobilBaru: !!formData.kartuKirMobilBaru,
       sertifikatKirHilang: !!formData.sertifikatKirHilang,
-      kartuKirFileName: formData.kartuKirHilang ? null : formData.kartuKirFile,
-      sertifikatKirFileName: formData.sertifikatKirHilang
-        ? null
-        : formData.sertifikatKirFile,
-      stnkFileName: formData.stnkFile,
+      sertifikatKirMobilBaru: !!formData.sertifikatKirMobilBaru,
+      kartuKirFileName: (formData.kartuKirHilang || formData.kartuKirMobilBaru) ? null : formData.kartuKirFile,
+      sertifikatKirFileName: (formData.sertifikatKirHilang || formData.sertifikatKirMobilBaru) ? null : formData.sertifikatKirFile,
+      stnkFileName: formData.stnkHilang ? null : formData.stnkFile,
+      stnkHilang: !!formData.stnkHilang,
     });
 
     setModalType(null);
@@ -787,6 +862,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
   const handleEditSubmit = (e) => {
     e.preventDefault();
     if (
+      !formData.ownerName ||
       !formData.plateNumber ||
       !formData.testNumber ||
       !formData.kirExpiry ||
@@ -805,7 +881,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
       simDriverExpiry: formData.simDriverExpiry,
       notes: formData.notes,
       // Legacy data mappings — use formData directly (user may have cleared a field)
-      ownerName: formData.kkOwnerName || formData.kirOwnerName || formData.stnkOwnerName || "",
+      ownerName: formData.ownerName || formData.kkOwnerName || formData.kirOwnerName || formData.stnkOwnerName || "",
       ownerAddress: formData.kkOwnerAddress || formData.stnkOwnerAddress || "",
       frameNumber: formData.kkFrameNumber || formData.stnkFrameNumber || "",
       engineNumber: formData.kkEngineNumber || formData.stnkEngineNumber || "",
@@ -906,6 +982,11 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
   const handleUrusSubmit = (e) => {
     e.preventDefault();
 
+    if (!requestServiceType) {
+      alert("Harap pilih jenis pengurusan yang ingin diajukan!");
+      return;
+    }
+
     // Calculate add-on costs
     let addOnCost = 0;
     let addOnDesc = "";
@@ -931,37 +1012,70 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
       addOnDesc += "\n• Konsultasi Pengurusan SIM Khusus (Rp 100.000)";
     }
 
-    let baseCost;
-    if (requestServiceType === "multiple") {
-      baseCost = 750000;
-    } else if (requestServiceType === "buka_blokir_kir") {
-      baseCost = 1500000;
-    } else if (requestServiceType === "balik_nama") {
-      baseCost = 2000000;
-    } else {
-      baseCost = 350000;
-    }
+    const costMap = {
+      kir_renewal: 350000,
+      buka_blokir_kir: 1500000,
+      balik_nama: 2000000,
+      kir_uji_baru: 450000,
+      kir_numpang_uji: 500000,
+      kir_mutasi_masuk: 1800000,
+      kir_mutasi_keluar: 1800000,
+      kir_balik_nama: 1500000,
+      kir_ganti_nopol: 1200000,
+      balik_nama_stnk: 2250000,
+      mutasi: 2500000,
+      stnk_hilang: 600000,
+      ganti_alamat: 800000,
+      blokir_progresif: 250000,
+      cek_fisik_bantuan: 400000,
+      urus_e_tilang: 500000,
+      cabut_berkas_stnk: 1800000,
+      bikin_sim_a: 800000,
+      bikin_sim_c: 600000,
+    };
+    let baseCost = costMap[requestServiceType] || 350000;
 
-    addServiceRequest({
+    const serviceLabels = {
+      kir_renewal: "Perpanjangan Uji KIR",
+      kir_uji_baru: "Uji Baru KIR",
+      kir_numpang_uji: "Numpang Uji KIR",
+      kir_mutasi_masuk: "Mutasi Masuk (Ke-Jakarta)",
+      kir_mutasi_keluar: "Mutasi Keluar (Cabut Berkas)",
+      kir_balik_nama: "Balik Nama KIR",
+      kir_ganti_nopol: "Ganti Nopol KIR",
+      stnk_renewal: "Perpanjangan STNK",
+      pajak_renewal: "Perpanjangan Pajak",
+      buka_blokir_kir: "Buka Blokir KIR",
+      balik_nama: "Balik Nama Kendaraan",
+      multiple: "Pengurusan KIR & STNK",
+      balik_nama_stnk: "Balik Nama STNK",
+      mutasi: "Mutasi Kendaraan",
+      stnk_hilang: "STNK Hilang",
+      ganti_alamat: "Ganti Alamat STNK",
+      blokir_progresif: "Blokir Progresif Pajak",
+      cek_fisik_bantuan: "Cek Fisik Bantuan",
+      urus_e_tilang: "Urus E-Tilang",
+      cabut_berkas_stnk: "Cabut Berkas STNK",
+      bikin_sim_a: "Bikin SIM A",
+      bikin_sim_c: "Bikin SIM C",
+    };
+
+    const requestPayload = {
       companyId: clientId,
       vehicleId: selectedVehicle.id,
       serviceType: requestServiceType,
-      serviceTypeLabel:
-        requestServiceType === "kir_renewal"
-          ? "Perpanjangan KIR"
-          : requestServiceType === "stnk_renewal"
-            ? "Perpanjangan STNK"
-            : requestServiceType === "pajak_renewal"
-              ? "Perpanjangan Pajak"
-              : requestServiceType === "buka_blokir_kir"
-                ? "Buka Blokir KIR"
-                : requestServiceType === "balik_nama"
-                  ? "Balik Nama Kendaraan"
-                  : "Pengurusan KIR & STNK",
+      serviceTypeLabel: serviceLabels[requestServiceType] || "Pengurusan Jasa",
       description:
         requestDesc + (addOnDesc ? `\n\nLayanan Tambahan:${addOnDesc}` : ""),
       estimatedCost: baseCost + addOnCost,
-    });
+    };
+
+    // If client chose a specific admin for SIM services, pass it through
+    if (chosenAdminId) {
+      requestPayload.assignedAdminId = chosenAdminId;
+    }
+
+    addServiceRequest(requestPayload);
 
     alert(
       'Pengajuan pengurusan berhasil dibuat! Silakan cek menu "Status Pengurusan" secara berkala.',
@@ -1310,6 +1424,20 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
               }
             >
               <div className="fleet-modal-body">
+                <div className="fleet-form-group">
+                  <label className="fleet-label">Nama Pemilik Kendaraan *</label>
+                  <input
+                    type="text"
+                    className="fleet-input"
+                    placeholder="Nama Pemilik"
+                    value={formData.ownerName}
+                    onChange={(e) =>
+                      setFormData({ ...formData, ownerName: e.target.value })
+                    }
+                    required
+                  />
+                </div>
+
                 <div className="fleet-form-group">
                   <label className="fleet-label">Plat Nomor Kendaraan *</label>
                   <input
@@ -2633,63 +2761,127 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                         onChange={(e) => setRequestServiceType(e.target.value)}
                         style={{ background: "white" }}
                       >
+                        <option value="" disabled>
+                          -- Harap pilih jenis pengurusan --
+                        </option>
                         {(() => {
+                          const isJakartaPlate = selectedVehicle && (selectedVehicle.plateNumber || '').trim().toUpperCase().startsWith('B');
                           const dataMismatch =
                             selectedVehicle && isDataMismatch(selectedVehicle);
+
+                          // Reusable "Pengurusan KIR (Jakarta)" options group
+                          const kirJakartaGroup = ({ kirRenewalDisabled = false, bukaBlokirDisabled = false } = {}) => (
+                            <>
+                              <option disabled style={{ opacity: 0.5 }}>
+                                ─── Pengurusan KIR (Jakarta) ───
+                              </option>
+                              <option value="kir_renewal" disabled={!isJakartaPlate || kirRenewalDisabled}>
+                                Perpanjang Uji KIR
+                              </option>
+                              <option value="buka_blokir_kir" disabled={!isJakartaPlate || bukaBlokirDisabled}>
+                                Buka Blokir Data
+                              </option>
+                              <option value="kir_uji_baru" disabled={!isJakartaPlate}>
+                                Uji Baru
+                              </option>
+                              <option value="kir_numpang_uji" disabled={!isJakartaPlate}>
+                                Numpang Uji
+                              </option>
+                              <option value="kir_mutasi_masuk" disabled={!isJakartaPlate}>
+                                Mutasi Masuk (Ke-Jakarta)
+                              </option>
+                              <option value="kir_mutasi_keluar" disabled={!isJakartaPlate}>
+                                Mutasi Keluar (Cabut Berkas)
+                              </option>
+                              <option value="kir_balik_nama" disabled={!isJakartaPlate}>
+                                Balik Nama
+                              </option>
+                              <option value="kir_ganti_nopol" disabled={!isJakartaPlate}>
+                                Ganti Nopol
+                              </option>
+                            </>
+                          );
+
+                          // Reusable "Pengurusan STNK (Jakarta)" options group
+                          const stnkJakartaGroup = () => (
+                            <>
+                              <option disabled style={{ opacity: 0.5 }}>
+                                ─── Pengurusan STNK (Jakarta) ───
+                              </option>
+                              <option value="stnk_renewal" disabled={!isJakartaPlate}>
+                                Perpanjangan STNK 5 Tahunan
+                              </option>
+                              <option value="pajak_renewal" disabled={!isJakartaPlate}>
+                                Perpanjangan Pajak Kendaraan Tahunan
+                              </option>
+                              <option value="balik_nama_stnk" disabled={!isJakartaPlate}>
+                                Balik Nama STNK
+                              </option>
+                              <option value="mutasi" disabled={!isJakartaPlate}>
+                                Mutasi
+                              </option>
+                              <option value="stnk_hilang" disabled={!isJakartaPlate}>
+                                STNK Hilang
+                              </option>
+                              <option value="ganti_alamat" disabled={!isJakartaPlate}>
+                                Ganti Alamat
+                              </option>
+                              <option value="blokir_progresif" disabled={!isJakartaPlate}>
+                                Blokir Progresif Pajak
+                              </option>
+                              <option value="cek_fisik_bantuan" disabled={!isJakartaPlate}>
+                                Cek Fisik Bantuan
+                              </option>
+                              <option value="urus_e_tilang" disabled={!isJakartaPlate}>
+                                Urus E-Tilang
+                              </option>
+                              <option value="cabut_berkas_stnk" disabled={!isJakartaPlate}>
+                                Cabut Berkas STNK
+                              </option>
+                            </>
+                          );
+
+                          // Reusable "Pengurusan SIM" options group
+                          const simGroup = () => (
+                            <>
+                              <option disabled style={{ opacity: 0.5 }}>
+                                ─── Pengurusan SIM ───
+                              </option>
+                              <option value="bikin_sim_a">
+                                Bikin SIM A
+                              </option>
+                              <option value="bikin_sim_c">
+                                Bikin SIM C
+                              </option>
+                            </>
+                          );
+
                           if (dataMismatch) {
                             return (
                               <>
                                 <option value="balik_nama">
                                   Balik Nama Kendaraan (BBN-KB)
                                 </option>
-                                <option disabled style={{ opacity: 0.5 }}>
-                                  ────── Lainnya ──────
-                                </option>
-                                <option value="stnk_renewal">
-                                  Perpanjangan STNK 5 Tahunan
-                                </option>
-                                <option value="pajak_renewal">
-                                  Perpanjangan Pajak Kendaraan Tahunan
-                                </option>
-                                <option
-                                  value="buka_blokir_kir"
-                                  disabled
-                                  style={{ color: "#94a3b8" }}
-                                >
-                                  ⛔ Buka Blokir KIR (Data Tidak Sesuai)
-                                </option>
+                                {kirJakartaGroup({ kirRenewalDisabled: true, bukaBlokirDisabled: true })}
+                                {stnkJakartaGroup()}
+                                {simGroup()}
                               </>
                             );
                           }
                           if (isKirBlocked) {
                             return (
                               <>
-                                <option value="buka_blokir_kir">
-                                  Buka Blokir Data Kendaraan KIR
-                                </option>
-                                <option value="stnk_renewal">
-                                  Perpanjangan STNK 5 Tahunan
-                                </option>
-                                <option value="pajak_renewal">
-                                  Perpanjangan Pajak Kendaraan Tahunan
-                                </option>
+                                {kirJakartaGroup({ kirRenewalDisabled: true })}
+                                {stnkJakartaGroup()}
+                                {simGroup()}
                               </>
                             );
                           }
                           return (
                             <>
-                              <option value="kir_renewal">
-                                Perpanjangan Uji KIR
-                              </option>
-                              <option value="stnk_renewal">
-                                Perpanjangan STNK 5 Tahunan
-                              </option>
-                              <option value="pajak_renewal">
-                                Perpanjangan Pajak Kendaraan Tahunan
-                              </option>
-                              <option value="buka_blokir_kir">
-                                Buka Blokir Data Kendaraan KIR
-                              </option>
+                              {kirJakartaGroup()}
+                              {stnkJakartaGroup()}
+                              {simGroup()}
                             </>
                           );
                         })()}
@@ -2697,13 +2889,58 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                     </div>
 
                     {(() => {
-                      const isStnkPajak = [
+                      const isJakartaPlate = selectedVehicle && (selectedVehicle.plateNumber || '').trim().toUpperCase().startsWith('B');
+                      if (selectedVehicle && !isJakartaPlate) {
+                        return (
+                          <div
+                            style={{
+                              background: "#fef2f2",
+                              border: "1px solid #fca5a5",
+                              borderRadius: "8px",
+                              padding: "10px 12px",
+                              fontSize: "12px",
+                              color: "#b91c1c",
+                              marginBottom: "16px",
+                              lineHeight: "1.5",
+                              textAlign: "left",
+                            }}
+                          >
+                            ⚠️ <strong>Layanan Terbatas:</strong> Opsi
+                            pengurusan STNK Jakarta dinonaktifkan karena plat
+                            nomor kendaraan bukan wilayah Jakarta (plat Jakarta
+                            diawali huruf <strong>B</strong>). Layanan kami hanya
+                            mencakup wilayah Jakarta saja.
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
+
+                    {/* Routing info for Jakarta KIR/STNK services → Padajaya */}
+                    {(() => {
+                      const isJakartaService = [
+                        "kir_renewal",
+                        "buka_blokir_kir",
+                        "kir_uji_baru",
+                        "kir_numpang_uji",
+                        "kir_mutasi_masuk",
+                        "kir_mutasi_keluar",
+                        "kir_balik_nama",
+                        "kir_ganti_nopol",
                         "stnk_renewal",
                         "pajak_renewal",
+                        "balik_nama_stnk",
+                        "mutasi",
+                        "stnk_hilang",
+                        "ganti_alamat",
+                        "blokir_progresif",
+                        "cek_fisik_bantuan",
+                        "urus_e_tilang",
+                        "cabut_berkas_stnk",
                       ].includes(requestServiceType);
                       const isClientOfAdmin1 =
                         (company.adminId || "admin-1") === "admin-1";
-                      if (isStnkPajak && isClientOfAdmin1) {
+                      if (isJakartaService && isClientOfAdmin1) {
                         return (
                           <div
                             style={{
@@ -2719,9 +2956,9 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                             }}
                           >
                             ℹ️ <strong>Rute Administrator Berbeda:</strong>{" "}
-                            Pengurusan STNK 5 Tahunan & Pajak Tahunan dari
-                            client Admin Sentra akan dialihkan secara otomatis
-                            ke <strong>Administrator Padajaya</strong>. Admin
+                            Pengurusan KIR & STNK wilayah Jakarta dari client
+                            Admin Sentra akan dialihkan secara otomatis ke{" "}
+                            <strong>Administrator Padajaya</strong>. Admin
                             Padajaya akan dapat melihat info PIC Anda untuk
                             berkomunikasi langsung.
                           </div>
@@ -2729,6 +2966,74 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                       }
                       return null;
                     })()}
+
+                    {/* Catatan untuk Balik Nama KIR — wajib bersamaan dengan Perpanjang Uji KIR / Buka Blokir */}
+                    {requestServiceType === "kir_balik_nama" && (
+                      <div
+                        style={{
+                          background: "#fffbe6",
+                          border: "1px solid #ffe58f",
+                          borderRadius: "8px",
+                          padding: "12px",
+                          fontSize: "12.5px",
+                          color: "#d46b08",
+                          marginBottom: "16px",
+                          lineHeight: "1.5",
+                          textAlign: "left",
+                        }}
+                      >
+                        📌 <strong>Catatan Penting:</strong> Pengurusan{" "}
+                        <strong>Balik Nama</strong> hanya dapat dilakukan
+                        bersamaan dengan proses{" "}
+                        <strong>Perpanjang Uji KIR</strong> atau{" "}
+                        <strong>Buka Blokir Data</strong>. Pastikan Anda juga
+                        memilih salah satu dari kedua layanan tersebut.
+                      </div>
+                    )}
+
+                    {/* Catatan untuk Ganti Nopol KIR — wajib bersamaan dengan Perpanjang Uji KIR / Buka Blokir */}
+                    {requestServiceType === "kir_ganti_nopol" && (
+                      <div
+                        style={{
+                          background: "#fffbe6",
+                          border: "1px solid #ffe58f",
+                          borderRadius: "8px",
+                          padding: "12px",
+                          fontSize: "12.5px",
+                          color: "#d46b08",
+                          marginBottom: "16px",
+                          lineHeight: "1.5",
+                          textAlign: "left",
+                        }}
+                      >
+                        📌 <strong>Catatan Penting:</strong> Pengurusan{" "}
+                        <strong>Ganti Nopol</strong> hanya dapat dilakukan
+                        bersamaan dengan proses{" "}
+                        <strong>Perpanjang Uji KIR</strong> atau{" "}
+                        <strong>Buka Blokir Data</strong>. Pastikan Anda juga
+                        memilih salah satu dari kedua layanan tersebut.
+                      </div>
+                    )}
+
+                    {['bikin_sim_a', 'bikin_sim_c'].includes(requestServiceType) && (
+                      <div
+                        style={{
+                          background: "#eff6ff",
+                          border: "1px solid #bfdbfe",
+                          borderRadius: "8px",
+                          padding: "12px",
+                          fontSize: "12.5px",
+                          color: "#1e40af",
+                          marginBottom: "16px",
+                          lineHeight: "1.5",
+                          textAlign: "left",
+                        }}
+                      >
+                        ℹ️ Permohonan pembuatan SIM akan diproses oleh{" "}
+                        <strong>{company.adminId === "admin-2" ? "Administrator Padajaya" : "Administrator Sentra"}</strong>{" "}
+                        sesuai administrator akun Anda.
+                      </div>
+                    )}
 
                     <div
                       className="fleet-form-group"
@@ -2763,6 +3068,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                   {(() => {
                     let total = (() => {
                       const st = requestServiceType;
+                      if (!st) return 0;
                       if (st === "multiple") return 750000;
                       if (st === "buka_blokir_kir") return 1500000;
                       if (st === "balik_nama") return 2000000;
@@ -3440,7 +3746,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                         margin: 0,
                       }}
                     >
-                      {vehicleDetailModal.ownerName || "-"}
+                      {vehicleDetailModal.kkOwnerName || "-"}
                     </p>
                   </div>
                   <div
@@ -3467,7 +3773,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                         margin: 0,
                       }}
                     >
-                      {vehicleDetailModal.ownerAddress || "-"}
+                      {vehicleDetailModal.kkOwnerAddress || "-"}
                     </p>
                   </div>
                   <div
@@ -3495,7 +3801,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                         fontFamily: "monospace",
                       }}
                     >
-                      {vehicleDetailModal.plateNumber}
+                      {vehicleDetailModal.kkPlateNumber || "-"}
                     </p>
                   </div>
                   <div
@@ -3523,7 +3829,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                         fontFamily: "monospace",
                       }}
                     >
-                      {vehicleDetailModal.frameNumber || "-"}
+                      {vehicleDetailModal.kkFrameNumber || "-"}
                     </p>
                   </div>
                   <div
@@ -3551,7 +3857,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                         fontFamily: "monospace",
                       }}
                     >
-                      {vehicleDetailModal.engineNumber || "-"}
+                      {vehicleDetailModal.kkEngineNumber || "-"}
                     </p>
                   </div>
                   <div
@@ -3579,7 +3885,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                         fontFamily: "monospace",
                       }}
                     >
-                      {vehicleDetailModal.testNumber}
+                      {vehicleDetailModal.kkTestNumber || "-"}
                     </p>
                   </div>
                 </div>
@@ -3630,7 +3936,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                         margin: 0,
                       }}
                     >
-                      {vehicleDetailModal.ownerName || "-"}
+                      {vehicleDetailModal.kirOwnerName || "-"}
                     </p>
                   </div>
                   <div
@@ -3658,7 +3964,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                         fontFamily: "monospace",
                       }}
                     >
-                      {vehicleDetailModal.plateNumber}
+                      {vehicleDetailModal.kirPlateNumber || "-"}
                     </p>
                   </div>
                   <div
@@ -3686,7 +3992,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                         fontFamily: "monospace",
                       }}
                     >
-                      {vehicleDetailModal.testNumber}
+                      {vehicleDetailModal.kirTestNumber || "-"}
                     </p>
                   </div>
                   <div
@@ -3713,7 +4019,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                         margin: 0,
                       }}
                     >
-                      {vehicleDetailModal.vehicleType}
+                      {vehicleDetailModal.kirVehicleType || "-"}
                     </p>
                   </div>
                   <div
@@ -3741,7 +4047,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                         margin: 0,
                       }}
                     >
-                      {vehicleDetailModal.brand || "-"}
+                      {vehicleDetailModal.kirBrand || "-"}
                     </p>
                   </div>
                 </div>
@@ -3792,7 +4098,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                         margin: 0,
                       }}
                     >
-                      {vehicleDetailModal.ownerName || "-"}
+                      {vehicleDetailModal.stnkOwnerName || "-"}
                     </p>
                   </div>
                   <div
@@ -3820,7 +4126,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                         fontFamily: "monospace",
                       }}
                     >
-                      {vehicleDetailModal.plateNumber}
+                      {vehicleDetailModal.stnkPlateNumber || "-"}
                     </p>
                   </div>
                   <div
@@ -3848,7 +4154,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                         margin: 0,
                       }}
                     >
-                      {vehicleDetailModal.ownerAddress || "-"}
+                      {vehicleDetailModal.stnkOwnerAddress || "-"}
                     </p>
                   </div>
                   <div
@@ -3875,7 +4181,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                         margin: 0,
                       }}
                     >
-                      {vehicleDetailModal.brand || "-"}
+                      {vehicleDetailModal.stnkBrand || "-"}
                     </p>
                   </div>
                   <div
@@ -3902,7 +4208,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                         margin: 0,
                       }}
                     >
-                      {vehicleDetailModal.vehicleType}
+                      {vehicleDetailModal.stnkVehicleJenis || "-"}
                     </p>
                   </div>
                   <div
@@ -3929,7 +4235,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                         margin: 0,
                       }}
                     >
-                      {vehicleDetailModal.model || "-"}
+                      {vehicleDetailModal.stnkModel || "-"}
                     </p>
                   </div>
                   <div
@@ -3956,7 +4262,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                         margin: 0,
                       }}
                     >
-                      {vehicleDetailModal.yearManufactured || "-"}
+                      {vehicleDetailModal.stnkYearManufactured || "-"}
                     </p>
                   </div>
                   <div
@@ -3984,7 +4290,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                         fontFamily: "monospace",
                       }}
                     >
-                      {vehicleDetailModal.frameNumber || "-"}
+                      {vehicleDetailModal.stnkFrameNumber || "-"}
                     </p>
                   </div>
                   <div
@@ -4012,7 +4318,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                         fontFamily: "monospace",
                       }}
                     >
-                      {vehicleDetailModal.engineNumber || "-"}
+                      {vehicleDetailModal.stnkEngineNumber || "-"}
                     </p>
                   </div>
                 </div>

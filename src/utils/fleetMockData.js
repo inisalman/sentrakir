@@ -39,7 +39,7 @@ export const ADMINS = [
     registrationCode: 'SENTRA-2024',
     status: 'active',
     tier: 'primary',
-    allowedServices: ['kir_renewal', 'buka_blokir_kir', 'lapor_hilang', 'media_nasional'],
+    allowedServices: ['kir_renewal', 'buka_blokir_kir', 'lapor_hilang', 'media_nasional', 'bikin_sim_a', 'bikin_sim_c', 'kir_uji_baru', 'kir_numpang_uji', 'kir_mutasi_masuk', 'kir_mutasi_keluar', 'kir_balik_nama', 'kir_ganti_nopol'],
     createdAt: '2026-06-07T00:00:00.000Z'
   },
   {
@@ -49,7 +49,7 @@ export const ADMINS = [
     registrationCode: 'PADAJAYA-2024',
     status: 'active',
     tier: 'secondary',
-    allowedServices: ['stnk_renewal', 'pajak_renewal', 'kir_renewal', 'buka_blokir_kir', 'lapor_hilang', 'media_nasional'],
+    allowedServices: ['stnk_renewal', 'pajak_renewal', 'kir_renewal', 'buka_blokir_kir', 'lapor_hilang', 'media_nasional', 'balik_nama_stnk', 'mutasi', 'stnk_hilang', 'ganti_alamat', 'blokir_progresif', 'cek_fisik_bantuan', 'urus_e_tilang', 'cabut_berkas_stnk', 'bikin_sim_a', 'bikin_sim_c', 'kir_uji_baru', 'kir_numpang_uji', 'kir_mutasi_masuk', 'kir_mutasi_keluar', 'kir_balik_nama', 'kir_ganti_nopol'],
     createdAt: '2026-06-07T00:00:00.000Z'
   }
 ];
@@ -120,7 +120,7 @@ export const getRouting = (serviceType, originatingAdminId) => {
     };
   }
 
-  // KIR & Balik Nama requests stay with originating admin
+  // KIR & Balik Nama requests stay with originating admin (except new Jakarta KIR services)
   if (serviceType === 'kir_renewal' || serviceType === 'buka_blokir_kir' || serviceType === 'balik_nama') {
     return {
       assignedAdminId: originatingAdminId,
@@ -133,6 +133,32 @@ export const getRouting = (serviceType, originatingAdminId) => {
     return {
       assignedAdminId: 'admin-2',
       routingReason: 'Permintaan kombinasi KIR+STNK/Pajak ditangani oleh administrator Padajaya'
+    };
+  }
+
+  // Jakarta-area KIR services ALWAYS go to admin-2 (Padajaya)
+  const kirJakartaServices = ['kir_uji_baru', 'kir_numpang_uji', 'kir_mutasi_masuk', 'kir_mutasi_keluar', 'kir_balik_nama', 'kir_ganti_nopol'];
+  if (kirJakartaServices.includes(serviceType)) {
+    return {
+      assignedAdminId: 'admin-2',
+      routingReason: 'Pengurusan KIR wilayah Jakarta ditangani oleh administrator Padajaya'
+    };
+  }
+
+  // Jakarta-area STNK services ALWAYS go to admin-2 (Padajaya)
+  const jakartaServices = ['balik_nama_stnk', 'mutasi', 'stnk_hilang', 'ganti_alamat', 'blokir_progresif', 'cek_fisik_bantuan', 'urus_e_tilang', 'cabut_berkas_stnk'];
+  if (jakartaServices.includes(serviceType)) {
+    return {
+      assignedAdminId: 'admin-2',
+      routingReason: 'Pengurusan STNK wilayah Jakarta ditangani oleh administrator Padajaya'
+    };
+  }
+
+  // SIM services default to originating admin (client can override via assignedAdminId in requestData)
+  if (serviceType === 'bikin_sim_a' || serviceType === 'bikin_sim_c') {
+    return {
+      assignedAdminId: originatingAdminId,
+      routingReason: 'Permintaan pembuatan SIM ditangani oleh administrator yang dipilih client'
     };
   }
 
