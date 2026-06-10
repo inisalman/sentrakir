@@ -9,6 +9,7 @@ import {
   addServiceRequest,
   addDocument,
   updateCompany,
+  clientRespondToQuote,
   CURRENT_DATE_STR,
   getAdminById,
 } from "../../utils/fleetMockData.js";
@@ -220,7 +221,7 @@ export default function ClientDashboard({
             <TimelineView vehicles={companyVehicles} />
           )}
           {activeTab === "requests" && (
-            <RequestsView requests={companyRequests} />
+            <RequestsView requests={companyRequests} onUpdate={refreshData} />
           )}
           {activeTab === "billing" && (
             <BillingView
@@ -513,11 +514,14 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
     kartuKirFile: null,
     kartuKirHilang: false,
     kartuKirMobilBaru: false,
+    kartuKirBelumAda: false,
     sertifikatKirFile: null,
     sertifikatKirHilang: false,
     sertifikatKirMobilBaru: false,
+    sertifikatKirBelumAda: false,
     stnkFile: null,
     stnkHilang: false,
+    stnkBelumAda: false,
   });
 
   const prevValuesRef = useRef({
@@ -537,7 +541,10 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
         updated.kkOwnerName = curr.ownerName;
       }
       // Sync kkPlateNumber
-      if (curr.kkPlateNumber === prev.plateNumber || curr.kkPlateNumber === "") {
+      if (
+        curr.kkPlateNumber === prev.plateNumber ||
+        curr.kkPlateNumber === ""
+      ) {
         updated.kkPlateNumber = curr.plateNumber;
       }
       // Sync kkTestNumber
@@ -550,7 +557,10 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
         updated.kirOwnerName = curr.ownerName;
       }
       // Sync kirPlateNumber
-      if (curr.kirPlateNumber === prev.plateNumber || curr.kirPlateNumber === "") {
+      if (
+        curr.kirPlateNumber === prev.plateNumber ||
+        curr.kirPlateNumber === ""
+      ) {
         updated.kirPlateNumber = curr.plateNumber;
       }
       // Sync kirTestNumber
@@ -558,7 +568,10 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
         updated.kirTestNumber = curr.testNumber;
       }
       // Sync kirVehicleType
-      if (curr.kirVehicleType === prev.vehicleType || curr.kirVehicleType === "Delvan") {
+      if (
+        curr.kirVehicleType === prev.vehicleType ||
+        curr.kirVehicleType === "Delvan"
+      ) {
         updated.kirVehicleType = curr.vehicleType;
       }
 
@@ -572,7 +585,12 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
       testNumber: formData.testNumber,
       vehicleType: formData.vehicleType,
     };
-  }, [formData.ownerName, formData.plateNumber, formData.vehicleType, formData.testNumber]);
+  }, [
+    formData.ownerName,
+    formData.plateNumber,
+    formData.vehicleType,
+    formData.testNumber,
+  ]);
 
   // Keep vehicleDetailModal in sync with latest props
   useEffect(() => {
@@ -629,10 +647,15 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
       stnkEngineNumber: "",
       kartuKirFile: null,
       kartuKirHilang: false,
+      kartuKirMobilBaru: false,
+      kartuKirBelumAda: false,
       sertifikatKirFile: null,
       sertifikatKirHilang: false,
+      sertifikatKirMobilBaru: false,
+      sertifikatKirBelumAda: false,
       stnkFile: null,
-    stnkHilang: false,
+      stnkHilang: false,
+      stnkBelumAda: false,
     });
     setModalType("add");
   };
@@ -675,9 +698,15 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
       stnkEngineNumber: vehicle.stnkEngineNumber || "",
       kartuKirFile: vehicle.kartuKirFileName || null,
       kartuKirHilang: !!vehicle.kartuKirHilang,
+      kartuKirMobilBaru: !!vehicle.kartuKirMobilBaru,
+      kartuKirBelumAda: !!vehicle.kartuKirBelumAda,
       sertifikatKirFile: vehicle.sertifikatKirFileName || null,
       sertifikatKirHilang: !!vehicle.sertifikatKirHilang,
+      sertifikatKirMobilBaru: !!vehicle.sertifikatKirMobilBaru,
+      sertifikatKirBelumAda: !!vehicle.sertifikatKirBelumAda,
       stnkFile: vehicle.stnkFileName || null,
+      stnkHilang: !!vehicle.stnkHilang,
+      stnkBelumAda: !!vehicle.stnkBelumAda,
     });
     setModalType("edit");
   };
@@ -723,6 +752,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
       // New Jakarta-area STNK services (routed to Padajaya)
       balik_nama_stnk: `Pengurusan Balik Nama STNK untuk kendaraan ${vehicle.plateNumber}. Proses administrasi perubahan nama pemilik pada STNK.`,
       mutasi: `Pengurusan Mutasi Kendaraan untuk kendaraan ${vehicle.plateNumber}. Proses administrasi perpindahan kepemilikan atau domisili kendaraan.`,
+      mutasi_masuk_stnk: `Pengurusan Mutasi Masuk STNK (Ke-Jakarta) untuk kendaraan ${vehicle.plateNumber}. Proses memasukkan data STNK kendaraan dari luar wilayah Jakarta ke wilayah Jakarta.`,
       stnk_hilang: `Pengurusan penggantian STNK Hilang untuk kendaraan ${vehicle.plateNumber}. Proses permohonan penerbitan STNK baru karena kehilangan.`,
       ganti_alamat: `Pengurusan perubahan alamat pada STNK untuk kendaraan ${vehicle.plateNumber}. Penyesuaian data alamat pemilik kendaraan.`,
       blokir_progresif: `Pengurusan Blokir Progresif Pajak Kendaraan untuk ${vehicle.plateNumber}. Pemblokiran STNK sementara untuk menghindari akumulasi pajak.`,
@@ -733,6 +763,8 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
       // New SIM services (client chooses admin)
       bikin_sim_a: `Pembuatan SIM A baru untuk ${vehicle.plateNumber}. Proses pembuatan Surat Izin Mengemudi golongan A (kendaraan penumpang < 3000kg).`,
       bikin_sim_c: `Pembuatan SIM C baru untuk ${vehicle.plateNumber}. Proses pembuatan Surat Izin Mengemudi golongan C (sepeda motor).`,
+      perpanjang_sim_a: `Perpanjangan SIM A untuk ${vehicle.plateNumber}. Proses perpanjangan masa berlaku Surat Izin Mengemudi golongan A yang akan habis.`,
+      perpanjang_sim_c: `Perpanjangan SIM C untuk ${vehicle.plateNumber}. Proses perpanjangan masa berlaku Surat Izin Mengemudi golongan C yang akan habis.`,
 
       // New Jakarta-area KIR services
       kir_uji_baru: `Pengurusan Uji KIR Baru (pertama kali) untuk kendaraan ${vehicle.plateNumber}. Proses pendaftaran dan pengujian KIR untuk kendaraan yang belum pernah diuji.`,
@@ -758,11 +790,17 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
   }, [requestServiceType, selectedVehicle]);
 
   // Auto-set chosen admin for SIM services based on company admin
+  // DISABLED - Let automatic routing handle this
+  /*
   useEffect(() => {
-    if (['bikin_sim_a', 'bikin_sim_c'].includes(requestServiceType) && !chosenAdminId) {
+    if (
+      ["bikin_sim_a", "bikin_sim_c", "perpanjang_sim_a", "perpanjang_sim_c"].includes(requestServiceType) &&
+      !chosenAdminId
+    ) {
       setChosenAdminId(company.adminId || "admin-1");
     }
   }, [requestServiceType, company.adminId]);
+  */
 
   const handleOpenUrus = (vehicle) => {
     setSelectedVehicle(vehicle);
@@ -787,14 +825,24 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
     )
       return;
 
-    const isKartuKirOk = formData.kartuKirHilang || formData.kartuKirMobilBaru || !!formData.kartuKirFile;
+    const isKartuKirOk =
+      formData.kartuKirHilang ||
+      formData.kartuKirMobilBaru ||
+      formData.kartuKirBelumAda ||
+      !!formData.kartuKirFile;
     const isSertifikatKirOk =
-      formData.sertifikatKirHilang || formData.sertifikatKirMobilBaru || !!formData.sertifikatKirFile;
-    const isStnkOk = formData.stnkHilang || !!formData.stnkFile;
+      formData.sertifikatKirHilang ||
+      formData.sertifikatKirMobilBaru ||
+      formData.sertifikatKirBelumAda ||
+      !!formData.sertifikatKirFile;
+    const isStnkOk =
+      formData.stnkHilang ||
+      formData.stnkBelumAda ||
+      !!formData.stnkFile;
 
     if (!isKartuKirOk || !isSertifikatKirOk || !isStnkOk) {
       alert(
-        "Harap unggah dokumen Kartu KIR, Sertifikat KIR, dan STNK terlebih dahulu (kecuali dinyatakan Mobil Baru / Hilang).",
+        "Harap unggah dokumen Kartu KIR, Sertifikat KIR, dan STNK terlebih dahulu (kecuali dinyatakan Mobil Baru / Hilang / Belum Ada).",
       );
       return;
     }
@@ -847,12 +895,21 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
       stnkEngineNumber: formData.stnkEngineNumber || "",
       kartuKirHilang: !!formData.kartuKirHilang,
       kartuKirMobilBaru: !!formData.kartuKirMobilBaru,
+      kartuKirBelumAda: !!formData.kartuKirBelumAda,
       sertifikatKirHilang: !!formData.sertifikatKirHilang,
       sertifikatKirMobilBaru: !!formData.sertifikatKirMobilBaru,
-      kartuKirFileName: (formData.kartuKirHilang || formData.kartuKirMobilBaru) ? null : formData.kartuKirFile,
-      sertifikatKirFileName: (formData.sertifikatKirHilang || formData.sertifikatKirMobilBaru) ? null : formData.sertifikatKirFile,
-      stnkFileName: formData.stnkHilang ? null : formData.stnkFile,
+      sertifikatKirBelumAda: !!formData.sertifikatKirBelumAda,
+      kartuKirFileName:
+        formData.kartuKirHilang || formData.kartuKirMobilBaru || formData.kartuKirBelumAda
+          ? null
+          : formData.kartuKirFile,
+      sertifikatKirFileName:
+        formData.sertifikatKirHilang || formData.sertifikatKirMobilBaru || formData.sertifikatKirBelumAda
+          ? null
+          : formData.sertifikatKirFile,
+      stnkFileName: formData.stnkHilang || formData.stnkBelumAda ? null : formData.stnkFile,
       stnkHilang: !!formData.stnkHilang,
+      stnkBelumAda: !!formData.stnkBelumAda,
     });
 
     setModalType(null);
@@ -881,7 +938,12 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
       simDriverExpiry: formData.simDriverExpiry,
       notes: formData.notes,
       // Legacy data mappings — use formData directly (user may have cleared a field)
-      ownerName: formData.ownerName || formData.kkOwnerName || formData.kirOwnerName || formData.stnkOwnerName || "",
+      ownerName:
+        formData.ownerName ||
+        formData.kkOwnerName ||
+        formData.kirOwnerName ||
+        formData.stnkOwnerName ||
+        "",
       ownerAddress: formData.kkOwnerAddress || formData.stnkOwnerAddress || "",
       frameNumber: formData.kkFrameNumber || formData.stnkFrameNumber || "",
       engineNumber: formData.kkEngineNumber || formData.stnkEngineNumber || "",
@@ -913,16 +975,28 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
       stnkFrameNumber: formData.stnkFrameNumber || "",
       stnkEngineNumber: formData.stnkEngineNumber || "",
       kartuKirHilang: !!formData.kartuKirHilang,
+      kartuKirMobilBaru: !!formData.kartuKirMobilBaru,
+      kartuKirBelumAda: !!formData.kartuKirBelumAda,
       sertifikatKirHilang: !!formData.sertifikatKirHilang,
-      kartuKirFileName: formData.kartuKirHilang ? null : formData.kartuKirFile,
-      sertifikatKirFileName: formData.sertifikatKirHilang ? null : formData.sertifikatKirFile,
-      stnkFileName: formData.stnkFile,
+      sertifikatKirMobilBaru: !!formData.sertifikatKirMobilBaru,
+      sertifikatKirBelumAda: !!formData.sertifikatKirBelumAda,
+      stnkHilang: !!formData.stnkHilang,
+      stnkBelumAda: !!formData.stnkBelumAda,
+      kartuKirFileName:
+        formData.kartuKirHilang || formData.kartuKirMobilBaru || formData.kartuKirBelumAda
+          ? null
+          : formData.kartuKirFile,
+      sertifikatKirFileName:
+        formData.sertifikatKirHilang || formData.sertifikatKirMobilBaru || formData.sertifikatKirBelumAda
+          ? null
+          : formData.sertifikatKirFile,
+      stnkFileName: formData.stnkHilang || formData.stnkBelumAda ? null : formData.stnkFile,
     });
 
     // Jika modal Data Lengkap terbuka untuk kendaraan ini, refresh datanya
     if (vehicleDetailModal && vehicleDetailModal.id === selectedVehicle.id) {
       const db = getFleetDatabase();
-      const updated = db.vehicles.find(v => v.id === selectedVehicle.id);
+      const updated = db.vehicles.find((v) => v.id === selectedVehicle.id);
       if (updated) setVehicleDetailModal(updated);
     }
 
@@ -1024,6 +1098,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
       kir_ganti_nopol: 1200000,
       balik_nama_stnk: 2250000,
       mutasi: 2500000,
+      mutasi_masuk_stnk: 2500000,
       stnk_hilang: 600000,
       ganti_alamat: 800000,
       blokir_progresif: 250000,
@@ -1032,6 +1107,8 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
       cabut_berkas_stnk: 1800000,
       bikin_sim_a: 800000,
       bikin_sim_c: 600000,
+      perpanjang_sim_a: 350000,
+      perpanjang_sim_c: 300000,
     };
     let baseCost = costMap[requestServiceType] || 350000;
 
@@ -1050,6 +1127,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
       multiple: "Pengurusan KIR & STNK",
       balik_nama_stnk: "Balik Nama STNK",
       mutasi: "Mutasi Kendaraan",
+      mutasi_masuk_stnk: "Mutasi Masuk STNK",
       stnk_hilang: "STNK Hilang",
       ganti_alamat: "Ganti Alamat STNK",
       blokir_progresif: "Blokir Progresif Pajak",
@@ -1058,6 +1136,8 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
       cabut_berkas_stnk: "Cabut Berkas STNK",
       bikin_sim_a: "Bikin SIM A",
       bikin_sim_c: "Bikin SIM C",
+      perpanjang_sim_a: "Perpanjang SIM A",
+      perpanjang_sim_c: "Perpanjang SIM C",
     };
 
     const requestPayload = {
@@ -1070,10 +1150,8 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
       estimatedCost: baseCost + addOnCost,
     };
 
-    // If client chose a specific admin for SIM services, pass it through
-    if (chosenAdminId) {
-      requestPayload.assignedAdminId = chosenAdminId;
-    }
+    // REMOVED: Let automatic routing handle admin assignment
+    // No longer override with chosenAdminId - routing logic in fleetMockData.js will handle this
 
     addServiceRequest(requestPayload);
 
@@ -1158,6 +1236,20 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
     }
 
     return null;
+  };
+
+  // Detect plate region from plate number prefix
+  // Jakarta = "B", BODETABEK proper = "F" (Bogor) or "T" (Tangerang/Karawang)
+  // Note: Depok/Tangerang/Bekasi share "B" prefix with Jakarta in real Indonesia,
+  // so we treat all "B" plates as Jakarta for routing purposes.
+  // Returns: 'jakarta' | 'bodetabek' | 'outside'
+  const getPlateRegion = (vehicle) => {
+    if (!vehicle) return "outside";
+    const plate = (vehicle.plateNumber || "").trim().toUpperCase();
+    const firstChar = plate.charAt(0);
+    if (firstChar === "B") return "jakarta";
+    if (firstChar === "F" || firstChar === "T") return "bodetabek";
+    return "outside";
   };
 
   // Returns color scheme for an expiry card based on days remaining
@@ -1425,7 +1517,9 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
             >
               <div className="fleet-modal-body">
                 <div className="fleet-form-group">
-                  <label className="fleet-label">Nama Pemilik Kendaraan *</label>
+                  <label className="fleet-label">
+                    Nama Pemilik Kendaraan *
+                  </label>
                   <input
                     type="text"
                     className="fleet-input"
@@ -2078,7 +2172,8 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                     >
                       ℹ️ Unggah file dokumen Kartu KIR, Sertifikat KIR, dan STNK
                       (format PDF/PNG/JPG). Centang opsi "Hilang" apabila
-                      dokumen KIR tidak tersedia.
+                      dokumen telah hilang, atau "Belum Ada" apabila dokumen
+                      belum tersedia.
                     </div>
 
                     {[
@@ -2088,6 +2183,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                     ].map(({ docType, label }) => {
                       const file = formData[`${docType}File`];
                       const isLost = formData[`${docType}Hilang`];
+                      const isBelumAda = formData[`${docType}BelumAda`];
 
                       return (
                         <div
@@ -2117,6 +2213,12 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                               >
                                 ⚠️ Dinyatakan Hilang
                               </span>
+                            ) : isBelumAda ? (
+                              <span
+                                style={{ color: "#b45309", fontSize: "12px" }}
+                              >
+                                📭 Belum Ada
+                              </span>
                             ) : file ? (
                               <span
                                 style={{ color: "#16a34a", fontSize: "12px" }}
@@ -2137,7 +2239,8 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                           </label>
 
                           {(docType === "kartuKir" ||
-                            docType === "sertifikatKir") && (
+                            docType === "sertifikatKir" ||
+                            docType === "stnk") && (
                             <label
                               style={{
                                 display: "flex",
@@ -2158,15 +2261,59 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                                     ...formData,
                                     [`${docType}Hilang`]: e.target.checked,
                                     ...(e.target.checked
-                                      ? { [`${docType}File`]: null }
+                                      ? {
+                                          [`${docType}File`]: null,
+                                          [`${docType}BelumAda`]: false,
+                                        }
                                       : {}),
                                   })
                                 }
                               />
                               <strong>
-                                {docType === "kartuKir"
-                                  ? "Buku KIR Hilang"
-                                  : "Sertifikat KIR Hilang"}
+                                {docType === "kartuKir" && "Buku KIR Hilang"}
+                                {docType === "sertifikatKir" &&
+                                  "Sertifikat KIR Hilang"}
+                                {docType === "stnk" && "STNK Hilang"}
+                              </strong>
+                            </label>
+                          )}
+
+                          {(docType === "kartuKir" ||
+                            docType === "sertifikatKir" ||
+                            docType === "stnk") && (
+                            <label
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "8px",
+                                fontSize: "12px",
+                                color: "#b45309",
+                                margin: "0 0 8px 0",
+                                cursor: "pointer",
+                                userSelect: "none",
+                              }}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={!!isBelumAda}
+                                onChange={(e) =>
+                                  setFormData({
+                                    ...formData,
+                                    [`${docType}BelumAda`]: e.target.checked,
+                                    ...(e.target.checked
+                                      ? {
+                                          [`${docType}File`]: null,
+                                          [`${docType}Hilang`]: false,
+                                        }
+                                      : {}),
+                                  })
+                                }
+                              />
+                              <strong>
+                                {docType === "kartuKir" && "Buku KIR Belum Ada"}
+                                {docType === "sertifikatKir" &&
+                                  "Sertifikat KIR Belum Ada"}
+                                {docType === "stnk" && "STNK Belum Ada"}
                               </strong>
                             </label>
                           )}
@@ -2189,6 +2336,24 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                               saat proses pengurusan perpanjangan, Anda wajib
                               menyertakan dokumen pendukung berupa Surat
                               Kehilangan Resmi dari Kepolisian.
+                            </div>
+                          ) : isBelumAda ? (
+                            <div
+                              style={{
+                                marginTop: "8px",
+                                fontSize: "11px",
+                                color: "#b45309",
+                                background: "#fffbeb",
+                                padding: "8px 12px",
+                                borderRadius: "6px",
+                                border: "1px solid #fde68a",
+                                lineHeight: "1.4",
+                              }}
+                            >
+                              📭 <strong>Dokumen Belum Ada:</strong> Kendaraan
+                              tetap dapat didaftarkan ke armada. Silakan unggah
+                              dokumen ini di kemudian hari setelah dokumen
+                              tersedia.
                             </div>
                           ) : (
                             <div style={{ marginTop: "10px" }}>
@@ -2693,7 +2858,11 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                         </p>
                         {(() => {
                           const req = getSimRequirement(selectedVehicle);
-                          if (req === "sim_baru" || req === "sim_perpanjang" || req === "sim_konsultasi") {
+                          if (
+                            req === "sim_baru" ||
+                            req === "sim_perpanjang" ||
+                            req === "sim_konsultasi"
+                          ) {
                             return (
                               <label
                                 style={{
@@ -2719,14 +2888,25 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                                 />
                                 <div>
                                   <strong style={{ fontSize: "13px" }}>
-                                    {req === "sim_baru" && "Bantu Pembuatan SIM A Baru"}
-                                    {req === "sim_perpanjang" && "Bantu Perpanjangan SIM A"}
-                                    {req === "sim_konsultasi" && "Konsultasi Pengurusan SIM Khusus"}
+                                    {req === "sim_baru" &&
+                                      "Bantu Pembuatan SIM A Baru"}
+                                    {req === "sim_perpanjang" &&
+                                      "Bantu Perpanjangan SIM A"}
+                                    {req === "sim_konsultasi" &&
+                                      "Konsultasi Pengurusan SIM Khusus"}
                                   </strong>
-                                  <div style={{ fontSize: "12px", color: "#6b7a96" }}>
-                                    {req === "sim_baru" && "Rp 500.000 — Pembuatan SIM A baru"}
-                                    {req === "sim_perpanjang" && "Rp 350.000 — Perpanjangan SIM A"}
-                                    {req === "sim_konsultasi" && "Rp 100.000 — Konsultasi persyaratan & proses SIM B1/B2"}
+                                  <div
+                                    style={{
+                                      fontSize: "12px",
+                                      color: "#6b7a96",
+                                    }}
+                                  >
+                                    {req === "sim_baru" &&
+                                      "Rp 500.000 — Pembuatan SIM A baru"}
+                                    {req === "sim_perpanjang" &&
+                                      "Rp 350.000 — Perpanjangan SIM A"}
+                                    {req === "sim_konsultasi" &&
+                                      "Rp 100.000 — Konsultasi persyaratan & proses SIM B1/B2"}
                                   </div>
                                 </div>
                               </label>
@@ -2744,7 +2924,11 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                                   border: "1px solid #bbf7d0",
                                 }}
                               >
-                                ✓ Masa berlaku SIM driver masih panjang ({getDaysRemaining(selectedVehicle.simDriverExpiry)} hari).
+                                ✓ Masa berlaku SIM driver masih panjang (
+                                {getDaysRemaining(
+                                  selectedVehicle.simDriverExpiry,
+                                )}{" "}
+                                hari).
                               </div>
                             );
                           }
@@ -2765,38 +2949,92 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                           -- Harap pilih jenis pengurusan --
                         </option>
                         {(() => {
-                          const isJakartaPlate = selectedVehicle && (selectedVehicle.plateNumber || '').trim().toUpperCase().startsWith('B');
+                          const region = getPlateRegion(selectedVehicle);
                           const dataMismatch =
                             selectedVehicle && isDataMismatch(selectedVehicle);
 
+                          // Outside-Jakarta-and-BODETABEK plates may only use
+                          // these 3 services
+                          const allowedForOutside = [
+                            "kir_mutasi_masuk",
+                            "kir_numpang_uji",
+                            "mutasi_masuk_stnk",
+                          ];
+
+                          // Returns true when the option must be disabled
+                          // because of plate-region rules (outside: only the
+                          // 3 allowed; bodetabek: disables only kir_numpang_uji)
+                          const isRegionDisabled = (val) => {
+                            if (region === "outside") {
+                              return !allowedForOutside.includes(val);
+                            }
+                            if (region === "bodetabek") {
+                              return val === "kir_numpang_uji";
+                            }
+                            return false;
+                          };
+
                           // Reusable "Pengurusan KIR (Jakarta)" options group
-                          const kirJakartaGroup = ({ kirRenewalDisabled = false, bukaBlokirDisabled = false } = {}) => (
+                          const kirJakartaGroup = ({
+                            kirRenewalDisabled = false,
+                            bukaBlokirDisabled = false,
+                          } = {}) => (
                             <>
                               <option disabled style={{ opacity: 0.5 }}>
                                 ─── Pengurusan KIR (Jakarta) ───
                               </option>
-                              <option value="kir_renewal" disabled={!isJakartaPlate || kirRenewalDisabled}>
+                              <option
+                                value="kir_renewal"
+                                disabled={
+                                  isRegionDisabled("kir_renewal") ||
+                                  kirRenewalDisabled
+                                }
+                              >
                                 Perpanjang Uji KIR
                               </option>
-                              <option value="buka_blokir_kir" disabled={!isJakartaPlate || bukaBlokirDisabled}>
+                              <option
+                                value="buka_blokir_kir"
+                                disabled={
+                                  isRegionDisabled("buka_blokir_kir") ||
+                                  bukaBlokirDisabled
+                                }
+                              >
                                 Buka Blokir Data
                               </option>
-                              <option value="kir_uji_baru" disabled={!isJakartaPlate}>
+                              <option
+                                value="kir_uji_baru"
+                                disabled={isRegionDisabled("kir_uji_baru")}
+                              >
                                 Uji Baru
                               </option>
-                              <option value="kir_numpang_uji" disabled={!isJakartaPlate}>
+                              <option
+                                value="kir_numpang_uji"
+                                disabled={isRegionDisabled("kir_numpang_uji")}
+                              >
                                 Numpang Uji
                               </option>
-                              <option value="kir_mutasi_masuk" disabled={!isJakartaPlate}>
+                              <option
+                                value="kir_mutasi_masuk"
+                                disabled={isRegionDisabled("kir_mutasi_masuk")}
+                              >
                                 Mutasi Masuk (Ke-Jakarta)
                               </option>
-                              <option value="kir_mutasi_keluar" disabled={!isJakartaPlate}>
+                              <option
+                                value="kir_mutasi_keluar"
+                                disabled={isRegionDisabled("kir_mutasi_keluar")}
+                              >
                                 Mutasi Keluar (Cabut Berkas)
                               </option>
-                              <option value="kir_balik_nama" disabled={!isJakartaPlate}>
+                              <option
+                                value="kir_balik_nama"
+                                disabled={isRegionDisabled("kir_balik_nama")}
+                              >
                                 Balik Nama
                               </option>
-                              <option value="kir_ganti_nopol" disabled={!isJakartaPlate}>
+                              <option
+                                value="kir_ganti_nopol"
+                                disabled={isRegionDisabled("kir_ganti_nopol")}
+                              >
                                 Ganti Nopol
                               </option>
                             </>
@@ -2808,34 +3046,70 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                               <option disabled style={{ opacity: 0.5 }}>
                                 ─── Pengurusan STNK (Jakarta) ───
                               </option>
-                              <option value="stnk_renewal" disabled={!isJakartaPlate}>
+                              <option
+                                value="stnk_renewal"
+                                disabled={isRegionDisabled("stnk_renewal")}
+                              >
                                 Perpanjangan STNK 5 Tahunan
                               </option>
-                              <option value="pajak_renewal" disabled={!isJakartaPlate}>
+                              <option
+                                value="pajak_renewal"
+                                disabled={isRegionDisabled("pajak_renewal")}
+                              >
                                 Perpanjangan Pajak Kendaraan Tahunan
                               </option>
-                              <option value="balik_nama_stnk" disabled={!isJakartaPlate}>
+                              <option
+                                value="balik_nama_stnk"
+                                disabled={isRegionDisabled("balik_nama_stnk")}
+                              >
                                 Balik Nama STNK
                               </option>
-                              <option value="mutasi" disabled={!isJakartaPlate}>
+                              <option
+                                value="mutasi"
+                                disabled={isRegionDisabled("mutasi")}
+                              >
                                 Mutasi
                               </option>
-                              <option value="stnk_hilang" disabled={!isJakartaPlate}>
+                              <option
+                                value="mutasi_masuk_stnk"
+                                disabled={isRegionDisabled("mutasi_masuk_stnk")}
+                              >
+                                Mutasi Masuk STNK
+                              </option>
+                              <option
+                                value="stnk_hilang"
+                                disabled={isRegionDisabled("stnk_hilang")}
+                              >
                                 STNK Hilang
                               </option>
-                              <option value="ganti_alamat" disabled={!isJakartaPlate}>
+                              <option
+                                value="ganti_alamat"
+                                disabled={isRegionDisabled("ganti_alamat")}
+                              >
                                 Ganti Alamat
                               </option>
-                              <option value="blokir_progresif" disabled={!isJakartaPlate}>
+                              <option
+                                value="blokir_progresif"
+                                disabled={isRegionDisabled("blokir_progresif")}
+                              >
                                 Blokir Progresif Pajak
                               </option>
-                              <option value="cek_fisik_bantuan" disabled={!isJakartaPlate}>
+                              <option
+                                value="cek_fisik_bantuan"
+                                disabled={isRegionDisabled("cek_fisik_bantuan")}
+                              >
                                 Cek Fisik Bantuan
                               </option>
-                              <option value="urus_e_tilang" disabled={!isJakartaPlate}>
+                              <option
+                                value="urus_e_tilang"
+                                disabled={isRegionDisabled("urus_e_tilang")}
+                              >
                                 Urus E-Tilang
                               </option>
-                              <option value="cabut_berkas_stnk" disabled={!isJakartaPlate}>
+                              <option
+                                value="cabut_berkas_stnk"
+                                disabled={isRegionDisabled("cabut_berkas_stnk")}
+                              >
                                 Cabut Berkas STNK
                               </option>
                             </>
@@ -2847,12 +3121,10 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                               <option disabled style={{ opacity: 0.5 }}>
                                 ─── Pengurusan SIM ───
                               </option>
-                              <option value="bikin_sim_a">
-                                Bikin SIM A
-                              </option>
-                              <option value="bikin_sim_c">
-                                Bikin SIM C
-                              </option>
+                              <option value="bikin_sim_a">Bikin SIM A</option>
+                              <option value="bikin_sim_c">Bikin SIM C</option>
+                              <option value="perpanjang_sim_a">Perpanjang SIM A</option>
+                              <option value="perpanjang_sim_c">Perpanjang SIM C</option>
                             </>
                           );
 
@@ -2862,7 +3134,10 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                                 <option value="balik_nama">
                                   Balik Nama Kendaraan (BBN-KB)
                                 </option>
-                                {kirJakartaGroup({ kirRenewalDisabled: true, bukaBlokirDisabled: true })}
+                                {kirJakartaGroup({
+                                  kirRenewalDisabled: true,
+                                  bukaBlokirDisabled: true,
+                                })}
                                 {stnkJakartaGroup()}
                                 {simGroup()}
                               </>
@@ -2889,8 +3164,8 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                     </div>
 
                     {(() => {
-                      const isJakartaPlate = selectedVehicle && (selectedVehicle.plateNumber || '').trim().toUpperCase().startsWith('B');
-                      if (selectedVehicle && !isJakartaPlate) {
+                      const region = getPlateRegion(selectedVehicle);
+                      if (selectedVehicle && region === "outside") {
                         return (
                           <div
                             style={{
@@ -2905,32 +3180,49 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                               textAlign: "left",
                             }}
                           >
-                            ⚠️ <strong>Layanan Terbatas:</strong> Opsi
-                            pengurusan STNK Jakarta dinonaktifkan karena plat
-                            nomor kendaraan bukan wilayah Jakarta (plat Jakarta
-                            diawali huruf <strong>B</strong>). Layanan kami hanya
-                            mencakup wilayah Jakarta saja.
+                            ⚠️ <strong>Layanan Terbatas:</strong> Kendaraan yang
+                            tidak terdaftar di Jakarta (Sertifikat KIR, Kartu
+                            KIR, STNK). Hanya bisa mengajukan pengurusan pada
+                            opsi yang diberikan:{" "}
+                            <strong>Mutasi Masuk KIR</strong>,{" "}
+                            <strong>Numpang Uji KIR</strong>, dan{" "}
+                            <strong>Mutasi Masuk STNK</strong>.
+                          </div>
+                        );
+                      }
+                      if (selectedVehicle && region === "bodetabek") {
+                        return (
+                          <div
+                            style={{
+                              background: "#fffbe6",
+                              border: "1px solid #ffe58f",
+                              borderRadius: "8px",
+                              padding: "10px 12px",
+                              fontSize: "12px",
+                              color: "#d46b08",
+                              marginBottom: "16px",
+                              lineHeight: "1.5",
+                              textAlign: "left",
+                            }}
+                          >
+                            ⚠️ <strong>Layanan Terbatas:</strong> Kendaraan
+                            terdaftar di area BODETABEK. Opsi{" "}
+                            <strong>Numpang Uji KIR</strong> dinonaktifkan
+                            karena tidak berlaku untuk kendaraan area BODETABEK.
                           </div>
                         );
                       }
                       return null;
                     })()}
 
-                    {/* Routing info for Jakarta KIR/STNK services → Padajaya */}
+                    {/* Routing info for Jakarta STNK services → Padajaya */}
                     {(() => {
-                      const isJakartaService = [
-                        "kir_renewal",
-                        "buka_blokir_kir",
-                        "kir_uji_baru",
-                        "kir_numpang_uji",
-                        "kir_mutasi_masuk",
-                        "kir_mutasi_keluar",
-                        "kir_balik_nama",
-                        "kir_ganti_nopol",
+                      const isJakartaStnkService = [
                         "stnk_renewal",
                         "pajak_renewal",
                         "balik_nama_stnk",
                         "mutasi",
+                        "mutasi_masuk_stnk",
                         "stnk_hilang",
                         "ganti_alamat",
                         "blokir_progresif",
@@ -2940,7 +3232,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                       ].includes(requestServiceType);
                       const isClientOfAdmin1 =
                         (company.adminId || "admin-1") === "admin-1";
-                      if (isJakartaService && isClientOfAdmin1) {
+                      if (isJakartaStnkService && isClientOfAdmin1) {
                         return (
                           <div
                             style={{
@@ -2956,7 +3248,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                             }}
                           >
                             ℹ️ <strong>Rute Administrator Berbeda:</strong>{" "}
-                            Pengurusan KIR & STNK wilayah Jakarta dari client
+                            Pengurusan STNK/Pajak wilayah Jakarta dari client
                             Admin Sentra akan dialihkan secara otomatis ke{" "}
                             <strong>Administrator Padajaya</strong>. Admin
                             Padajaya akan dapat melihat info PIC Anda untuk
@@ -3015,7 +3307,9 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                       </div>
                     )}
 
-                    {['bikin_sim_a', 'bikin_sim_c'].includes(requestServiceType) && (
+                    {["bikin_sim_a", "bikin_sim_c", "perpanjang_sim_a", "perpanjang_sim_c"].includes(
+                      requestServiceType,
+                    ) && (
                       <div
                         style={{
                           background: "#eff6ff",
@@ -3029,8 +3323,12 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                           textAlign: "left",
                         }}
                       >
-                        ℹ️ Permohonan pembuatan SIM akan diproses oleh{" "}
-                        <strong>{company.adminId === "admin-2" ? "Administrator Padajaya" : "Administrator Sentra"}</strong>{" "}
+                        ℹ️ Permohonan {requestServiceType === "bikin_sim_a" || requestServiceType === "bikin_sim_c" ? "pembuatan" : "perpanjangan"} SIM akan diproses oleh{" "}
+                        <strong>
+                          {company.adminId === "admin-2"
+                            ? "Administrator Padajaya"
+                            : "Administrator Sentra"}
+                        </strong>{" "}
                         sesuai administrator akun Anda.
                       </div>
                     )}
@@ -3134,6 +3432,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                 { key: "stnk", label: "STNK", icon: "📋" },
               ].map(({ key, label, icon }) => {
                 const isHilang = selectedVehicle[`${key}Hilang`];
+                const isBelumAda = selectedVehicle[`${key}BelumAda`];
                 const fileName = selectedVehicle[`${key}FileName`];
 
                 return (
@@ -3146,9 +3445,11 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                       marginBottom: "12px",
                       background: isHilang
                         ? "#fef2f2"
-                        : fileName
-                          ? "#f0fdf4"
-                          : "#f8fafc",
+                        : isBelumAda
+                          ? "#fffbeb"
+                          : fileName
+                            ? "#f0fdf4"
+                            : "#f8fafc",
                     }}
                   >
                     <div
@@ -3181,7 +3482,17 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                                 marginTop: "2px",
                               }}
                             >
-                              ⚠️ Dokumen hilang / belum ada
+                              ⚠️ Dokumen hilang
+                            </div>
+                          ) : isBelumAda ? (
+                            <div
+                              style={{
+                                fontSize: "11px",
+                                color: "#b45309",
+                                marginTop: "2px",
+                              }}
+                            >
+                              📭 Dokumen belum ada
                             </div>
                           ) : fileName ? (
                             <div
@@ -3262,6 +3573,22 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                         }}
                       >
                         Silahkan unggah dokumen apabila dokumen sudah dimiliki.
+                      </div>
+                    )}
+                    {isBelumAda && (
+                      <div
+                        style={{
+                          fontSize: "11px",
+                          color: "#b45309",
+                          background: "#fffbeb",
+                          padding: "6px 10px",
+                          borderRadius: "4px",
+                          border: "1px solid #fde68a",
+                          lineHeight: "1.4",
+                        }}
+                      >
+                        Dokumen belum ada. Silakan unggah apabila dokumen sudah
+                        tersedia.
                       </div>
                     )}
                   </div>
@@ -4355,6 +4682,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                     { key: "stnk", label: "STNK", icon: "📋" },
                   ].map(({ key, label, icon }) => {
                     const isHilang = vehicleDetailModal[`${key}Hilang`];
+                    const isBelumAda = vehicleDetailModal[`${key}BelumAda`];
                     const fileName = vehicleDetailModal[`${key}FileName`];
 
                     return (
@@ -4363,16 +4691,20 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                         style={{
                           background: isHilang
                             ? "#fef2f2"
-                            : fileName
-                              ? "#f0fdf4"
-                              : "#f8fafc",
+                            : isBelumAda
+                              ? "#fffbeb"
+                              : fileName
+                                ? "#f0fdf4"
+                                : "#f8fafc",
                           padding: "12px",
                           borderRadius: "8px",
                           border: isHilang
                             ? "1px solid #fecaca"
-                            : fileName
-                              ? "1px solid #bbf7d0"
-                              : "1px solid #cbd5e1",
+                            : isBelumAda
+                              ? "1px solid #fde68a"
+                              : fileName
+                                ? "1px solid #bbf7d0"
+                                : "1px solid #cbd5e1",
                         }}
                       >
                         <div
@@ -4406,7 +4738,17 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                                     marginTop: "2px",
                                   }}
                                 >
-                                  ⚠️ Hilang / Belum Ada
+                                  ⚠️ Hilang
+                                </div>
+                              ) : isBelumAda ? (
+                                <div
+                                  style={{
+                                    fontSize: "11px",
+                                    color: "#b45309",
+                                    marginTop: "2px",
+                                  }}
+                                >
+                                  📭 Belum Ada
                                 </div>
                               ) : fileName ? (
                                 <div
@@ -4778,21 +5120,66 @@ function TimelineView({ vehicles }) {
 // ====================================================
 // SUB-VIEW 4: SERVICE REQUESTS
 // ====================================================
-function RequestsView({ requests }) {
+function RequestsView({ requests, onUpdate }) {
+  const [selectedRequest, setSelectedRequest] = useState(null);
+
   const getStatusBadgeClass = (status) => {
     if (status === "pending") return "warning";
+    if (status === "quoted") return "warning";
+    if (status === "approved") return "success";
     if (status === "in_progress") return "neutral";
     if (status === "completed") return "success";
+    if (status === "cancelled") return "danger";
     return "neutral";
   };
 
   const getServiceLabel = (type) => {
-    if (type === "kir_renewal") return "Perpanjangan KIR";
-    if (type === "stnk_renewal") return "Perpanjangan STNK";
-    if (type === "pajak_renewal") return "Perpanjangan Pajak";
-    if (type === "buka_blokir_kir") return "Buka Blokir KIR";
-    if (type === "balik_nama") return "Balik Nama Kendaraan";
-    return "Pengurusan KIR & STNK";
+    const labels = {
+      kir_renewal: "Perpanjangan Uji KIR",
+      kir_uji_baru: "Uji Baru KIR",
+      kir_numpang_uji: "Numpang Uji KIR",
+      kir_mutasi_masuk: "Mutasi Masuk (Ke-Jakarta)",
+      kir_mutasi_keluar: "Mutasi Keluar (Cabut Berkas)",
+      kir_balik_nama: "Balik Nama KIR",
+      kir_ganti_nopol: "Ganti Nopol KIR",
+      stnk_renewal: "Perpanjangan STNK",
+      pajak_renewal: "Perpanjangan Pajak",
+      buka_blokir_kir: "Buka Blokir KIR",
+      balik_nama: "Balik Nama Kendaraan",
+      multiple: "Pengurusan KIR & STNK",
+      balik_nama_stnk: "Balik Nama STNK",
+      mutasi: "Mutasi Kendaraan",
+      mutasi_masuk_stnk: "Mutasi Masuk STNK",
+      stnk_hilang: "STNK Hilang",
+      ganti_alamat: "Ganti Alamat STNK",
+      blokir_progresif: "Blokir Progresif Pajak",
+      cek_fisik_bantuan: "Cek Fisik Bantuan",
+      urus_e_tilang: "Urus E-Tilang",
+      cabut_berkas_stnk: "Cabut Berkas STNK",
+      bikin_sim_a: "Bikin SIM A",
+      bikin_sim_c: "Bikin SIM C",
+      perpanjang_sim_a: "Perpanjang SIM A",
+      perpanjang_sim_c: "Perpanjang SIM C",
+    };
+    return labels[type] || "Pengurusan Jasa";
+  };
+
+  const handleApproveQuote = (reqId) => {
+    if (confirm("Apakah Anda menyetujui rincian biaya, estimasi waktu, dan persyaratan pengurusan ini?")) {
+      clientRespondToQuote(reqId, "approve");
+      alert("Persetujuan berhasil dikirim! Status pengurusan saat ini: Disetujui Klien.");
+      setSelectedRequest(null);
+      onUpdate();
+    }
+  };
+
+  const handleCancelQuote = (reqId) => {
+    if (confirm("Apakah Anda yakin ingin membatalkan pengajuan pengurusan jasa ini?")) {
+      clientRespondToQuote(reqId, "cancel");
+      alert("Pengajuan berhasil dibatalkan.");
+      setSelectedRequest(null);
+      onUpdate();
+    }
   };
 
   return (
@@ -4819,13 +5206,14 @@ function RequestsView({ requests }) {
               <th>Estimasi Biaya</th>
               <th>Tanggal Pengajuan</th>
               <th>Status Progres</th>
+              <th style={{ textAlign: "center" }}>Aksi</th>
             </tr>
           </thead>
           <tbody>
             {requests.length === 0 ? (
               <tr>
                 <td
-                  colSpan="7"
+                  colSpan="8"
                   style={{
                     textAlign: "center",
                     padding: "30px",
@@ -4848,12 +5236,12 @@ function RequestsView({ requests }) {
                   <td
                     style={{
                       fontSize: "13px",
-                      maxWidth: "300px",
+                      maxWidth: "240px",
                       whiteSpace: "normal",
                       wordBreak: "break-word",
                     }}
                   >
-                    {r.description}
+                    {r.description.length > 60 ? `${r.description.slice(0, 60)}...` : r.description}
                   </td>
                   <td style={{ fontWeight: "600", color: "#1e3a8a" }}>
                     {r.estimatedCost
@@ -4874,12 +5262,196 @@ function RequestsView({ requests }) {
                       {r.statusLabel || r.status}
                     </span>
                   </td>
+                  <td style={{ textAlign: "center" }}>
+                    <button
+                      className="fleet-btn fleet-btn-secondary fleet-btn-sm"
+                      onClick={() => setSelectedRequest(r)}
+                      style={{ padding: "4px 10px", fontSize: "11px" }}
+                    >
+                      👁️ Detail Status
+                    </button>
+                  </td>
                 </tr>
               ))
             )}
           </tbody>
         </table>
       </div>
+
+      {/* MODAL: DETAIL STATUS PENGURUSAN */}
+      {selectedRequest && (
+        <div className="fleet-modal-overlay">
+          <div className="fleet-modal" style={{ maxWidth: "550px" }}>
+            <div className="fleet-modal-header">
+              <h3>📄 Detail Status Pengurusan — {selectedRequest.plateNumber}</h3>
+              <span
+                className="btn-close-modal"
+                onClick={() => setSelectedRequest(null)}
+              >
+                ×
+              </span>
+            </div>
+            <div className="fleet-modal-body">
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: "14px",
+                  marginBottom: "20px",
+                  background: "#f8fafc",
+                  padding: "14px",
+                  borderRadius: "8px",
+                  border: "1px solid #e2e8f0",
+                }}
+              >
+                <div>
+                  <p style={{ margin: "0 0 4px 0", fontSize: "11px", color: "#64748b", fontWeight: "600" }}>ID Request</p>
+                  <p style={{ margin: 0, fontSize: "13px", fontWeight: "700", fontFamily: "monospace" }}>{selectedRequest.id}</p>
+                </div>
+                <div>
+                  <p style={{ margin: "0 0 4px 0", fontSize: "11px", color: "#64748b", fontWeight: "600" }}>Plat Nomor</p>
+                  <p style={{ margin: 0, fontSize: "13px", fontWeight: "700" }}>{selectedRequest.plateNumber}</p>
+                </div>
+                <div>
+                  <p style={{ margin: "0 0 4px 0", fontSize: "11px", color: "#64748b", fontWeight: "600" }}>Jenis Jasa</p>
+                  <p style={{ margin: 0, fontSize: "13px", fontWeight: "700", color: "#1e3a8a" }}>{getServiceLabel(selectedRequest.serviceType)}</p>
+                </div>
+                <div>
+                  <p style={{ margin: "0 0 4px 0", fontSize: "11px", color: "#64748b", fontWeight: "600" }}>Status Progres</p>
+                  <span className={`badge-status ${getStatusBadgeClass(selectedRequest.status)}`} style={{ display: "inline-block", marginTop: "2px" }}>
+                    {selectedRequest.statusLabel || selectedRequest.status}
+                  </span>
+                </div>
+              </div>
+
+              <div style={{ marginBottom: "20px" }}>
+                <h4 style={{ fontSize: "13px", fontWeight: "800", color: "#1C3967", margin: "0 0 8px 0" }}>Deskripsi Pengajuan</h4>
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize: "13px",
+                    background: "#ffffff",
+                    border: "1px solid #cbd5e1",
+                    padding: "10px 12px",
+                    borderRadius: "6px",
+                    color: "#334155",
+                    whiteSpace: "pre-wrap",
+                    wordBreak: "break-word",
+                  }}
+                >
+                  {selectedRequest.description}
+                </p>
+              </div>
+
+              {/* TAMPILAN JIKA BELUM ADA QUOTE (STATUS PENDING) */}
+              {selectedRequest.status === "pending" ? (
+                <div
+                  style={{
+                    background: "#fffbeb",
+                    border: "1px solid #fde68a",
+                    borderRadius: "8px",
+                    padding: "16px",
+                    textAlign: "center",
+                    color: "#92400e",
+                    fontSize: "13.5px",
+                    lineHeight: "1.5",
+                  }}
+                >
+                  ⏳ <strong>Sedang Diajukan</strong>
+                  <p style={{ margin: "8px 0 0 0", fontSize: "12.5px" }}>
+                    Menunggu Admin tujuan mengkonfirmasi, memeriksa berkas, dan memberikan rincian harga jasa resmi, estimasi waktu, serta syarat-syarat pengurusan berkas asli.
+                  </p>
+                </div>
+              ) : (
+                /* TAMPILAN JIKA SUDAH ADA QUOTE DARI ADMIN */
+                <div
+                  style={{
+                    border: "1px solid #cbd5e1",
+                    borderRadius: "8px",
+                    padding: "16px",
+                    background: "#f0fdf4",
+                  }}
+                >
+                  <h4
+                    style={{
+                      fontSize: "13.5px",
+                      fontWeight: "800",
+                      color: "#166534",
+                      margin: "0 0 14px 0",
+                      borderBottom: "1px solid #bbf7d0",
+                      paddingBottom: "6px",
+                    }}
+                  >
+                    📋 Rincian Penawaran & Syarat dari Admin
+                  </h4>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px", marginBottom: "14px" }}>
+                    <div>
+                      <p style={{ margin: "0 0 4px 0", fontSize: "11px", color: "#166534", fontWeight: "600" }}>Biaya Jasa Resmi</p>
+                      <p style={{ margin: 0, fontSize: "15px", fontWeight: "800", color: "#166534" }}>
+                        Rp {selectedRequest.serviceQuote?.serviceFee?.toLocaleString("id-ID") || selectedRequest.estimatedCost?.toLocaleString("id-ID")}
+                      </p>
+                    </div>
+                    <div>
+                      <p style={{ margin: "0 0 4px 0", fontSize: "11px", color: "#166534", fontWeight: "600" }}>Estimasi Waktu</p>
+                      <p style={{ margin: 0, fontSize: "14px", fontWeight: "700", color: "#166534" }}>
+                        {selectedRequest.serviceQuote?.estimatedTime || "-"}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <p style={{ margin: "0 0 4px 0", fontSize: "11px", color: "#166534", fontWeight: "600" }}>Syarat-syarat Pengurusan</p>
+                    <div
+                      style={{
+                        background: "#ffffff",
+                        border: "1px solid #bbf7d0",
+                        padding: "10px 12px",
+                        borderRadius: "6px",
+                        fontSize: "12.5px",
+                        color: "#166534",
+                        whiteSpace: "pre-wrap",
+                        lineHeight: "1.5",
+                      }}
+                    >
+                      {selectedRequest.serviceQuote?.terms || "Tidak ada persyaratan khusus."}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="fleet-modal-footer" style={{ justifyContent: "flex-end" }}>
+              {selectedRequest.status === "quoted" ? (
+                <>
+                  <button
+                    type="button"
+                    className="fleet-btn fleet-btn-danger"
+                    onClick={() => handleCancelQuote(selectedRequest.id)}
+                  >
+                    ❌ Batalkan Pengurusan
+                  </button>
+                  <button
+                    type="button"
+                    className="fleet-btn fleet-btn-accent"
+                    onClick={() => handleApproveQuote(selectedRequest.id)}
+                  >
+                    ✅ Lanjut Urus (ACC)
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  className="fleet-btn fleet-btn-secondary"
+                  onClick={() => setSelectedRequest(null)}
+                >
+                  Tutup
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

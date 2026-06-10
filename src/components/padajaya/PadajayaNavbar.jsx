@@ -8,7 +8,7 @@ const links = [
   { href: '#proses', label: 'Alur Proses' },
   { href: '#daftar-jasa', label: 'Daftar Jasa' },
   { href: '#lokasi', label: 'Lokasi' },
-  { href: '#mitra', label: 'Mitra Kami' },
+  { href: '#mitra', label: 'Kerjasama Kami' },
 ]
 
 const WA_LINK =

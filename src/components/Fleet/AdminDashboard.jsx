@@ -9,6 +9,7 @@ import {
   getAdminById,
   getRequestsForAdmin,
   getClientsForAdminView,
+  submitServiceQuote,
   ADMINS,
 } from "../../utils/fleetMockData.js";
 
@@ -737,29 +738,57 @@ function NationalVehiclesView({ db, adminId }) {
 // SUB-VIEW 4: ORDER TRACKER (ADMIN)
 // ====================================================
 function OrderTrackerView({ db, adminId, onUpdate }) {
-  const [costs, setCosts] = useState({});
+  const [selectedRequest, setSelectedRequest] = useState(null);
+
+  // Quote form states
+  const [serviceFee, setServiceFee] = useState("");
+  const [estimatedTime, setEstimatedTime] = useState("");
+  const [terms, setTerms] = useState("");
+
+  // Populate form when request is selected
+  useEffect(() => {
+    if (selectedRequest) {
+      setServiceFee(selectedRequest.serviceQuote?.serviceFee || selectedRequest.estimatedCost || "");
+      setEstimatedTime(selectedRequest.serviceQuote?.estimatedTime || "");
+      setTerms(selectedRequest.serviceQuote?.terms || "");
+    }
+  }, [selectedRequest]);
 
   const handleStatusChange = (reqId, newStatus) => {
-    const cost = costs[reqId] !== undefined ? costs[reqId] : undefined;
-    updateRequestStatus(reqId, newStatus, cost);
+    updateRequestStatus(reqId, newStatus);
     onUpdate();
-    alert(`Status order berhasil diubah menjadi ${newStatus.toUpperCase()}.`);
+    alert(`Status pengerjaan berhasil diubah menjadi ${newStatus.toUpperCase()}.`);
   };
 
-  const handleCostChange = (reqId, value) => {
-    setCosts({
-      ...costs,
-      [reqId]: value,
+  const handleSendQuote = (e) => {
+    e.preventDefault();
+    if (!serviceFee || !estimatedTime || !terms) {
+      alert("Harap lengkapi semua kolom rincian biaya, estimasi waktu, dan syarat!");
+      return;
+    }
+
+    submitServiceQuote(selectedRequest.id, {
+      serviceFee: Number(serviceFee),
+      estimatedTime,
+      terms
     });
-  };
 
-  const handleSaveCost = (req, costVal) => {
-    updateRequestStatus(req.id, req.status, costVal);
+    alert("Rincian penawaran & syarat berhasil dikirimkan ke klien!");
+    setSelectedRequest(null);
     onUpdate();
-    alert("Biaya estimasi berhasil diperbarui.");
   };
 
   const adminRequests = getRequestsForAdmin(adminId);
+
+  const getStatusBadgeClass = (status) => {
+    if (status === "pending") return "warning";
+    if (status === "quoted") return "warning";
+    if (status === "approved") return "success";
+    if (status === "in_progress") return "neutral";
+    if (status === "completed") return "success";
+    if (status === "cancelled") return "danger";
+    return "neutral";
+  };
 
   return (
     <div className="fleet-card">
@@ -783,16 +812,17 @@ function OrderTrackerView({ db, adminId, onUpdate }) {
               <th>Plat Nomor</th>
               <th>Jenis Jasa</th>
               <th>Deskripsi Pengajuan</th>
-              <th>Estimasi Biaya (Rp)</th>
+              <th>Biaya Jasa Resmi</th>
               <th>Tanggal Masuk</th>
-              <th>Status Pengerjaan</th>
+              <th>Status Progres</th>
+              <th style={{ textAlign: "center" }}>Aksi</th>
             </tr>
           </thead>
           <tbody>
             {adminRequests.length === 0 ? (
               <tr>
                 <td
-                  colSpan="8"
+                  colSpan="9"
                   style={{
                     textAlign: "center",
                     padding: "30px",
@@ -804,10 +834,8 @@ function OrderTrackerView({ db, adminId, onUpdate }) {
               </tr>
             ) : (
               [...adminRequests].reverse().map((r) => {
-                const currentCost = r.estimatedCost || 0;
-                const editingCost =
-                  costs[r.id] !== undefined ? costs[r.id] : currentCost;
                 const isCrossAdmin = r.originatingAdminId !== r.assignedAdminId;
+                const finalFee = r.serviceQuote?.serviceFee || r.estimatedCost;
 
                 return (
                   <tr
@@ -848,7 +876,7 @@ function OrderTrackerView({ db, adminId, onUpdate }) {
                         wordBreak: "break-word",
                       }}
                     >
-                      <div>{r.description}</div>
+                      <div>{r.description.length > 50 ? `${r.description.slice(0, 50)}...` : r.description}</div>
                       {isCrossAdmin && r.clientPic && (
                         <div
                           style={{
@@ -860,9 +888,7 @@ function OrderTrackerView({ db, adminId, onUpdate }) {
                             lineHeight: "1.4",
                           }}
                         >
-                          <strong>📞 Informasi Akun Klien (Admin Lain):</strong>
-                          <br />• PIC: {r.clientPic.picName}
-                          <br />• WA:{" "}
+                          <strong>📞 Kontak Klien:</strong> {r.clientPic.picName} (
                           <a
                             href={`https://wa.me/${r.clientPic.picPhone}`}
                             target="_blank"
@@ -870,47 +896,12 @@ function OrderTrackerView({ db, adminId, onUpdate }) {
                             style={{ color: "#2563eb", fontWeight: "bold" }}
                           >
                             +{r.clientPic.picPhone}
-                          </a>
-                          <br />• Email: {r.clientPic.email}
-                          <br />• PT: {r.clientPic.companyName}
+                          </a>)
                         </div>
                       )}
                     </td>
-                    <td>
-                      <div
-                        style={{
-                          display: "flex",
-                          gap: "6px",
-                          alignItems: "center",
-                        }}
-                      >
-                        <input
-                          type="number"
-                          className="fleet-input"
-                          style={{
-                            width: "100px",
-                            padding: "4px 8px",
-                            fontSize: "13px",
-                          }}
-                          value={editingCost}
-                          disabled={
-                            r.status === "completed" || r.status === "cancelled"
-                          }
-                          onChange={(e) =>
-                            handleCostChange(r.id, e.target.value)
-                          }
-                        />
-                        {r.status !== "completed" &&
-                          r.status !== "cancelled" && (
-                            <button
-                              className="fleet-btn fleet-btn-secondary fleet-btn-sm"
-                              style={{ padding: "4px 8px" }}
-                              onClick={() => handleSaveCost(r, editingCost)}
-                            >
-                              💾
-                            </button>
-                          )}
-                      </div>
+                    <td style={{ fontWeight: "600", color: "#1e3a8a" }}>
+                      {finalFee ? `Rp ${finalFee.toLocaleString("id-ID")}` : "Menunggu Quote"}
                     </td>
                     <td>
                       {new Date(r.createdAt).toLocaleDateString("id-ID", {
@@ -920,70 +911,18 @@ function OrderTrackerView({ db, adminId, onUpdate }) {
                       })}
                     </td>
                     <td>
-                      {(() => {
-                        const isRestricted =
-                          adminId === "admin-1" &&
-                          [
-                            "stnk_renewal",
-                            "pajak_renewal",
-                            "multiple",
-                            "kir_uji_baru",
-                            "kir_numpang_uji",
-                            "kir_mutasi_masuk",
-                            "kir_mutasi_keluar",
-                            "kir_balik_nama",
-                            "kir_ganti_nopol",
-                            "balik_nama_stnk",
-                            "mutasi",
-                            "stnk_hilang",
-                            "ganti_alamat",
-                            "blokir_progresif",
-                            "cek_fisik_bantuan",
-                            "urus_e_tilang",
-                            "cabut_berkas_stnk",
-                          ].includes(r.serviceType);
-                        if (isRestricted) {
-                          return (
-                            <div
-                              style={{
-                                fontSize: "12px",
-                                color: "#b91c1c",
-                                fontWeight: "bold",
-                                background: "#fef2f2",
-                                border: "1px solid #fca5a5",
-                                padding: "6px 10px",
-                                borderRadius: "6px",
-                                textAlign: "center",
-                              }}
-                            >
-                              ⚠️ Di-routing ke Admin Padajaya
-                            </div>
-                          );
-                        }
-                        return (
-                          <select
-                            className="fleet-input"
-                            style={{
-                              width: "150px",
-                              padding: "6px 10px",
-                              fontSize: "13px",
-                              background: "white",
-                              fontWeight: "700",
-                            }}
-                            value={r.status}
-                            onChange={(e) =>
-                              handleStatusChange(r.id, e.target.value)
-                            }
-                          >
-                            <option value="pending">⏳ Pending</option>
-                            <option value="in_progress">⚙️ Diproses</option>
-                            <option value="completed">
-                              ✅ Selesai (Completed)
-                            </option>
-                            <option value="cancelled">❌ Dibatalkan</option>
-                          </select>
-                        );
-                      })()}
+                      <span className={`badge-status ${getStatusBadgeClass(r.status)}`}>
+                        {r.statusLabel || r.status}
+                      </span>
+                    </td>
+                    <td style={{ textAlign: "center" }}>
+                      <button
+                        className="fleet-btn fleet-btn-secondary fleet-btn-sm"
+                        onClick={() => setSelectedRequest(r)}
+                        style={{ padding: "4px 10px", fontSize: "11px" }}
+                      >
+                        ✏️ Kelola Order
+                      </button>
                     </td>
                   </tr>
                 );
@@ -992,6 +931,194 @@ function OrderTrackerView({ db, adminId, onUpdate }) {
           </tbody>
         </table>
       </div>
+
+      {/* MODAL: KELOLA DETAIL & PENAWARAN ORDER */}
+      {selectedRequest && (
+        <div className="fleet-modal-overlay">
+          <div className="fleet-modal" style={{ maxWidth: "550px" }}>
+            <div className="fleet-modal-header">
+              <h3>⚙️ Kelola Order — {selectedRequest.plateNumber}</h3>
+              <span
+                className="btn-close-modal"
+                onClick={() => setSelectedRequest(null)}
+              >
+                ×
+              </span>
+            </div>
+            <div className="fleet-modal-body">
+              <div
+                style={{
+                  background: "#f8fafc",
+                  border: "1px solid #cbd5e1",
+                  borderRadius: "8px",
+                  padding: "14px",
+                  marginBottom: "20px",
+                }}
+              >
+                <h4 style={{ margin: "0 0 10px 0", fontSize: "13.5px", color: "#1C3967" }}>Info Pengajuan Klien:</h4>
+                <p style={{ margin: "0 0 6px 0", fontSize: "13px" }}>PT/Klien: <strong>{selectedRequest.companyName}</strong></p>
+                <p style={{ margin: "0 0 6px 0", fontSize: "13px" }}>Jenis Jasa: <strong>{selectedRequest.serviceTypeLabel}</strong></p>
+                <p style={{ margin: "0 0 6px 0", fontSize: "13px" }}>Deskripsi: <span style={{ color: "#475569" }}>{selectedRequest.description}</span></p>
+              </div>
+
+              {/* FORM BERI PENAWARAN JIKA STATUS PENDING */}
+              {selectedRequest.status === "pending" ? (
+                <form onSubmit={handleSendQuote}>
+                  <h4 style={{ fontSize: "14px", fontWeight: "800", color: "#1C3967", margin: "0 0 14px 0", borderBottom: "1px solid #cbd5e1", paddingBottom: "6px" }}>
+                    ✍️ Kirim Rincian Biaya & Syarat Dokumen
+                  </h4>
+
+                  <div className="fleet-form-group">
+                    <label className="fleet-label">Harga Jasa Resmi (Rp) *</label>
+                    <input
+                      type="number"
+                      className="fleet-input"
+                      placeholder="Masukkan harga jasa..."
+                      value={serviceFee}
+                      onChange={(e) => setServiceFee(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div className="fleet-form-group">
+                    <label className="fleet-label">Estimasi Waktu Pengerjaan *</label>
+                    <input
+                      type="text"
+                      className="fleet-input"
+                      placeholder="Contoh: 3 Hari Kerja"
+                      value={estimatedTime}
+                      onChange={(e) => setEstimatedTime(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div className="fleet-form-group">
+                    <label className="fleet-label">Syarat-syarat Dokumen Asli *</label>
+                    <textarea
+                      className="fleet-input"
+                      rows="3"
+                      placeholder="Contoh:&#10;1. Buku KIR Asli&#10;2. STNK Asli&#10;3. Fotokopi KTP Pemilik"
+                      value={terms}
+                      onChange={(e) => setTerms(e.target.value)}
+                      required
+                      style={{ resize: "vertical", fontFamily: "inherit" }}
+                    />
+                  </div>
+
+                  <div className="fleet-modal-footer" style={{ padding: "14px 0 0 0", borderTop: "1px solid #cbd5e1", marginTop: "20px" }}>
+                    <button
+                      type="button"
+                      className="fleet-btn fleet-btn-secondary"
+                      onClick={() => setSelectedRequest(null)}
+                    >
+                      Batal
+                    </button>
+                    <button type="submit" className="fleet-btn fleet-btn-primary">
+                      🚀 Kirim Penawaran ke Klien
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                /* RINCIAN READ-ONLY JIKA BUKAN PENDING */
+                <div>
+                  <h4 style={{ fontSize: "14px", fontWeight: "800", color: "#1C3967", margin: "0 0 14px 0", borderBottom: "1px solid #cbd5e1", paddingBottom: "6px" }}>
+                    📋 Rincian Penawaran yang Dikirimkan
+                  </h4>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px", marginBottom: "14px" }}>
+                    <div>
+                      <p style={{ margin: "0 0 4px 0", fontSize: "11px", color: "#64748b", fontWeight: "600" }}>Biaya Jasa Resmi</p>
+                      <p style={{ margin: 0, fontSize: "14px", fontWeight: "700", color: "#1C3967" }}>
+                        Rp {selectedRequest.serviceQuote?.serviceFee?.toLocaleString("id-ID") || selectedRequest.estimatedCost?.toLocaleString("id-ID")}
+                      </p>
+                    </div>
+                    <div>
+                      <p style={{ margin: "0 0 4px 0", fontSize: "11px", color: "#64748b", fontWeight: "600" }}>Estimasi Waktu</p>
+                      <p style={{ margin: 0, fontSize: "14px", fontWeight: "700", color: "#1C3967" }}>
+                        {selectedRequest.serviceQuote?.estimatedTime || "-"}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div style={{ marginBottom: "20px" }}>
+                    <p style={{ margin: "0 0 4px 0", fontSize: "11px", color: "#64748b", fontWeight: "600" }}>Syarat-syarat Pengurusan</p>
+                    <div
+                      style={{
+                        background: "#f8fafc",
+                        border: "1px solid #cbd5e1",
+                        padding: "10px 12px",
+                        borderRadius: "6px",
+                        fontSize: "12.5px",
+                        color: "#334155",
+                        whiteSpace: "pre-wrap",
+                        lineHeight: "1.5",
+                      }}
+                    >
+                      {selectedRequest.serviceQuote?.terms || "Tidak ada persyaratan khusus."}
+                    </div>
+                  </div>
+
+                  {/* KONTROL EDIT STATUS PENGERJAAN HANYA AKTIF JIKA SUDAH ACC (APPROVED ATAU IN PROGRESS) */}
+                  {(selectedRequest.status === "approved" || selectedRequest.status === "in_progress") ? (
+                    <div style={{ borderTop: "1px solid #cbd5e1", paddingTop: "16px", marginTop: "16px" }}>
+                      <label className="fleet-label" style={{ fontWeight: "bold", marginBottom: "8px" }}>⚙️ Ubah Status Progres Pengerjaan</label>
+                      <div style={{ display: "flex", gap: "10px" }}>
+                        <select
+                          className="fleet-input"
+                          style={{ background: "white", fontWeight: "700" }}
+                          value={selectedRequest.status}
+                          onChange={(e) => handleStatusChange(selectedRequest.id, e.target.value)}
+                        >
+                          <option value="approved">⏳ Menunggu Diproses (Disetujui Klien)</option>
+                          <option value="in_progress">⚙️ Diproses</option>
+                          <option value="completed">✅ Selesai (Completed)</option>
+                          <option value="cancelled">❌ Batalkan Order</option>
+                        </select>
+                        <button
+                          type="button"
+                          className="fleet-btn fleet-btn-primary"
+                          onClick={() => setSelectedRequest(null)}
+                        >
+                          Tutup
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div
+                      style={{
+                        background: selectedRequest.status === "quoted" ? "#fffbeb" : selectedRequest.status === "completed" ? "#f0fdf4" : "#fef2f2",
+                        border: `1px solid ${selectedRequest.status === "quoted" ? "#fde68a" : selectedRequest.status === "completed" ? "#bbf7d0" : "#fca5a5"}`,
+                        borderRadius: "8px",
+                        padding: "12px",
+                        textAlign: "center",
+                        fontSize: "13px",
+                        fontWeight: "600",
+                        color: selectedRequest.status === "quoted" ? "#b45309" : selectedRequest.status === "completed" ? "#15803d" : "#b91c1c",
+                      }}
+                    >
+                      {selectedRequest.status === "quoted" && "⏳ Menunggu Persetujuan Klien untuk Melanjutkan (ACC)"}
+                      {selectedRequest.status === "completed" && "✅ Order ini telah selesai dikerjakan!"}
+                      {selectedRequest.status === "cancelled" && "❌ Order ini telah dibatalkan."}
+                    </div>
+                  )}
+
+                  {!(selectedRequest.status === "approved" || selectedRequest.status === "in_progress") && (
+                    <div className="fleet-modal-footer" style={{ padding: "14px 0 0 0", marginTop: "20px" }}>
+                      <button
+                        type="button"
+                        className="fleet-btn fleet-btn-secondary"
+                        onClick={() => setSelectedRequest(null)}
+                      >
+                        Tutup
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -39,7 +39,7 @@ export const ADMINS = [
     registrationCode: 'SENTRA-2024',
     status: 'active',
     tier: 'primary',
-    allowedServices: ['kir_renewal', 'buka_blokir_kir', 'lapor_hilang', 'media_nasional', 'bikin_sim_a', 'bikin_sim_c', 'kir_uji_baru', 'kir_numpang_uji', 'kir_mutasi_masuk', 'kir_mutasi_keluar', 'kir_balik_nama', 'kir_ganti_nopol'],
+    allowedServices: ['kir_renewal', 'buka_blokir_kir', 'lapor_hilang', 'media_nasional', 'bikin_sim_a', 'bikin_sim_c', 'perpanjang_sim_a', 'perpanjang_sim_c', 'kir_uji_baru', 'kir_numpang_uji', 'kir_mutasi_masuk', 'kir_mutasi_keluar', 'kir_balik_nama', 'kir_ganti_nopol'],
     createdAt: '2026-06-07T00:00:00.000Z'
   },
   {
@@ -49,7 +49,7 @@ export const ADMINS = [
     registrationCode: 'PADAJAYA-2024',
     status: 'active',
     tier: 'secondary',
-    allowedServices: ['stnk_renewal', 'pajak_renewal', 'kir_renewal', 'buka_blokir_kir', 'lapor_hilang', 'media_nasional', 'balik_nama_stnk', 'mutasi', 'stnk_hilang', 'ganti_alamat', 'blokir_progresif', 'cek_fisik_bantuan', 'urus_e_tilang', 'cabut_berkas_stnk', 'bikin_sim_a', 'bikin_sim_c', 'kir_uji_baru', 'kir_numpang_uji', 'kir_mutasi_masuk', 'kir_mutasi_keluar', 'kir_balik_nama', 'kir_ganti_nopol'],
+    allowedServices: ['stnk_renewal', 'pajak_renewal', 'kir_renewal', 'buka_blokir_kir', 'lapor_hilang', 'media_nasional', 'balik_nama_stnk', 'mutasi', 'mutasi_masuk_stnk', 'stnk_hilang', 'ganti_alamat', 'blokir_progresif', 'cek_fisik_bantuan', 'urus_e_tilang', 'cabut_berkas_stnk', 'bikin_sim_a', 'bikin_sim_c', 'perpanjang_sim_a', 'perpanjang_sim_c', 'kir_uji_baru', 'kir_numpang_uji', 'kir_mutasi_masuk', 'kir_mutasi_keluar', 'kir_balik_nama', 'kir_ganti_nopol'],
     createdAt: '2026-06-07T00:00:00.000Z'
   }
 ];
@@ -112,19 +112,62 @@ export const getAllClientsForAdmin = (adminId) => {
 
 // Determine routing for service request
 export const getRouting = (serviceType, originatingAdminId) => {
-  // STNK and Pajak ALWAYS go to admin-2 (Padajaya)
-  if (serviceType === 'stnk_renewal' || serviceType === 'pajak_renewal') {
+  // Define Jakarta STNK services (ALWAYS go to Padajaya regardless of originating admin)
+  const stnkJakartaServices = ['balik_nama_stnk', 'mutasi', 'mutasi_masuk_stnk', 'stnk_hilang', 'ganti_alamat', 'blokir_progresif', 'cek_fisik_bantuan', 'urus_e_tilang', 'cabut_berkas_stnk'];
+
+  // Define Jakarta KIR services
+  const kirJakartaServices = ['kir_uji_baru', 'kir_numpang_uji', 'kir_mutasi_masuk', 'kir_mutasi_keluar', 'kir_balik_nama', 'kir_ganti_nopol', 'kir_renewal', 'buka_blokir_kir'];
+
+  // Define SIM services
+  const simServices = ['bikin_sim_a', 'bikin_sim_c', 'perpanjang_sim_a', 'perpanjang_sim_c'];
+
+  // NEW LOGIC: If client is from Sentra Admin (admin-1)
+  if (originatingAdminId === 'admin-1') {
+    // EXCEPTION: Jakarta STNK services ALWAYS go to Padajaya
+    if (stnkJakartaServices.includes(serviceType)) {
+      return {
+        assignedAdminId: 'admin-2',
+        routingReason: 'Pengurusan STNK wilayah Jakarta dialihkan ke Administrator Padajaya'
+      };
+    }
+
+    // EXCEPTION: Regular STNK/Pajak renewal ALWAYS go to Padajaya
+    if (serviceType === 'stnk_renewal' || serviceType === 'pajak_renewal') {
+      return {
+        assignedAdminId: 'admin-2',
+        routingReason: 'Pengurusan STNK/Pajak dialihkan ke Administrator Padajaya'
+      };
+    }
+
+    // EXCEPTION: Multiple requests (KIR+STNK/Pajak) go to Padajaya
+    if (serviceType === 'multiple') {
+      return {
+        assignedAdminId: 'admin-2',
+        routingReason: 'Pengurusan kombinasi KIR+STNK/Pajak dialihkan ke Administrator Padajaya'
+      };
+    }
+
+    // ALL OTHER SERVICES stay with Sentra (KIR Jakarta + SIM + Balik Nama)
     return {
-      assignedAdminId: 'admin-2',
-      routingReason: 'Permintaan STNK/Pajak selalu ditangani oleh administrator Padajaya'
+      assignedAdminId: 'admin-1',
+      routingReason: 'Pengurusan ditangani oleh Administrator Sentra'
     };
   }
 
-  // KIR & Balik Nama requests stay with originating admin (except new Jakarta KIR services)
-  if (serviceType === 'kir_renewal' || serviceType === 'buka_blokir_kir' || serviceType === 'balik_nama') {
+  // For clients from other admins (admin-2, etc):
+  // Jakarta STNK services go to admin-2 (Padajaya)
+  if (stnkJakartaServices.includes(serviceType)) {
     return {
-      assignedAdminId: originatingAdminId,
-      routingReason: 'Permintaan KIR ditangani oleh administrator yang mengelola client'
+      assignedAdminId: 'admin-2',
+      routingReason: 'Pengurusan STNK wilayah Jakarta ditangani oleh Administrator Padajaya'
+    };
+  }
+
+  // STNK and Pajak renewal go to admin-2 (Padajaya)
+  if (serviceType === 'stnk_renewal' || serviceType === 'pajak_renewal') {
+    return {
+      assignedAdminId: 'admin-2',
+      routingReason: 'Pengurusan STNK/Pajak ditangani oleh Administrator Padajaya'
     };
   }
 
@@ -132,33 +175,23 @@ export const getRouting = (serviceType, originatingAdminId) => {
   if (serviceType === 'multiple') {
     return {
       assignedAdminId: 'admin-2',
-      routingReason: 'Permintaan kombinasi KIR+STNK/Pajak ditangani oleh administrator Padajaya'
+      routingReason: 'Pengurusan kombinasi KIR+STNK/Pajak ditangani oleh Administrator Padajaya'
     };
   }
 
-  // Jakarta-area KIR services ALWAYS go to admin-2 (Padajaya)
-  const kirJakartaServices = ['kir_uji_baru', 'kir_numpang_uji', 'kir_mutasi_masuk', 'kir_mutasi_keluar', 'kir_balik_nama', 'kir_ganti_nopol'];
-  if (kirJakartaServices.includes(serviceType)) {
-    return {
-      assignedAdminId: 'admin-2',
-      routingReason: 'Pengurusan KIR wilayah Jakarta ditangani oleh administrator Padajaya'
-    };
-  }
-
-  // Jakarta-area STNK services ALWAYS go to admin-2 (Padajaya)
-  const jakartaServices = ['balik_nama_stnk', 'mutasi', 'stnk_hilang', 'ganti_alamat', 'blokir_progresif', 'cek_fisik_bantuan', 'urus_e_tilang', 'cabut_berkas_stnk'];
-  if (jakartaServices.includes(serviceType)) {
-    return {
-      assignedAdminId: 'admin-2',
-      routingReason: 'Pengurusan STNK wilayah Jakarta ditangani oleh administrator Padajaya'
-    };
-  }
-
-  // SIM services default to originating admin (client can override via assignedAdminId in requestData)
-  if (serviceType === 'bikin_sim_a' || serviceType === 'bikin_sim_c') {
+  // KIR & Balik Nama requests stay with originating admin
+  if (kirJakartaServices.includes(serviceType) || serviceType === 'balik_nama') {
     return {
       assignedAdminId: originatingAdminId,
-      routingReason: 'Permintaan pembuatan SIM ditangani oleh administrator yang dipilih client'
+      routingReason: 'Pengurusan KIR ditangani oleh administrator yang mengelola client'
+    };
+  }
+
+  // SIM services default to originating admin
+  if (simServices.includes(serviceType)) {
+    return {
+      assignedAdminId: originatingAdminId,
+      routingReason: 'Pengurusan SIM ditangani oleh administrator yang mengelola client'
     };
   }
 
@@ -266,7 +299,22 @@ export const addServiceRequest = (requestData) => {
   const vehicle = db.vehicles.find(v => v.id === requestData.vehicleId);
 
   const originatingAdminId = company ? (company.adminId || 'admin-1') : 'admin-1';
-  const routing = getRouting(requestData.serviceType, originatingAdminId);
+
+  // If client explicitly provided assignedAdminId (e.g., for SIM services), use it
+  // Otherwise, apply automatic routing based on service type
+  let finalAssignedAdminId;
+  let finalRoutingReason;
+
+  if (requestData.assignedAdminId) {
+    // Client chose a specific admin (e.g., for SIM services)
+    finalAssignedAdminId = requestData.assignedAdminId;
+    finalRoutingReason = 'Permintaan dikirim ke administrator yang dipilih oleh klien';
+  } else {
+    // Apply automatic routing based on service type
+    const routing = getRouting(requestData.serviceType, originatingAdminId);
+    finalAssignedAdminId = routing.assignedAdminId;
+    finalRoutingReason = routing.routingReason;
+  }
 
   // Client information to share with the handling admin (especially admin-2 for cross-routed requests)
   const clientInfo = company ? {
@@ -281,13 +329,14 @@ export const addServiceRequest = (requestData) => {
     companyName: company ? company.name : 'Unknown Company',
     plateNumber: vehicle ? vehicle.plateNumber : 'Unknown Plate',
     status: 'pending',
-    statusLabel: 'Menunggu Konfirmasi',
+    statusLabel: 'Sedang Diajukan',
     estimatedCost: requestData.estimatedCost || 350000, // standard price estimate
+    serviceQuote: null, // filled by admin after review (fee, estimatedTime, terms)
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     originatingAdminId,
-    assignedAdminId: routing.assignedAdminId,
-    routingReason: routing.routingReason,
+    assignedAdminId: finalAssignedAdminId,
+    routingReason: finalRoutingReason,
     clientPic: clientInfo,
     ...requestData
   };
@@ -296,13 +345,59 @@ export const addServiceRequest = (requestData) => {
   return newRequest;
 };
 
+// Admin sends service quote (fee, estimated time, terms) → moves request to 'quoted'
+// Client may then approve (Lanjut Urus) or cancel.
+export const submitServiceQuote = (requestId, quote) => {
+  const db = getFleetDatabase();
+  const index = db.requests.findIndex(r => r.id === requestId);
+  if (index !== -1) {
+    db.requests[index].serviceQuote = {
+      serviceFee: Number(quote.serviceFee) || 0,
+      estimatedTime: quote.estimatedTime || '',
+      terms: quote.terms || '',
+      quotedAt: new Date().toISOString(),
+    };
+    // Keep estimatedCost in sync with the quoted fee
+    db.requests[index].estimatedCost = Number(quote.serviceFee) || db.requests[index].estimatedCost;
+    db.requests[index].status = 'quoted';
+    db.requests[index].statusLabel = 'Menunggu Persetujuan Klien';
+    db.requests[index].updatedAt = new Date().toISOString();
+    saveFleetDatabase(db);
+    return db.requests[index];
+  }
+  return null;
+};
+
+// Client responds to a quote: 'approve' (Lanjut Urus) or 'cancel' (Batalkan)
+export const clientRespondToQuote = (requestId, decision) => {
+  const db = getFleetDatabase();
+  const index = db.requests.findIndex(r => r.id === requestId);
+  if (index !== -1) {
+    if (decision === 'approve') {
+      db.requests[index].status = 'approved';
+      db.requests[index].statusLabel = 'Disetujui Klien';
+      db.requests[index].clientApprovedAt = new Date().toISOString();
+    } else {
+      db.requests[index].status = 'cancelled';
+      db.requests[index].statusLabel = 'Dibatalkan';
+      db.requests[index].clientCancelledAt = new Date().toISOString();
+    }
+    db.requests[index].updatedAt = new Date().toISOString();
+    saveFleetDatabase(db);
+    return db.requests[index];
+  }
+  return null;
+};
+
 // Update Request Status (Admin Action)
 export const updateRequestStatus = (requestId, status, cost) => {
   const db = getFleetDatabase();
   const index = db.requests.findIndex(r => r.id === requestId);
   if (index !== -1) {
     const statusLabels = {
-      pending: 'Menunggu Konfirmasi',
+      pending: 'Sedang Diajukan',
+      quoted: 'Menunggu Persetujuan Klien',
+      approved: 'Disetujui Klien',
       in_progress: 'Diproses',
       completed: 'Selesai',
       cancelled: 'Dibatalkan'

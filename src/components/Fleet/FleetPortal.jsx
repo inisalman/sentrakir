@@ -7,6 +7,7 @@ import {
   initFleetData,
   getAdminByEmail,
   getAdminByCode,
+  getAdminById,
   validateRegistrationCode,
   ADMINS
 } from "../../utils/fleetMockData.js";
@@ -166,6 +167,7 @@ function LoginPage({ onLogin, navigate }) {
   const [password, setPassword] = useState("");
   const [roleTab, setRoleTab] = useState("client"); // client | admin
   const [error, setError] = useState("");
+  const [showQuickLogin, setShowQuickLogin] = useState(false);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -201,6 +203,27 @@ function LoginPage({ onLogin, navigate }) {
         setError("Email perusahaan tidak terdaftar.");
       }
     }
+  };
+
+  const handleQuickLogin = (company) => {
+    if (company.status !== "active") {
+      setError("Akun perusahaan ini sedang tidak aktif.");
+      return;
+    }
+    onLogin("client", company.id, company.email, company.name);
+  };
+
+  const handleQuickAdminLogin = (admin) => {
+    onLogin("admin", admin.id, admin.email, `${admin.name} Admin`);
+  };
+
+  const getClientAccounts = () => {
+    const db = getFleetDatabase();
+    return db.companies || [];
+  };
+
+  const getAdminAccounts = () => {
+    return ADMINS || [];
   };
 
   return (
@@ -285,6 +308,304 @@ function LoginPage({ onLogin, navigate }) {
             Masuk ke Portal
           </button>
         </form>
+
+        {/* Quick Login for Development */}
+        {roleTab === "client" && (
+          <div style={{ marginTop: "16px" }}>
+            <button
+              type="button"
+              onClick={() => setShowQuickLogin(!showQuickLogin)}
+              style={{
+                width: "100%",
+                padding: "10px",
+                background: "#f8fafc",
+                border: "1px solid #cbd5e1",
+                borderRadius: "8px",
+                fontSize: "13px",
+                fontWeight: "600",
+                color: "#475569",
+                cursor: "pointer",
+                transition: "all 0.2s ease",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "#f1f5f9";
+                e.currentTarget.style.borderColor = "#94a3b8";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "#f8fafc";
+                e.currentTarget.style.borderColor = "#cbd5e1";
+              }}
+            >
+              {showQuickLogin ? "🔒 Sembunyikan Quick Login" : "⚡ Quick Login (Dev Mode)"}
+            </button>
+
+            {showQuickLogin && (
+              <div
+                style={{
+                  marginTop: "12px",
+                  background: "#f8fafc",
+                  border: "1px solid #cbd5e1",
+                  borderRadius: "8px",
+                  padding: "12px",
+                  maxHeight: "300px",
+                  overflowY: "auto",
+                }}
+              >
+                <p
+                  style={{
+                    fontSize: "12px",
+                    color: "#64748b",
+                    margin: "0 0 12px 0",
+                    fontWeight: "600",
+                  }}
+                >
+                  📋 Daftar Akun Client Tersedia:
+                </p>
+                {getClientAccounts().length === 0 ? (
+                  <div
+                    style={{
+                      textAlign: "center",
+                      padding: "20px",
+                      color: "#94a3b8",
+                      fontSize: "12px",
+                    }}
+                  >
+                    Belum ada akun client terdaftar. Silakan daftar terlebih dahulu.
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                    {getClientAccounts().map((company) => (
+                      <button
+                        key={company.id}
+                        type="button"
+                        onClick={() => handleQuickLogin(company)}
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          padding: "10px 12px",
+                          background: "#ffffff",
+                          border: "1px solid #e2e8f0",
+                          borderRadius: "6px",
+                          cursor: "pointer",
+                          transition: "all 0.2s ease",
+                          textAlign: "left",
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = "#eff6ff";
+                          e.currentTarget.style.borderColor = "#3b82f6";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = "#ffffff";
+                          e.currentTarget.style.borderColor = "#e2e8f0";
+                        }}
+                      >
+                        <div style={{ flex: 1 }}>
+                          <div
+                            style={{
+                              fontSize: "13px",
+                              fontWeight: "700",
+                              color: "#1C3967",
+                              marginBottom: "2px",
+                            }}
+                          >
+                            {company.name}
+                          </div>
+                          <div
+                            style={{
+                              fontSize: "11px",
+                              color: "#64748b",
+                            }}
+                          >
+                            {company.email}
+                          </div>
+                        </div>
+                        <div
+                          style={{
+                            display: "flex",
+                            flexDirection: "column",
+                            alignItems: "flex-end",
+                            gap: "4px",
+                          }}
+                        >
+                          <span
+                            style={{
+                              fontSize: "10px",
+                              fontWeight: "600",
+                              color: company.status === "active" ? "#16a34a" : "#dc2626",
+                              background: company.status === "active" ? "#f0fdf4" : "#fef2f2",
+                              padding: "2px 6px",
+                              borderRadius: "4px",
+                              border: `1px solid ${company.status === "active" ? "#bbf7d0" : "#fecaca"}`,
+                            }}
+                          >
+                            {company.status === "active" ? "✓ Aktif" : "✗ Non-aktif"}
+                          </span>
+                          <span
+                            style={{
+                              fontSize: "10px",
+                              color: "#1e40af",
+                              background: "#eff6ff",
+                              padding: "2px 6px",
+                              borderRadius: "4px",
+                              border: "1px solid #bfdbfe",
+                              fontWeight: "600",
+                            }}
+                          >
+                            {(() => {
+                              const admin = getAdminById(company.adminId || 'admin-1');
+                              return admin ? admin.name : 'Sentra';
+                            })()}
+                          </span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Quick Login for Admin */}
+        {roleTab === "admin" && (
+          <div style={{ marginTop: "16px" }}>
+            <button
+              type="button"
+              onClick={() => setShowQuickLogin(!showQuickLogin)}
+              style={{
+                width: "100%",
+                padding: "10px",
+                background: "#f8fafc",
+                border: "1px solid #cbd5e1",
+                borderRadius: "8px",
+                fontSize: "13px",
+                fontWeight: "600",
+                color: "#475569",
+                cursor: "pointer",
+                transition: "all 0.2s ease",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "#f1f5f9";
+                e.currentTarget.style.borderColor = "#94a3b8";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "#f8fafc";
+                e.currentTarget.style.borderColor = "#cbd5e1";
+              }}
+            >
+              {showQuickLogin ? "🔒 Sembunyikan Quick Login" : "⚡ Quick Login (Dev Mode)"}
+            </button>
+
+            {showQuickLogin && (
+              <div
+                style={{
+                  marginTop: "12px",
+                  background: "#f8fafc",
+                  border: "1px solid #cbd5e1",
+                  borderRadius: "8px",
+                  padding: "12px",
+                }}
+              >
+                <p
+                  style={{
+                    fontSize: "12px",
+                    color: "#64748b",
+                    margin: "0 0 12px 0",
+                    fontWeight: "600",
+                  }}
+                >
+                  👤 Daftar Akun Admin:
+                </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                  {getAdminAccounts().map((admin) => (
+                    <button
+                      key={admin.id}
+                      type="button"
+                      onClick={() => handleQuickAdminLogin(admin)}
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        padding: "10px 12px",
+                        background: "#ffffff",
+                        border: "1px solid #e2e8f0",
+                        borderRadius: "6px",
+                        cursor: "pointer",
+                        transition: "all 0.2s ease",
+                        textAlign: "left",
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = "#eff6ff";
+                        e.currentTarget.style.borderColor = "#3b82f6";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = "#ffffff";
+                        e.currentTarget.style.borderColor = "#e2e8f0";
+                      }}
+                    >
+                      <div style={{ flex: 1 }}>
+                        <div
+                          style={{
+                            fontSize: "13px",
+                            fontWeight: "700",
+                            color: "#1C3967",
+                            marginBottom: "2px",
+                          }}
+                        >
+                          {admin.name} Admin
+                        </div>
+                        <div
+                          style={{
+                            fontSize: "11px",
+                            color: "#64748b",
+                          }}
+                        >
+                          {admin.email}
+                        </div>
+                      </div>
+                      <div
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "flex-end",
+                          gap: "4px",
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontSize: "10px",
+                            fontWeight: "600",
+                            color: admin.status === "active" ? "#16a34a" : "#dc2626",
+                            background: admin.status === "active" ? "#f0fdf4" : "#fef2f2",
+                            padding: "2px 6px",
+                            borderRadius: "4px",
+                            border: `1px solid ${admin.status === "active" ? "#bbf7d0" : "#fecaca"}`,
+                          }}
+                        >
+                          {admin.status === "active" ? "✓ Aktif" : "✗ Non-aktif"}
+                        </span>
+                        <span
+                          style={{
+                            fontSize: "10px",
+                            color: admin.tier === "primary" ? "#7c3aed" : "#f59e0b",
+                            background: admin.tier === "primary" ? "#faf5ff" : "#fffbeb",
+                            padding: "2px 6px",
+                            borderRadius: "4px",
+                            border: `1px solid ${admin.tier === "primary" ? "#e9d5ff" : "#fde68a"}`,
+                            fontWeight: "600",
+                          }}
+                        >
+                          {admin.tier === "primary" ? "Primary" : "Secondary"}
+                        </span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Google Login */}
         <div style={{ marginTop: "20px", textAlign: "center" }}>

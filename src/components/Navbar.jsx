@@ -1,51 +1,55 @@
-import { useEffect, useState } from 'react'
-import './Navbar.css'
-import { trackButtonClick } from '../utils/analytics.js'
+import { useEffect, useState } from "react";
+import "./Navbar.css";
+import { trackButtonClick } from "../utils/analytics.js";
 
 const links = [
-  { href: '#tentang', label: 'Tentang Kami' },
-  { href: '#kenapa-sentrakir', label: 'Mengapa Sentra KIR' },
-  { href: '#proses', label: 'Alur Proses' },
-  { href: '#daftar-jasa', label: 'Daftar Jasa' },
-  { href: '#lokasi', label: 'Lokasi' },
-  { href: '#mitra', label: 'Mitra Kami' },
-]
+  { href: "#tentang", label: "Tentang Kami" },
+  { href: "#kenapa-sentrakir", label: "Mengapa Sentra KIR" },
+  { href: "#proses", label: "Alur Proses" },
+  { href: "#daftar-jasa", label: "Daftar Jasa" },
+  { href: "#lokasi", label: "Lokasi" },
+  { href: "#Berkolaborasi", label: "Kerjasama Kami" },
+];
 
 export default function Navbar() {
-  const [scrolled, setScrolled] = useState(false)
-  const [open, setOpen] = useState(false)
+  const [scrolled, setScrolled] = useState(false);
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 12)
-    onScroll()
-    window.addEventListener('scroll', onScroll)
-    return () => window.removeEventListener('scroll', onScroll)
-  }, [])
+    const onScroll = () => setScrolled(window.scrollY > 12);
+    onScroll();
+    window.addEventListener("scroll", onScroll);
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   const handleNavClick = (e, href) => {
-    if (!href || !href.startsWith('#')) return
-    const targetId = href.slice(1)
-    const target = targetId === 'top' ? document.body : document.getElementById(targetId)
-    if (!target) return
-    e.preventDefault()
-    const navbar = document.querySelector('.navbar')
-    const navbarHeight = navbar ? navbar.offsetHeight : 0
+    if (!href || !href.startsWith("#")) return;
+    const targetId = href.slice(1);
+    const target =
+      targetId === "top" ? document.body : document.getElementById(targetId);
+    if (!target) return;
+    e.preventDefault();
+    const navbar = document.querySelector(".navbar");
+    const navbarHeight = navbar ? navbar.offsetHeight : 0;
     const offsetTop =
       target === document.body
         ? 0
-        : target.getBoundingClientRect().top + window.scrollY - navbarHeight + 1
-    window.scrollTo({ top: offsetTop, behavior: 'smooth' })
-    setOpen(false)
-  }
+        : target.getBoundingClientRect().top +
+          window.scrollY -
+          navbarHeight +
+          1;
+    window.scrollTo({ top: offsetTop, behavior: "smooth" });
+    setOpen(false);
+  };
 
   return (
-    <header className={`navbar ${scrolled ? 'is-scrolled' : ''}`}>
+    <header className={`navbar ${scrolled ? "is-scrolled" : ""}`}>
       <div className="container navbar-inner">
         <a
           href="#top"
           className="brand"
           aria-label="Sentra KIR beranda"
-          onClick={(e) => handleNavClick(e, '#top')}
+          onClick={(e) => handleNavClick(e, "#top")}
         >
           <img
             src="/logo-sentra-kir.png"
@@ -54,7 +58,10 @@ export default function Navbar() {
           />
         </a>
 
-        <nav className={`nav-links ${open ? 'is-open' : ''}`} aria-label="Navigasi utama">
+        <nav
+          className={`nav-links ${open ? "is-open" : ""}`}
+          aria-label="Navigasi utama"
+        >
           {links.map((l) => (
             <a
               key={l.href}
@@ -70,8 +77,8 @@ export default function Navbar() {
             rel="noreferrer"
             className="btn btn-primary nav-cta"
             onClick={() => {
-              setOpen(false)
-              trackButtonClick('WhatsApp Click', 'Navbar')
+              setOpen(false);
+              trackButtonClick("WhatsApp Click", "Navbar");
             }}
           >
             HUBUNGI KAMI
@@ -90,5 +97,5 @@ export default function Navbar() {
         </button>
       </div>
     </header>
-  )
+  );
 }
