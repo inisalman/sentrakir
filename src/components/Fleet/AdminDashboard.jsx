@@ -11,6 +11,11 @@ import {
   getClientsForAdminView,
   submitServiceQuote,
   ADMINS,
+  getMembershipRequestsForAdmin,
+  resolveMembershipRequest,
+  setCompanyMembership,
+  getTierConfig,
+  MEMBERSHIP_TIERS,
 } from "../../utils/fleetMockData.js";
 
 export default function AdminDashboard({
@@ -32,6 +37,7 @@ export default function AdminDashboard({
         "vehicles",
         "requests",
         "verifications",
+        "membership",
       ].includes(subPath)
     ) {
       setActiveTab(subPath);
@@ -45,6 +51,8 @@ export default function AdminDashboard({
   const refreshData = () => {
     setDb(getFleetDatabase());
   };
+
+  const isSentra = user.adminId === "admin-1";
 
   const sidebarNavItems = [
     {
@@ -64,7 +72,7 @@ export default function AdminDashboard({
     },
     {
       id: "requests",
-      label: "Tracker Order",
+      label: "Tracker Order Dokumen",
       path: "/fleet/admin/requests",
     },
     {
@@ -72,6 +80,16 @@ export default function AdminDashboard({
       label: "Verifikasi Dokumen",
       path: "/fleet/admin/verifications",
     },
+    // Membership management is exclusive to Admin Sentra
+    ...(isSentra
+      ? [
+          {
+            id: "membership",
+            label: "Request Membership",
+            path: "/fleet/admin/membership",
+          },
+        ]
+      : []),
   ];
 
   return (
@@ -118,9 +136,11 @@ export default function AdminDashboard({
                 {activeTab === "dashboard" && "Dasbor Bisnis Admin"}
                 {activeTab === "clients" && "Database Klien B2B"}
                 {activeTab === "vehicles" && "Pusat Data Armada Nasional"}
-                {activeTab === "requests" && "Tracker Order & Jasa KIR/STNK"}
+                {activeTab === "requests" && "Tracker Order Dokumen KIR/STNK"}
                 {activeTab === "verifications" &&
                   "Antrean Verifikasi Dokumen Klien"}
+                {activeTab === "membership" &&
+                  "Request Membership & Langganan"}
               </h1>
               <p>
                 {activeTab === "dashboard" &&
@@ -133,6 +153,8 @@ export default function AdminDashboard({
                   "Kelola antrean dan proses pengerjaan perpanjangan berkas."}
                 {activeTab === "verifications" &&
                   "Tinjau dan verifikasi file pindaian dokumen KIR/STNK yang diunggah."}
+                {activeTab === "membership" &&
+                  "Tinjau dan setujui permintaan perubahan paket membership dari klien (hanya Admin Sentra)."}
               </p>
             </div>
             {(() => {
@@ -187,6 +209,13 @@ export default function AdminDashboard({
           )}
           {activeTab === "verifications" && (
             <VerificationsView
+              db={db}
+              adminId={user.adminId}
+              onUpdate={refreshData}
+            />
+          )}
+          {activeTab === "membership" && (
+            <MembershipRequestsView
               db={db}
               adminId={user.adminId}
               onUpdate={refreshData}
@@ -1238,6 +1267,273 @@ function VerificationsView({ db, adminId, onUpdate }) {
               </div>
             </div>
           ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ----------------------------------------------------
+// MEMBERSHIP REQUESTS (Sentra-only review queue)
+// ----------------------------------------------------
+function MembershipRequestsView({ db, adminId, onUpdate }) {
+  const [filter, setFilter] = useState("pending"); // pending | all
+  const requests = getMembershipRequestsForAdmin(adminId);
+  const visible =
+    filter === "pending"
+      ? requests.filter((r) => r.status === "pending")
+      : requests;
+  const sorted = [...visible].sort(
+    (a, b) => new Date(b.createdAt) - new Date(a.createdAt),
+  );
+
+  const requestTypeLabel = (t) =>
+    t === "cancel"
+      ? "Berhenti Berlangganan"
+      : t === "upgrade"
+        ? "Upgrade"
+        : "Pindah Paket";
+
+  const handleResolve = (req, decision) => {
+    const verb = decision === "approve" ? "menyetujui" : "menolak";
+    let confirmMsg = `Yakin ${verb} permintaan ${requestTypeLabel(req.requestType).toLowerCase()} dari ${req.companyName}?`;
+    if (decision === "approve") {
+      if (req.requestType === "cancel") {
+        confirmMsg +=
+          "\n\nAkun klien akan turun ke paket Free (maks. 5 kendaraan) dan status langganan menjadi Dibatalkan.";
+      } else if (req.requestedTier) {
+        confirmMsg += `\n\nPaket klien akan diubah menjadi ${getTierConfig(req.requestedTier).name}.`;
+      }
+    }
+    if (!confirm(confirmMsg)) return;
+
+    let adminNote = "";
+    if (decision === "reject") {
+      const reason = prompt("Alasan penolakan (akan terlihat oleh klien):");
+      if (reason === null) return;
+      if (!reason.trim()) {
+        alert("Alasan penolakan harus diisi.");
+        return;
+      }
+      adminNote = reason.trim();
+    } else {
+      adminNote = "Disetujui oleh Admin Sentra.";
+    }
+
+    resolveMembershipRequest(req.id, decision, adminNote);
+    onUpdate();
+    alert(
+      decision === "approve"
+        ? "Permintaan disetujui dan paket klien telah diperbarui."
+        : "Permintaan telah ditolak.",
+    );
+  };
+
+  const pendingCount = requests.filter((r) => r.status === "pending").length;
+
+  return (
+    <div className="fleet-card">
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: "20px",
+          flexWrap: "wrap",
+          gap: "12px",
+        }}
+      >
+        <h2
+          style={{
+            fontSize: "16px",
+            fontWeight: "800",
+            margin: 0,
+            color: "#1C3967",
+          }}
+        >
+          Antrean Permintaan Membership
+          {pendingCount > 0 && (
+            <span
+              className="badge-status warning"
+              style={{ marginLeft: "10px", fontWeight: "700" }}
+            >
+              {pendingCount} pending
+            </span>
+          )}
+        </h2>
+        <div style={{ display: "flex", gap: "8px" }}>
+          <button
+            className={`fleet-btn fleet-btn-sm ${filter === "pending" ? "fleet-btn-primary" : "fleet-btn-secondary"}`}
+            onClick={() => setFilter("pending")}
+          >
+            Menunggu Tinjauan
+          </button>
+          <button
+            className={`fleet-btn fleet-btn-sm ${filter === "all" ? "fleet-btn-primary" : "fleet-btn-secondary"}`}
+            onClick={() => setFilter("all")}
+          >
+            Semua Riwayat
+          </button>
+        </div>
+      </div>
+
+      {sorted.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "40px", color: "#6b7a96" }}>
+          <span
+            style={{ fontSize: "36px", display: "block", marginBottom: "10px" }}
+          >
+            ✅
+          </span>
+          <p style={{ margin: 0, fontWeight: "600" }}>
+            {filter === "pending"
+              ? "Tidak ada permintaan membership yang menunggu tinjauan."
+              : "Belum ada riwayat permintaan membership."}
+          </p>
+        </div>
+      ) : (
+        <div className="fleet-table-container">
+          <table className="fleet-table">
+            <thead>
+              <tr>
+                <th>Perusahaan</th>
+                <th>PIC</th>
+                <th>Jenis</th>
+                <th>Paket Saat Ini</th>
+                <th>Paket Diminta</th>
+                <th>Asal</th>
+                <th>Tanggal</th>
+                <th>Status</th>
+                <th style={{ textAlign: "center" }}>Aksi</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sorted.map((r) => {
+                const fromAdmin = getAdminById(r.originatingAdminId) || {
+                  name: "Sentra",
+                };
+                return (
+                  <tr key={r.id}>
+                    <td style={{ fontWeight: "700", color: "#1C3967" }}>
+                      {r.companyName}
+                    </td>
+                    <td>
+                      {r.clientPic ? (
+                        <div style={{ fontSize: "12px" }}>
+                          <div>{r.clientPic.picName || "-"}</div>
+                          {r.clientPic.picPhone && (
+                            <div
+                              style={{
+                                fontFamily: "monospace",
+                                color: "#64748b",
+                              }}
+                            >
+                              +{r.clientPic.picPhone}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        "-"
+                      )}
+                    </td>
+                    <td>
+                      <span
+                        className={`badge-status ${r.requestType === "cancel" ? "danger" : r.requestType === "upgrade" ? "success" : "neutral"}`}
+                        style={{ fontWeight: "700" }}
+                      >
+                        {requestTypeLabel(r.requestType)}
+                      </span>
+                    </td>
+                    <td style={{ textTransform: "capitalize" }}>
+                      {getTierConfig(r.currentTier).name}
+                    </td>
+                    <td style={{ textTransform: "capitalize" }}>
+                      {r.requestedTier
+                        ? getTierConfig(r.requestedTier).name
+                        : "— (Free)"}
+                    </td>
+                    <td>
+                      {r.routedToSentra ? (
+                        <span
+                          className="badge-status info"
+                          style={{
+                            fontSize: "11px",
+                            background: "#eff6ff",
+                            color: "#1e40af",
+                            border: "1px solid #bfdbfe",
+                          }}
+                          title={`Dialihkan dari Admin ${fromAdmin.name}`}
+                        >
+                          ↪ {fromAdmin.name}
+                        </span>
+                      ) : (
+                        <span style={{ fontSize: "12px", color: "#64748b" }}>
+                          Langsung
+                        </span>
+                      )}
+                    </td>
+                    <td style={{ fontSize: "12px", color: "#64748b" }}>
+                      {new Date(r.createdAt).toLocaleDateString("id-ID", {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                      })}
+                    </td>
+                    <td>
+                      <span
+                        className={`badge-status ${r.status === "approved" ? "success" : r.status === "rejected" ? "danger" : "warning"}`}
+                      >
+                        {r.status === "approved"
+                          ? "Disetujui"
+                          : r.status === "rejected"
+                            ? "Ditolak"
+                            : "Pending"}
+                      </span>
+                      {r.status !== "pending" && r.adminNote && (
+                        <div
+                          style={{
+                            fontSize: "11px",
+                            color: "#64748b",
+                            marginTop: "4px",
+                            maxWidth: "180px",
+                          }}
+                        >
+                          {r.adminNote}
+                        </div>
+                      )}
+                    </td>
+                    <td style={{ textAlign: "center" }}>
+                      {r.status === "pending" ? (
+                        <div
+                          style={{
+                            display: "flex",
+                            gap: "6px",
+                            justifyContent: "center",
+                          }}
+                        >
+                          <button
+                            className="fleet-btn fleet-btn-success fleet-btn-sm"
+                            onClick={() => handleResolve(r, "approve")}
+                          >
+                            Setujui
+                          </button>
+                          <button
+                            className="fleet-btn fleet-btn-danger fleet-btn-sm"
+                            onClick={() => handleResolve(r, "reject")}
+                          >
+                            Tolak
+                          </button>
+                        </div>
+                      ) : (
+                        <span style={{ color: "#94a3b8", fontSize: "12px" }}>
+                          Selesai
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       )}
     </div>

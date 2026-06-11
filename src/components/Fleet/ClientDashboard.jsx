@@ -12,6 +12,14 @@ import {
   clientRespondToQuote,
   CURRENT_DATE_STR,
   getAdminById,
+  getTierConfig,
+  canAddVehicle,
+  getVehicleLimit,
+  addVehicleAttachment,
+  getVehicleAttachments,
+  deleteDocument,
+  addMembershipRequest,
+  getMembershipRequestsForCompany,
 } from "../../utils/fleetMockData.js";
 
 export default function ClientDashboard({
@@ -227,6 +235,7 @@ export default function ClientDashboard({
             <BillingView
               company={company}
               vehiclesCount={companyVehicles.length}
+              onUpdate={refreshData}
             />
           )}
           {activeTab === "settings" && (
@@ -482,6 +491,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
     plateNumber: "",
     vehicleType: "Delvan",
     testNumber: "",
+    noJktBelumAda: false,
     kirExpiry: "",
     stnkExpiry: "",
     pajakExpiry: "",
@@ -616,6 +626,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
       plateNumber: "",
       vehicleType: "Delvan",
       testNumber: "",
+      noJktBelumAda: false,
       kirExpiry: "",
       stnkExpiry: "",
       pajakExpiry: "",
@@ -667,6 +678,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
       plateNumber: vehicle.plateNumber,
       vehicleType: vehicle.vehicleType,
       testNumber: vehicle.testNumber || "",
+      noJktBelumAda: !!vehicle.noJktBelumAda,
       kirExpiry: vehicle.kirExpiry,
       stnkExpiry: vehicle.stnkExpiry,
       pajakExpiry: vehicle.pajakExpiry,
@@ -815,10 +827,22 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
 
   const handleAddSubmit = (e) => {
     e.preventDefault();
+
+    // Enforce membership vehicle quota
+    const tierId = company.membershipTier || "free";
+    if (!canAddVehicle(tierId, vehicles.length)) {
+      const limit = getVehicleLimit(tierId);
+      const tier = getTierConfig(tierId);
+      alert(
+        `Kuota armada untuk paket ${tier.name} adalah ${limit} kendaraan dan sudah penuh (${vehicles.length}/${limit}).\n\nSilakan ajukan upgrade paket di menu Membership untuk menambah kuota.`,
+      );
+      return;
+    }
+
     if (
       !formData.ownerName ||
       !formData.plateNumber ||
-      !formData.testNumber ||
+      (!formData.testNumber && !formData.noJktBelumAda) ||
       !formData.kirExpiry ||
       !formData.stnkExpiry ||
       !formData.pajakExpiry
@@ -851,7 +875,8 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
       companyId: clientId,
       plateNumber: formData.plateNumber.toUpperCase(),
       vehicleType: formData.vehicleType,
-      testNumber: formData.testNumber,
+      testNumber: formData.noJktBelumAda ? "" : formData.testNumber,
+      noJktBelumAda: !!formData.noJktBelumAda,
       kirExpiry: formData.kirExpiry,
       stnkExpiry: formData.stnkExpiry,
       pajakExpiry: formData.pajakExpiry,
@@ -921,7 +946,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
     if (
       !formData.ownerName ||
       !formData.plateNumber ||
-      !formData.testNumber ||
+      (!formData.testNumber && !formData.noJktBelumAda) ||
       !formData.kirExpiry ||
       !formData.stnkExpiry ||
       !formData.pajakExpiry
@@ -931,7 +956,8 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
     updateVehicle(selectedVehicle.id, {
       plateNumber: formData.plateNumber.toUpperCase(),
       vehicleType: formData.vehicleType,
-      testNumber: formData.testNumber,
+      testNumber: formData.noJktBelumAda ? "" : formData.testNumber,
+      noJktBelumAda: !!formData.noJktBelumAda,
       kirExpiry: formData.kirExpiry,
       stnkExpiry: formData.stnkExpiry,
       pajakExpiry: formData.pajakExpiry,
@@ -1306,9 +1332,41 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
-        <button className="fleet-btn fleet-btn-primary" onClick={handleOpenAdd}>
-          ➕ Tambah Kendaraan
-        </button>
+        {(() => {
+          const tierId = company.membershipTier || "free";
+          const limit = getVehicleLimit(tierId);
+          const isFull = limit !== null && vehicles.length >= limit;
+          return (
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              {limit !== null && (
+                <span
+                  style={{
+                    fontSize: "12px",
+                    fontWeight: "700",
+                    color: isFull ? "#b91c1c" : "#475569",
+                    background: isFull ? "#fef2f2" : "#f1f5f9",
+                    border: `1px solid ${isFull ? "#fecaca" : "#e2e8f0"}`,
+                    padding: "6px 10px",
+                    borderRadius: "6px",
+                    whiteSpace: "nowrap",
+                  }}
+                  title="Kuota armada paket Anda"
+                >
+                  Kuota: {vehicles.length}/{limit}
+                </span>
+              )}
+              <button
+                className="fleet-btn fleet-btn-primary"
+                onClick={handleOpenAdd}
+                disabled={isFull}
+                title={isFull ? "Kuota armada penuh — ajukan upgrade paket" : ""}
+                style={isFull ? { opacity: 0.55, cursor: "not-allowed" } : {}}
+              >
+                ➕ Tambah Kendaraan
+              </button>
+            </div>
+          );
+        })()}
       </div>
 
       <div className="fleet-table-container">
@@ -1596,17 +1654,43 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                 </div>
 
                 <div className="fleet-form-group">
-                  <label className="fleet-label">Nomor Buku Uji KIR *</label>
+                  <label className="fleet-label">Nomor Buku Uji KIR {formData.noJktBelumAda ? "" : "*"}</label>
                   <input
                     type="text"
                     className="fleet-input"
                     placeholder="JKT-xxxxxxx"
-                    value={formData.testNumber}
+                    value={formData.noJktBelumAda ? "" : formData.testNumber}
                     onChange={(e) =>
                       setFormData({ ...formData, testNumber: e.target.value })
                     }
-                    required
+                    disabled={formData.noJktBelumAda}
+                    required={!formData.noJktBelumAda}
+                    style={formData.noJktBelumAda ? { background: "#f1f5f9", color: "#94a3b8" } : {}}
                   />
+                  <label
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      marginTop: "8px",
+                      fontSize: "13px",
+                      color: "#475569",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={formData.noJktBelumAda}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          noJktBelumAda: e.target.checked,
+                          testNumber: e.target.checked ? "" : formData.testNumber,
+                        })
+                      }
+                    />
+                    No JKT belum ada (Buku Uji KIR belum diterbitkan)
+                  </label>
                 </div>
 
                 <div
@@ -3725,7 +3809,9 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                         fontFamily: "monospace",
                       }}
                     >
-                      {vehicleDetailModal.testNumber || "-"}
+                      {vehicleDetailModal.noJktBelumAda
+                        ? "No JKT belum ada"
+                        : vehicleDetailModal.testNumber || "-"}
                     </p>
                   </div>
                   <div
@@ -5459,51 +5545,48 @@ function RequestsView({ requests, onUpdate }) {
 // ====================================================
 // SUB-VIEW 5: MEMBERSHIP & BILLING
 // ====================================================
-function BillingView({ company, vehiclesCount }) {
-  const tiers = [
-    {
-      id: "kecil",
-      name: "Sentra Fleet Kecil",
-      price: "Rp 499.000",
-      period: "/ bulan",
-      quota: "1 - 30 Kendaraan",
-      features: [
-        "Hingga 30 data armada kendaraan",
-        "Notifikasi warning jatuh tempo H-90 s/d H-7",
-        "Upload pindaian berkas (KIR / STNK)",
-        "Tombol Urus Sekarang (Layanan Premium)",
-        "CS support WhatsApp bisnis standard",
-      ],
-    },
-    {
-      id: "menengah",
-      name: "Sentra Fleet Menengah",
-      price: "Rp 999.000",
-      period: "/ bulan",
-      quota: "31 - 100 Kendaraan",
-      features: [
-        "Hingga 100 data armada kendaraan",
-        "Semua fitur paket Fleet Kecil",
-        "Prioritas pelayanan verifikasi dokumen",
-        "Diskon potongan biaya jasa perpanjangan",
-        "PIC CRM Dedicated dari Sentra KIR",
-      ],
-    },
-    {
-      id: "besar",
-      name: "Sentra Fleet Besar (Enterprise)",
-      price: "Custom Pricing",
-      period: "",
-      quota: "100+ Kendaraan",
-      features: [
-        "Kuota kendaraan tanpa batas (Custom)",
-        "Semua fitur paket Fleet Menengah",
-        "Integrasi API database internal logistik",
-        "Layanan kurir jemput-antar berkas VIP gratis",
-        "Syarat pembayaran berjangka (Term of Payment)",
-      ],
-    },
-  ];
+function BillingView({ company, vehiclesCount, onUpdate }) {
+  const tierOrder = ["free", "kecil", "menengah", "besar"];
+  const tiers = tierOrder.map((id) => getTierConfig(id));
+  const currentTier = getTierConfig(company.membershipTier || "free");
+  const currentLimit = currentTier.vehicleLimit;
+
+  const myRequests = getMembershipRequestsForCompany(company.id);
+  const pendingReq = myRequests.find((r) => r.status === "pending");
+  const managingAdmin = getAdminById(company.adminId || "admin-1");
+
+  const submitMembershipRequest = (requestedTierId, requestType) => {
+    if (pendingReq) {
+      alert(
+        "Anda masih memiliki permintaan membership yang sedang diproses Admin Sentra. Mohon tunggu hingga selesai.",
+      );
+      return;
+    }
+    const target = getTierConfig(requestedTierId);
+    let confirmMsg = "";
+    if (requestType === "cancel") {
+      confirmMsg =
+        "Ajukan berhenti berlangganan? Setelah disetujui Admin Sentra, akun Anda akan turun ke paket Free (maks. 5 kendaraan).";
+    } else {
+      confirmMsg = `Ajukan ${requestType === "upgrade" ? "upgrade" : "perubahan"} ke paket ${target.name}? Permintaan akan ditinjau oleh Admin Sentra.`;
+    }
+    if (!confirm(confirmMsg)) return;
+
+    addMembershipRequest({
+      companyId: company.id,
+      requestedTier: requestType === "cancel" ? null : requestedTierId,
+      requestType,
+    });
+    const routedNote =
+      (company.adminId || "admin-1") !== "admin-1"
+        ? "\n\nCatatan: Pengaturan membership dikelola oleh Admin Sentra, sehingga permintaan Anda otomatis dialihkan ke Admin Sentra."
+        : "";
+    alert(
+      "Permintaan membership berhasil dikirim ke Admin Sentra untuk ditinjau." +
+        routedNote,
+    );
+    onUpdate && onUpdate();
+  };
 
   return (
     <div>
@@ -5537,27 +5620,79 @@ function BillingView({ company, vehiclesCount }) {
                 fontSize: "15px",
               }}
             >
-              {company.membershipTier === "kecil" && "Sentra Fleet Kecil"}
-              {company.membershipTier === "menengah" && "Sentra Fleet Menengah"}
-              {company.membershipTier === "besar" && "Sentra Fleet Besar"}
+              {currentTier.name}
             </p>
             <p style={{ margin: 0, fontSize: "13px", color: "#475569" }}>
-              Penggunaan Armada: <strong>{vehiclesCount}</strong> kendaraan
+              Penggunaan Armada: <strong>{vehiclesCount}</strong>
+              {currentLimit !== null ? ` / ${currentLimit}` : ""} kendaraan
               terdaftar. Status Langganan:{" "}
-              <span style={{ color: "#16a34a", fontWeight: "700" }}>AKTIF</span>
+              <span
+                style={{
+                  color:
+                    company.subscriptionStatus === "cancelled"
+                      ? "#dc2626"
+                      : "#16a34a",
+                  fontWeight: "700",
+                }}
+              >
+                {company.subscriptionStatus === "cancelled"
+                  ? "DIBATALKAN"
+                  : "AKTIF"}
+              </span>
             </p>
           </div>
           <div style={{ textAlign: "right" }}>
             <span
               style={{ fontSize: "18px", fontWeight: "800", color: "#1C3967" }}
             >
-              {company.membershipTier === "kecil" && "Rp 499.000 / bln"}
-              {company.membershipTier === "menengah" && "Rp 999.000 / bln"}
-              {company.membershipTier === "besar" && "Custom Pricing"}
+              {currentTier.priceLabel}
+              {currentTier.period}
             </span>
           </div>
         </div>
+
+        <div
+          style={{
+            marginTop: "12px",
+            fontSize: "12px",
+            color: "#64748b",
+            borderTop: "1px dashed #bfdbfe",
+            paddingTop: "10px",
+          }}
+        >
+          ℹ️ Pengaturan paket membership (upgrade, downgrade, berhenti
+          berlangganan) sepenuhnya dikelola dan disetujui oleh{" "}
+          <strong>Admin Sentra</strong>.
+          {(company.adminId || "admin-1") !== "admin-1" && managingAdmin && (
+            <>
+              {" "}
+              Akun Anda dikelola oleh <strong>Admin {managingAdmin.name}</strong>
+              , namun permintaan membership akan otomatis dialihkan ke Admin
+              Sentra.
+            </>
+          )}
+        </div>
       </div>
+
+      {/* Pending request banner */}
+      {pendingReq && (
+        <div
+          className="fleet-card"
+          style={{
+            background: "#fffbeb",
+            border: "1px solid #fde68a",
+            marginTop: "16px",
+          }}
+        >
+          <p style={{ margin: 0, fontSize: "13px", color: "#b45309", fontWeight: "600" }}>
+            ⏳ Permintaan{" "}
+            {pendingReq.requestType === "cancel"
+              ? "berhenti berlangganan"
+              : `perubahan ke paket ${getTierConfig(pendingReq.requestedTier).name}`}{" "}
+            sedang menunggu persetujuan Admin Sentra.
+          </p>
+        </div>
+      )}
 
       {/* Tiers Grid */}
       <h2
@@ -5572,7 +5707,10 @@ function BillingView({ company, vehiclesCount }) {
       </h2>
       <div className="membership-grid">
         {tiers.map((t) => {
-          const isActive = company.membershipTier === t.id;
+          const isActive = (company.membershipTier || "free") === t.id;
+          const currentIdx = tierOrder.indexOf(company.membershipTier || "free");
+          const thisIdx = tierOrder.indexOf(t.id);
+          const isUpgrade = thisIdx > currentIdx;
           return (
             <div
               key={t.id}
@@ -5583,7 +5721,7 @@ function BillingView({ company, vehiclesCount }) {
               )}
               <h3>{t.name}</h3>
               <div className="membership-price">
-                {t.price} <span>{t.period}</span>
+                {t.priceLabel} <span>{t.period}</span>
               </div>
               <p
                 style={{
@@ -5608,19 +5746,90 @@ function BillingView({ company, vehiclesCount }) {
                     marginTop: "20px",
                     justifyContent: "center",
                   }}
+                  disabled={!!pendingReq}
                   onClick={() =>
-                    alert(
-                      "Fitur upgrade paket dapat dilakukan dengan menghubungi tim Sales Sentra KIR.",
+                    submitMembershipRequest(
+                      t.id,
+                      isUpgrade ? "upgrade" : "downgrade",
                     )
                   }
                 >
-                  Ajukan Upgrade
+                  {isUpgrade ? "Ajukan Upgrade" : "Ajukan Pindah Paket"}
                 </button>
               )}
             </div>
           );
         })}
       </div>
+
+      {/* Cancel subscription */}
+      {(company.membershipTier || "free") !== "free" &&
+        company.subscriptionStatus !== "cancelled" && (
+          <div style={{ marginTop: "24px", textAlign: "right" }}>
+            <button
+              className="fleet-btn fleet-btn-danger fleet-btn-sm"
+              disabled={!!pendingReq}
+              onClick={() => submitMembershipRequest(null, "cancel")}
+            >
+              Ajukan Berhenti Berlangganan
+            </button>
+          </div>
+        )}
+
+      {/* Request history */}
+      {myRequests.length > 0 && (
+        <div className="fleet-card" style={{ marginTop: "24px" }}>
+          <h3
+            style={{ fontSize: "15px", fontWeight: "800", color: "#1C3967", margin: "0 0 16px 0" }}
+          >
+            Riwayat Permintaan Membership
+          </h3>
+          <div className="fleet-table-container">
+            <table className="fleet-table" style={{ fontSize: "13px" }}>
+              <thead>
+                <tr>
+                  <th>Jenis</th>
+                  <th>Paket Diminta</th>
+                  <th>Status</th>
+                  <th>Tanggal</th>
+                  <th>Catatan Admin</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[...myRequests].reverse().map((r) => (
+                  <tr key={r.id}>
+                    <td style={{ textTransform: "capitalize" }}>
+                      {r.requestType === "cancel"
+                        ? "Berhenti"
+                        : r.requestType}
+                    </td>
+                    <td>{r.requestedTier ? getTierConfig(r.requestedTier).name : "-"}</td>
+                    <td>
+                      <span
+                        className={`badge-status ${r.status === "approved" ? "success" : r.status === "rejected" ? "danger" : "warning"}`}
+                      >
+                        {r.status === "approved"
+                          ? "Disetujui"
+                          : r.status === "rejected"
+                            ? "Ditolak"
+                            : "Pending"}
+                      </span>
+                    </td>
+                    <td>
+                      {new Date(r.createdAt).toLocaleDateString("id-ID", {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                      })}
+                    </td>
+                    <td style={{ color: "#64748b" }}>{r.adminNote || "-"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

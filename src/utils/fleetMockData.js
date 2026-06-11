@@ -54,11 +54,112 @@ export const ADMINS = [
   }
 ];
 
-// Initialize database in localStorage (start empty)
+// ----------------------------------------------------
+// MEMBERSHIP TIER CONFIG (Sentra controls membership)
+// ----------------------------------------------------
+// vehicleLimit: null = unlimited. Free tier is capped at 5 vehicles.
+export const MEMBERSHIP_TIERS = {
+  free: {
+    id: 'free',
+    name: 'Sentra Fleet Free',
+    price: 0,
+    priceLabel: 'Gratis',
+    period: '',
+    quota: '1 - 5 Kendaraan',
+    vehicleLimit: 5,
+    features: [
+      'Hingga 5 data armada kendaraan',
+      'Notifikasi jatuh tempo dasar (H-30 & H-7)',
+      'Pantau status KIR / STNK / Pajak',
+      'Ajukan 1 order pengurusan aktif dalam satu waktu',
+      'CS support via email standar',
+    ],
+    // Capability flags used to differentiate tiers across the UI
+    canUploadDocs: false,
+    maxActiveRequests: 1,
+    canUrusSekarang: true,
+    prioritySupport: false,
+  },
+  kecil: {
+    id: 'kecil',
+    name: 'Sentra Fleet Kecil',
+    price: 499000,
+    priceLabel: 'Rp 499.000',
+    period: '/ bulan',
+    quota: '1 - 30 Kendaraan',
+    vehicleLimit: 30,
+    features: [
+      'Hingga 30 data armada kendaraan',
+      'Notifikasi warning jatuh tempo H-90 s/d H-7',
+      'Upload pindaian & dokumen berkas (KIR / STNK / PDF)',
+      'Tombol Urus Sekarang tanpa batas antrean',
+      'CS support WhatsApp bisnis standard',
+    ],
+    canUploadDocs: true,
+    maxActiveRequests: null,
+    canUrusSekarang: true,
+    prioritySupport: false,
+  },
+  menengah: {
+    id: 'menengah',
+    name: 'Sentra Fleet Menengah',
+    price: 999000,
+    priceLabel: 'Rp 999.000',
+    period: '/ bulan',
+    quota: '31 - 100 Kendaraan',
+    vehicleLimit: 100,
+    features: [
+      'Hingga 100 data armada kendaraan',
+      'Semua fitur paket Fleet Kecil',
+      'Prioritas pelayanan verifikasi dokumen',
+      'Diskon potongan biaya jasa perpanjangan',
+      'PIC CRM Dedicated dari Sentra KIR',
+      'Laporan ekspor data armada (CSV)',
+    ],
+    canUploadDocs: true,
+    maxActiveRequests: null,
+    canUrusSekarang: true,
+    prioritySupport: true,
+  },
+  besar: {
+    id: 'besar',
+    name: 'Sentra Fleet Besar (Enterprise)',
+    price: null,
+    priceLabel: 'Custom Pricing',
+    period: '',
+    quota: '100+ Kendaraan',
+    vehicleLimit: null,
+    features: [
+      'Kuota kendaraan tanpa batas (Custom)',
+      'Semua fitur paket Fleet Menengah',
+      'Integrasi API database internal logistik',
+      'Layanan kurir jemput-antar berkas VIP gratis',
+      'Syarat pembayaran berjangka (Term of Payment)',
+      'Account Manager khusus & SLA prioritas tertinggi',
+    ],
+    canUploadDocs: true,
+    maxActiveRequests: null,
+    canUrusSekarang: true,
+    prioritySupport: true,
+  },
+};
+
+export const getTierConfig = (tierId) => MEMBERSHIP_TIERS[tierId] || MEMBERSHIP_TIERS.free;
+
+// Returns the max vehicles allowed for a company's tier (null = unlimited)
+export const getVehicleLimit = (tierId) => getTierConfig(tierId).vehicleLimit;
+
+// Check whether a company can add another vehicle given its tier and current count
+export const canAddVehicle = (tierId, currentCount) => {
+  const limit = getVehicleLimit(tierId);
+  if (limit === null) return true;
+  return currentCount < limit;
+};
+
 export const initFleetData = () => {
   const existing = localStorage.getItem(STORAGE_KEY);
   if (!existing) {
-    const db = { admins: ADMINS, companies: [], vehicles: [], requests: [], documents: [] };
+    const db = { admins: ADMINS, companies: [], vehicles: [], requests: [], documents: [], membershipRequests: [] };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
     return db;
   }
@@ -66,8 +167,12 @@ export const initFleetData = () => {
   // Ensure admins array exists for migration
   if (!db.admins) {
     db.admins = ADMINS;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
   }
+  // Migration: ensure membershipRequests array exists
+  if (!db.membershipRequests) {
+    db.membershipRequests = [];
+  }
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
   return db;
 };
 
@@ -205,19 +310,17 @@ export const canAdminHandleService = (adminId, serviceType) => {
   return admin.allowedServices.includes(serviceType);
 };
 
-// Get clients for admin (including cross-routed requests)
+// Get clients for admin. Each admin ONLY sees the clients they manage.
+// Cross-admin requests remain visible separately via getRequestsForAdmin()
+// (each routed request carries its own clientPic contact snapshot), so the
+// client database itself must stay strictly partitioned per admin.
 export const getClientsForAdminView = (adminId) => {
   const db = getFleetDatabase();
-
-  if (adminId === 'admin-1') {
-    // Admin 1 sees only their own clients (default to admin-1 if undefined)
-    return db.companies.filter(c => (c.adminId || 'admin-1') === 'admin-1');
-  } else if (adminId === 'admin-2') {
-    // Admin 2 sees their own clients + clients from other admins (for cross-routed requests visibility)
-    return db.companies;
-  }
-
-  return [];
+  // Exclude admin-owned fleet companies (those live on the dedicated
+  // "Armada Khusus Admin" page, not the registered-client database).
+  return db.companies.filter(
+    c => (c.adminId || 'admin-1') === adminId && c.ownerType !== 'admin'
+  );
 };
 
 // Get requests for admin
@@ -485,3 +588,175 @@ export const verifyDocument = (docId, status, reason = '') => {
   }
   return null;
 };
+
+// Add a document attachment (base64) tied to a vehicle. Used by the
+// Add/Edit Vehicle modals on both client and admin side.
+// fileData is a data URL string (≤1MB enforced by caller/UI).
+export const addVehicleAttachment = (attachment) => {
+  const db = getFleetDatabase();
+  const vehicle = db.vehicles.find(v => v.id === attachment.vehicleId);
+  const company = vehicle ? db.companies.find(c => c.id === vehicle.companyId) : null;
+
+  const newDoc = {
+    id: `doc-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    vehicleId: attachment.vehicleId,
+    docType: attachment.docType || 'other',
+    docTypeLabel: attachment.docTypeLabel || 'Dokumen Pendukung',
+    fileName: attachment.fileName,
+    fileData: attachment.fileData, // data URL (base64)
+    fileSize: attachment.fileSize || 0,
+    mimeType: attachment.mimeType || '',
+    plateNumber: vehicle ? vehicle.plateNumber : 'Unknown Plate',
+    companyName: company ? company.name : (attachment.companyName || 'Unknown Company'),
+    uploadedBy: attachment.uploadedBy || 'client',
+    verificationStatus: 'pending',
+    uploadedAt: new Date().toISOString(),
+  };
+  db.documents.push(newDoc);
+  saveFleetDatabase(db);
+  return newDoc;
+};
+
+// Get all attachments for a vehicle
+export const getVehicleAttachments = (vehicleId) => {
+  const db = getFleetDatabase();
+  return db.documents.filter(d => d.vehicleId === vehicleId && d.fileData);
+};
+
+// Remove an attachment
+export const deleteDocument = (docId) => {
+  const db = getFleetDatabase();
+  db.documents = db.documents.filter(d => d.id !== docId);
+  saveFleetDatabase(db);
+  return true;
+};
+
+// ----------------------------------------------------
+// MEMBERSHIP REQUESTS (Sentra is the membership authority)
+// ----------------------------------------------------
+// All membership changes (upgrade / downgrade / cancel) are reviewed by
+// Admin Sentra (admin-1) regardless of which admin manages the client.
+const SENTRA_ADMIN_ID = 'admin-1';
+
+// Client (or admin on behalf) submits a membership request.
+// requestType: 'upgrade' | 'downgrade' | 'cancel'
+export const addMembershipRequest = (data) => {
+  const db = getFleetDatabase();
+  const company = db.companies.find(c => c.id === data.companyId);
+  const originatingAdminId = company ? (company.adminId || 'admin-1') : 'admin-1';
+
+  const newReq = {
+    id: `mreq-${Date.now()}`,
+    companyId: data.companyId,
+    companyName: company ? company.name : 'Unknown',
+    currentTier: company ? (company.membershipTier || 'free') : 'free',
+    requestedTier: data.requestedTier || null,
+    requestType: data.requestType, // upgrade | downgrade | cancel
+    note: data.note || '',
+    status: 'pending', // pending | approved | rejected
+    originatingAdminId,
+    // Always routed to Sentra for decision
+    assignedAdminId: SENTRA_ADMIN_ID,
+    routedToSentra: originatingAdminId !== SENTRA_ADMIN_ID,
+    clientPic: company ? {
+      picName: company.picName || '',
+      picPhone: company.picPhone || '',
+      email: company.email || '',
+    } : null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+  db.membershipRequests.push(newReq);
+  saveFleetDatabase(db);
+  return newReq;
+};
+
+// Membership requests assigned to an admin (only Sentra in practice)
+export const getMembershipRequestsForAdmin = (adminId) => {
+  const db = getFleetDatabase();
+  return db.membershipRequests.filter(r => r.assignedAdminId === adminId);
+};
+
+// Membership requests created for a company (client view)
+export const getMembershipRequestsForCompany = (companyId) => {
+  const db = getFleetDatabase();
+  return db.membershipRequests.filter(r => r.companyId === companyId);
+};
+
+// Sentra acts on a membership request: 'approve' applies the tier change.
+export const resolveMembershipRequest = (requestId, decision, adminNote = '') => {
+  const db = getFleetDatabase();
+  const index = db.membershipRequests.findIndex(r => r.id === requestId);
+  if (index === -1) return null;
+
+  const req = db.membershipRequests[index];
+  if (decision === 'approve') {
+    req.status = 'approved';
+    const compIndex = db.companies.findIndex(c => c.id === req.companyId);
+    if (compIndex !== -1) {
+      if (req.requestType === 'cancel') {
+        // Downgrade to free on cancellation (keeps account usable but limited)
+        db.companies[compIndex].membershipTier = 'free';
+        db.companies[compIndex].membershipPrice = 0;
+        db.companies[compIndex].subscriptionStatus = 'cancelled';
+      } else if (req.requestedTier) {
+        const tier = getTierConfig(req.requestedTier);
+        db.companies[compIndex].membershipTier = req.requestedTier;
+        db.companies[compIndex].membershipPrice = tier.price;
+        db.companies[compIndex].subscriptionStatus = 'active';
+      }
+    }
+  } else {
+    req.status = 'rejected';
+  }
+  req.adminNote = adminNote;
+  req.updatedAt = new Date().toISOString();
+  saveFleetDatabase(db);
+  return req;
+};
+
+// Sentra directly changes a client's membership tier (manual override).
+export const setCompanyMembership = (companyId, tierId) => {
+  const db = getFleetDatabase();
+  const index = db.companies.findIndex(c => c.id === companyId);
+  if (index === -1) return null;
+  const tier = getTierConfig(tierId);
+  db.companies[index].membershipTier = tierId;
+  db.companies[index].membershipPrice = tier.price;
+  db.companies[index].subscriptionStatus = 'active';
+  saveFleetDatabase(db);
+  return db.companies[index];
+};
+
+// ----------------------------------------------------
+// ADMIN-OWNED FLEET (Armada Khusus Admin)
+// ----------------------------------------------------
+// Companies/PTs created by an admin directly (not registered clients).
+// Flagged with ownerType: 'admin' so they are excluded from the client DB views.
+export const addAdminCompany = (adminId, data) => {
+  const db = getFleetDatabase();
+  const newCompany = {
+    id: `acomp-${Date.now()}`,
+    name: data.name,
+    picName: data.picName || '',
+    picPhone: data.picPhone || '',
+    email: data.email || '',
+    address: data.address || '',
+    membershipTier: 'free',
+    membershipPrice: 0,
+    status: 'active',
+    adminId,
+    ownerType: 'admin', // distinguishes admin-owned PT from registered clients
+    createdAt: new Date().toISOString(),
+  };
+  db.companies.push(newCompany);
+  saveFleetDatabase(db);
+  return newCompany;
+};
+
+// Get admin-owned companies for an admin
+export const getAdminOwnedCompanies = (adminId) => {
+  const db = getFleetDatabase();
+  return db.companies.filter(c => c.ownerType === 'admin' && c.adminId === adminId);
+};
+

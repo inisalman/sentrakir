@@ -721,7 +721,7 @@ function RegisterPage({ onLogin, navigate }) {
     email: "",
     password: "",
     address: "",
-    membershipTier: "kecil", // kecil, menengah, besar
+    membershipTier: "free", // free, kecil, menengah, besar
   });
   const [registrationCode, setRegistrationCode] = useState("");
   const [error, setError] = useState("");
@@ -773,6 +773,7 @@ function RegisterPage({ onLogin, navigate }) {
     // Add company
     const newCompanyId = `comp-${Date.now()}`;
     const pricing = {
+      free: 0,
       kecil: 499000,
       menengah: 999000,
       besar: "Custom Pricing",
@@ -787,6 +788,7 @@ function RegisterPage({ onLogin, navigate }) {
       address: formData.address,
       membershipTier: formData.membershipTier,
       membershipPrice: pricing[formData.membershipTier],
+      subscriptionStatus: "active",
       status: "active",
       adminId: codeResult.admin.id, // Store which admin handles this client
       registrationCodeUsed: registrationCode.trim().toUpperCase()
@@ -906,6 +908,9 @@ function RegisterPage({ onLogin, navigate }) {
               onChange={handleChange}
               style={{ background: "white" }}
             >
+              <option value="free">
+                Free (Maks. 5 Kendaraan) - Gratis
+              </option>
               <option value="kecil">
                 Kecil (1-30 Kendaraan) - Rp 499rb/bln
               </option>
@@ -1027,9 +1032,11 @@ function RegisterPage({ onLogin, navigate }) {
                   picPhone: "",
                   email: email,
                   address: "",
-                  membershipTier: "kecil",
-                  membershipPrice: 499000,
+                  membershipTier: "free",
+                  membershipPrice: 0,
+                  subscriptionStatus: "active",
                   status: "active",
+                  adminId: "admin-1",
                 };
 
                 db.companies.push(newCompany);
