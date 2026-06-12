@@ -17,6 +17,7 @@ import {
   getTierConfig,
   MEMBERSHIP_TIERS,
 } from "../../utils/fleetMockData.js";
+import { getAllCompanies } from "../../utils/supabaseClientAuth.js";
 
 export default function AdminDashboard({
   user,
@@ -48,9 +49,33 @@ export default function AdminDashboard({
   }, [currentPath]);
 
   // Refresh local state when DB changes
-  const refreshData = () => {
-    setDb(getFleetDatabase());
+  const refreshData = async () => {
+    const mockDb = getFleetDatabase();
+    try {
+      const supabaseCompanies = await getAllCompanies();
+      // Replace mock companies with supabase companies & map snake_case to camelCase
+      mockDb.companies = supabaseCompanies.map(c => ({
+        ...c,
+        adminId: c.admin_id,
+        picName: c.pic_name,
+        picPhone: c.pic_phone,
+        membershipTier: c.membership_tier,
+        membershipPrice: c.membership_price,
+        subscriptionStatus: c.subscription_status
+      }));
+
+      // Update local storage so that other functions like getClientsForAdminView
+      // that read from getFleetDatabase() directly get the updated data
+      localStorage.setItem("sentra_fleet_database", JSON.stringify(mockDb));
+    } catch (e) {
+      console.error("Failed to load companies from Supabase", e);
+    }
+    setDb({ ...mockDb });
   };
+
+  useEffect(() => {
+    refreshData();
+  }, []);
 
   const isSentra = user.adminId === "admin-1";
 

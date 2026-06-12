@@ -5,12 +5,16 @@ import "../../styles/fleet.css";
 import {
   getFleetDatabase,
   initFleetData,
-  getAdminByEmail,
-  getAdminByCode,
-  getAdminById,
-  validateRegistrationCode,
   ADMINS
 } from "../../utils/fleetMockData.js";
+import {
+  getAdminByEmail,
+  validateRegistrationCode
+} from "../../utils/supabaseAdmin.js";
+import {
+  getCompanyByEmail,
+  createCompany
+} from "../../utils/supabaseClientAuth.js";
 import ClientDashboard from "./ClientDashboard.jsx";
 import AdminDashboard from "./AdminDashboard.jsx";
 
@@ -183,24 +187,22 @@ function LoginPage({ onLogin, navigate }) {
     if (roleTab === "admin") {
       // Admin Authentication
       const admin = await getAdminByEmail(email);
-      if (admin) {
+      if (admin && admin.password === password) {
         onLogin("admin", admin.id, email, `${admin.name} Admin`);
       } else {
         setError("Kredensial Admin tidak valid.");
       }
     } else {
       // Client Authentication
-      const company = db.companies.find(
-        (c) => c.email.toLowerCase() === email.toLowerCase(),
-      );
-      if (company) {
+      const company = await getCompanyByEmail(email);
+      if (company && company.password === password) {
         if (company.status !== "active") {
           setError("Akun perusahaan Anda sedang tidak aktif.");
           return;
         }
         onLogin("client", company.id, company.email, company.name);
       } else {
-        setError("Email perusahaan tidak terdaftar.");
+        setError("Kredensial Perusahaan tidak valid.");
       }
     }
   };
@@ -760,10 +762,8 @@ function RegisterPage({ onLogin, navigate }) {
     const db = getFleetDatabase();
 
     // Check if email already registered
-    const emailExists = db.companies.some(
-      (c) => c.email.toLowerCase() === formData.email.toLowerCase(),
-    );
-    if (emailExists) {
+    const existingCompany = await getCompanyByEmail(formData.email);
+    if (existingCompany) {
       setError(
         "Email ini sudah terdaftar. Silakan gunakan email lain atau login.",
       );
@@ -782,20 +782,23 @@ function RegisterPage({ onLogin, navigate }) {
     const newCompany = {
       id: newCompanyId,
       name: formData.name,
-      picName: formData.picName,
-      picPhone: formData.picPhone,
+      pic_name: formData.picName,
+      pic_phone: formData.picPhone,
       email: formData.email,
+      password: formData.password,
       address: formData.address,
-      membershipTier: formData.membershipTier,
-      membershipPrice: pricing[formData.membershipTier],
-      subscriptionStatus: "active",
+      membership_tier: formData.membershipTier,
+      membership_price: typeof pricing[formData.membershipTier] === 'number' ? pricing[formData.membershipTier] : 0,
+      subscription_status: "active",
       status: "active",
-      adminId: codeResult.admin.id, // Store which admin handles this client
-      registrationCodeUsed: registrationCode.trim().toUpperCase()
+      admin_id: codeResult.admin.id // Store which admin handles this client
     };
 
-    db.companies.push(newCompany);
-    localStorage.setItem("sentra_fleet_database", JSON.stringify(db));
+    const result = await createCompany(newCompany);
+    if (!result.success) {
+      setError("Gagal mendaftarkan perusahaan: " + result.error);
+      return;
+    }
 
     // Log in immediately
     onLogin("client", newCompanyId, formData.email, formData.name);

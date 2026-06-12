@@ -21,6 +21,14 @@ import {
   addMembershipRequest,
   getMembershipRequestsForCompany,
 } from "../../utils/fleetMockData.js";
+import {
+  getVehiclesByCompanyId,
+  createVehicle,
+  updateVehicleSupabase,
+  deleteVehicleSupabase,
+  getAllVehicles
+} from "../../utils/supabaseVehicles.js";
+import { getAllCompanies } from "../../utils/supabaseClientAuth.js";
 
 export default function ClientDashboard({
   user,
@@ -52,9 +60,46 @@ export default function ClientDashboard({
   }, [currentPath]);
 
   // Refresh local state when DB changes
-  const refreshData = () => {
-    setDb(getFleetDatabase());
+  const refreshData = async () => {
+    const mockDb = getFleetDatabase();
+    try {
+      // 1. Fetch updated companies from Supabase
+      const supabaseCompanies = await getAllCompanies();
+      mockDb.companies = supabaseCompanies.map(c => ({
+        ...c,
+        adminId: c.admin_id,
+        picName: c.pic_name,
+        picPhone: c.pic_phone,
+        membershipTier: c.membership_tier,
+        membershipPrice: c.membership_price,
+        subscriptionStatus: c.subscription_status
+      }));
+
+      // 2. Fetch updated vehicles from Supabase
+      const supabaseVehicles = await getAllVehicles();
+      mockDb.vehicles = supabaseVehicles.map(v => ({
+        ...v,
+        companyId: v.company_id,
+        plateNumber: v.plate_number,
+        vehicleType: v.jenis_kendaraan,
+        kirStatus: v.status_kir,
+        stnkStatus: v.status_stnk,
+        // Untuk mock app, kita isi default expiry kalau kosong biar UI ngga error
+        kirExpiry: v.kir_expiry || "2026-12-31",
+        stnkExpiry: v.stnk_expiry || "2031-12-31",
+        pajakExpiry: v.pajak_expiry || "2026-12-31"
+      }));
+
+      localStorage.setItem("sentra_fleet_database", JSON.stringify(mockDb));
+    } catch (e) {
+      console.error("Failed to sync DB with Supabase", e);
+    }
+    setDb({ ...mockDb });
   };
+
+  useEffect(() => {
+    refreshData();
+  }, []);
 
   // Get current company details
   const company = db.companies.find((c) => c.id === user.clientId) || {};
@@ -825,7 +870,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
     setModalType("urus");
   };
 
-  const handleAddSubmit = (e) => {
+  const handleAddSubmit = async (e) => {
     e.preventDefault();
 
     // Enforce membership vehicle quota
@@ -871,7 +916,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
       return;
     }
 
-    addVehicle({
+    const result = await createVehicle({
       companyId: clientId,
       plateNumber: formData.plateNumber.toUpperCase(),
       vehicleType: formData.vehicleType,
@@ -1030,13 +1075,17 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
     onUpdate();
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     if (
       confirm(
         "Hapus kendaraan ini dari armada? Seluruh dokumen dan order terikat akan ikut dihapus.",
       )
     ) {
-      deleteVehicle(id);
+      const result = await deleteVehicleSupabase(id);
+      if (!result.success) {
+        alert("Gagal menghapus kendaraan: " + result.error);
+        return;
+      }
       onUpdate();
     }
   };
