@@ -169,7 +169,7 @@ function LoginPage({ onLogin, navigate }) {
   const [error, setError] = useState("");
   const [showQuickLogin, setShowQuickLogin] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
 
@@ -182,7 +182,7 @@ function LoginPage({ onLogin, navigate }) {
 
     if (roleTab === "admin") {
       // Admin Authentication
-      const admin = getAdminByEmail(email);
+      const admin = await getAdminByEmail(email);
       if (admin) {
         onLogin("admin", admin.id, email, `${admin.name} Admin`);
       } else {
@@ -630,13 +630,13 @@ function LoginPage({ onLogin, navigate }) {
             <div style={{ flex: 1, borderTop: "1px solid #e2e8f0" }}></div>
           </div>
           <GoogleLogin
-            onSuccess={(credentialResponse) => {
+            onSuccess={async (credentialResponse) => {
               if (credentialResponse.credential) {
                 const decoded = jwtDecode(credentialResponse.credential);
                 const { email, name } = decoded;
                 const db = getFleetDatabase();
                 if (roleTab === "admin") {
-                  const admin = getAdminByEmail(email);
+                  const admin = await getAdminByEmail(email);
                   if (admin) {
                     onLogin("admin", admin.id, email, `${admin.name} Admin`);
                   } else {
@@ -733,7 +733,7 @@ function RegisterPage({ onLogin, navigate }) {
     });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
 
@@ -751,9 +751,9 @@ function RegisterPage({ onLogin, navigate }) {
     }
 
     // Validate registration code
-    const codeResult = validateRegistrationCode(registrationCode.trim().toUpperCase());
+    const codeResult = await validateRegistrationCode(registrationCode.trim().toUpperCase());
     if (!codeResult.valid) {
-      setError("Kode Pendaftaran tidak valid. Gunakan 'SENTRA-2024' atau 'PADAJAYA-2024'.");
+      setError("Kode Pendaftaran tidak valid.");
       return;
     }
 
