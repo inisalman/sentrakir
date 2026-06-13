@@ -17,6 +17,7 @@ import {
 } from "../../utils/supabaseClientAuth.js";
 import ClientDashboard from "./ClientDashboard.jsx";
 import AdminDashboard from "./AdminDashboard.jsx";
+import TermsModal from "./TermsModal.jsx";
 
 // Google Client ID dari environment variable
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com";
@@ -722,6 +723,8 @@ function RegisterPage({ onLogin, navigate }) {
   });
   const [registrationCode, setRegistrationCode] = useState("");
   const [error, setError] = useState("");
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
 
   const handleChange = (e) => {
     setFormData({
@@ -744,6 +747,11 @@ function RegisterPage({ onLogin, navigate }) {
       !registrationCode
     ) {
       setError("Mohon lengkapi seluruh kolom wajib termasuk Kode Pendaftaran.");
+      return;
+    }
+
+    if (!agreedToTerms) {
+      setError("Anda harus menyetujui Syarat & Ketentuan serta Kebijakan Privasi untuk melanjutkan.");
       return;
     }
 
@@ -976,9 +984,58 @@ function RegisterPage({ onLogin, navigate }) {
             </div>
           )}
 
-          <button type="submit" className="fleet-btn-submit">
+          {/* Checkbox T&C */}
+          <div style={{ marginBottom: '20px' }}>
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={agreedToTerms}
+                onChange={(e) => setAgreedToTerms(e.target.checked)}
+                style={{ marginTop: '2px', width: '16px', height: '16px', cursor: 'pointer', flexShrink: 0 }}
+              />
+              <span style={{ fontSize: '13px', color: '#374151', lineHeight: '1.5' }}>
+                Saya telah membaca dan menyetujui{' '}
+                <button
+                  type="button"
+                  onClick={() => setShowTermsModal(true)}
+                  style={{
+                    background: 'none', border: 'none', padding: 0,
+                    color: '#1C3967', fontWeight: '700', cursor: 'pointer',
+                    fontSize: '13px', textDecoration: 'underline',
+                  }}
+                >
+                  Syarat & Ketentuan
+                </button>
+                {' '}dan{' '}
+                <button
+                  type="button"
+                  onClick={() => setShowTermsModal(true)}
+                  style={{
+                    background: 'none', border: 'none', padding: 0,
+                    color: '#1C3967', fontWeight: '700', cursor: 'pointer',
+                    fontSize: '13px', textDecoration: 'underline',
+                  }}
+                >
+                  Kebijakan Privasi
+                </button>
+                {' '}Sentra Fleet.
+              </span>
+            </label>
+          </div>
+
+          <button type="submit" className="fleet-btn-submit" disabled={!agreedToTerms} style={{ opacity: agreedToTerms ? 1 : 0.5 }}>
             Daftar & Masuk Dashboard
           </button>
+
+          {/* Terms Modal */}
+          <TermsModal
+            isOpen={showTermsModal}
+            onClose={() => setShowTermsModal(false)}
+            onAccept={() => {
+              setAgreedToTerms(true);
+              setShowTermsModal(false);
+            }}
+          />
         </form>
 
         {/* Google Register */}
