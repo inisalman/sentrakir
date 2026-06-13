@@ -124,17 +124,13 @@ export default function FleetPortal() {
   const isAuthenticated = !!user;
 
   if (!isAuthenticated) {
-    if (path === "/fleet/register") {
-      return (
-        <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
-          <RegisterPage onLogin={handleLogin} navigate={navigate} />
-        </GoogleOAuthProvider>
-      );
-    }
-    // Any other path goes to Login
     return (
       <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
-        <LoginPage onLogin={handleLogin} navigate={navigate} />
+        {path === "/fleet/register" ? (
+          <RegisterPage onLogin={handleLogin} navigate={navigate} />
+        ) : (
+          <LoginPage onLogin={handleLogin} navigate={navigate} />
+        )}
       </GoogleOAuthProvider>
     );
   }
@@ -770,7 +766,6 @@ function RegisterPage({ onLogin, navigate }) {
     }
 
     // Add company
-    const newCompanyId = `comp-${Date.now()}`;
     const pricing = {
       free: 0,
       kecil: 499000,
@@ -779,7 +774,6 @@ function RegisterPage({ onLogin, navigate }) {
     };
 
     const newCompany = {
-      id: newCompanyId,
       name: formData.name,
       pic_name: formData.picName,
       pic_phone: formData.picPhone,
@@ -790,17 +784,17 @@ function RegisterPage({ onLogin, navigate }) {
       membership_price: typeof pricing[formData.membershipTier] === 'number' ? pricing[formData.membershipTier] : 0,
       subscription_status: "active",
       status: "active",
-      admin_id: codeResult.admin.id // Store which admin handles this client
+      admin_id: codeResult.admin.id
     };
 
     const result = await createCompany(newCompany);
-    if (!result.success) {
-      setError("Gagal mendaftarkan perusahaan: " + result.error);
+    if (!result || !result.id) {
+      setError("Gagal mendaftarkan perusahaan. Silakan coba lagi.");
       return;
     }
 
     // Log in immediately
-    onLogin("client", newCompanyId, formData.email, formData.name);
+    onLogin("client", result.id, formData.email, formData.name);
   };
 
   return (
