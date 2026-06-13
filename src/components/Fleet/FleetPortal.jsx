@@ -18,8 +18,8 @@ import {
 import ClientDashboard from "./ClientDashboard.jsx";
 import AdminDashboard from "./AdminDashboard.jsx";
 
-// Ganti dengan Google Client ID milik Anda dari Google Cloud Console
-const GOOGLE_CLIENT_ID = "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com";
+// Google Client ID dari environment variable
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com";
 
 // Custom router hook/logic
 const useFleetPath = () => {
@@ -195,6 +195,7 @@ function LoginPage({ onLogin, navigate }) {
     } else {
       // Client Authentication
       const company = await getCompanyByEmail(email);
+
       if (company && company.password === password) {
         if (company.status !== "active") {
           setError("Akun perusahaan Anda sedang tidak aktif.");
@@ -645,9 +646,7 @@ function LoginPage({ onLogin, navigate }) {
                     setError("Akun Google tidak terdaftar sebagai Admin.");
                   }
                 } else {
-                  const company = db.companies.find(
-                    (c) => c.email.toLowerCase() === email.toLowerCase(),
-                  );
+                  const company = await getCompanyByEmail(email);
                   if (company) {
                     if (company.status !== "active") {
                       setError("Akun perusahaan Anda sedang tidak aktif.");
@@ -1011,43 +1010,37 @@ function RegisterPage({ onLogin, navigate }) {
             <div style={{ flex: 1, borderTop: "1px solid #e2e8f0" }}></div>
           </div>
           <GoogleLogin
-            onSuccess={(credentialResponse) => {
+            onSuccess={async (credentialResponse) => {
               if (credentialResponse.credential) {
                 const decoded = jwtDecode(credentialResponse.credential);
                 const { email, name } = decoded;
-                const db = getFleetDatabase();
 
-                // Check if already registered
-                const emailExists = db.companies.some(
-                  (c) => c.email.toLowerCase() === email.toLowerCase(),
-                );
-                if (emailExists) {
+                // Check if already registered di Supabase
+                const existing = await getCompanyByEmail(email);
+                if (existing) {
                   setError("Email Google sudah terdaftar. Silakan login.");
                   return;
                 }
 
-                // Auto-create company with Google data
-                const newCompanyId = `comp-${Date.now()}`;
-                const newCompany = {
-                  id: newCompanyId,
+                // Auto-create company di Supabase dengan Google data
+                const result = await createCompany({
                   name: name || "Perusahaan Baru",
-                  picName: name || "",
-                  picPhone: "",
+                  pic_name: name || "",
+                  pic_phone: "",
                   email: email,
                   address: "",
-                  membershipTier: "free",
-                  membershipPrice: 0,
-                  subscriptionStatus: "active",
+                  membership_tier: "free",
+                  membership_price: 0,
+                  subscription_status: "active",
                   status: "active",
-                  adminId: "admin-1",
-                };
+                  admin_id: "584a2442-41eb-40ab-8854-3433cf7a2818", // Admin Sentra
+                });
 
-                db.companies.push(newCompany);
-                localStorage.setItem(
-                  "sentra_fleet_database",
-                  JSON.stringify(db),
-                );
-                onLogin("client", newCompanyId, email, newCompany.name);
+                if (result && result.id) {
+                  onLogin("client", result.id, email, result.name);
+                } else {
+                  setError("Gagal membuat akun. Silakan coba lagi.");
+                }
               }
             }}
             onError={() =>

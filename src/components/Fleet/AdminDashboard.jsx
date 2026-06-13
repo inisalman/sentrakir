@@ -17,7 +17,31 @@ import {
   getTierConfig,
   MEMBERSHIP_TIERS,
 } from "../../utils/fleetMockData.js";
+import { getRequestsByAdminId, updateRequestStatusSupabase } from "../../utils/supabaseRequests.js";
 import { getAllCompanies } from "../../utils/supabaseClientAuth.js";
+import AdminChatPanel from "../../components/Chat/AdminChatPanel";
+
+
+const getCompanyName = (db, companyId) => {
+  const comp = db?.companies?.find(c => c.id === companyId);
+  return comp ? comp.name : "Unknown Company";
+};
+
+const getPlateNumber = (db, vehicleId) => {
+  const veh = db?.vehicles?.find(v => v.id === vehicleId);
+  return veh ? veh.plateNumber : "-";
+};
+
+const formatDate = (dateStr) => {
+  if (!dateStr) return "-";
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return "-";
+    return d.toLocaleDateString("id-ID", { year: "numeric", month: "long", day: "numeric" });
+  } catch {
+    return "-";
+  }
+};
 
 export default function AdminDashboard({
   user,
@@ -39,6 +63,7 @@ export default function AdminDashboard({
         "requests",
         "verifications",
         "membership",
+        "chat",
       ].includes(subPath)
     ) {
       setActiveTab(subPath);
@@ -64,6 +89,22 @@ export default function AdminDashboard({
         subscriptionStatus: c.subscription_status
       }));
 
+      // 2. Fetch requests assigned to this admin from Supabase
+      const supabaseRequests = await getRequestsByAdminId(user.adminId);
+
+      const nonAdminMockRequests = mockDb.requests.filter(r => r.adminId !== user.adminId);
+
+      const realRequests = supabaseRequests.map(r => ({
+        ...r,
+        ...(r.meta_data || {}),
+        companyId: r.company_id,
+        vehicleId: r.vehicle_id,
+        serviceType: r.service_type,
+        adminId: r.admin_id
+      }));
+
+      mockDb.requests = [...nonAdminMockRequests, ...realRequests];
+
       // Update local storage so that other functions like getClientsForAdminView
       // that read from getFleetDatabase() directly get the updated data
       localStorage.setItem("sentra_fleet_database", JSON.stringify(mockDb));
@@ -77,7 +118,10 @@ export default function AdminDashboard({
     refreshData();
   }, []);
 
-  const isSentra = user.adminId === "admin-1";
+
+
+  // Cek apakah admin ini Sentra (ID 584a2442...) atau Padajaya
+  const isSentra = user.adminId === "584a2442-41eb-40ab-8854-3433cf7a2818" || (user.companyName || "").toLowerCase().includes("sentra");
 
   const sidebarNavItems = [
     {
@@ -104,6 +148,11 @@ export default function AdminDashboard({
       id: "verifications",
       label: "Verifikasi Dokumen",
       path: "/fleet/admin/verifications",
+    },
+    {
+      id: "chat",
+      label: "Chat Support AI",
+      path: "/fleet/admin/chat",
     },
     // Membership management is exclusive to Admin Sentra
     ...(isSentra
@@ -164,6 +213,8 @@ export default function AdminDashboard({
                 {activeTab === "requests" && "Tracker Order Dokumen KIR/STNK"}
                 {activeTab === "verifications" &&
                   "Antrean Verifikasi Dokumen Klien"}
+                {activeTab === "chat" &&
+                  "Manajemen Chat Support AI"}
                 {activeTab === "membership" &&
                   "Request Membership & Langganan"}
               </h1>
@@ -178,33 +229,19 @@ export default function AdminDashboard({
                   "Kelola antrean dan proses pengerjaan perpanjangan berkas."}
                 {activeTab === "verifications" &&
                   "Tinjau dan verifikasi file pindaian dokumen KIR/STNK yang diunggah."}
+                {activeTab === "chat" &&
+                  "Tinjau dan override respons AI untuk pertanyaan klien yang kompleks."}
                 {activeTab === "membership" &&
                   "Tinjau dan setujui permintaan perubahan paket membership dari klien (hanya Admin Sentra)."}
               </p>
             </div>
-            {(() => {
-              const adminInfo = getAdminById(user.adminId) || {
-                name: "Sentra",
-                tier: "primary",
-              };
-              const adminName =
-                adminInfo.name === "Sentra"
-                  ? "Admin Sentra KIR"
-                  : "Admin Padajaya";
-              const adminRole =
-                adminInfo.tier === "primary"
-                  ? "Administrator"
-                  : "Administrator";
-              return (
-                <div className="user-profile-widget">
-                  <div className="user-avatar">{adminInfo.name[0]}</div>
-                  <div className="user-info">
-                    <p className="user-name">{adminName}</p>
-                    <p className="user-role">{adminRole}</p>
-                  </div>
-                </div>
-              );
-            })()}
+            <div className="user-profile-widget">
+              <div className="user-avatar">{isSentra ? "S" : "P"}</div>
+              <div className="user-info">
+                <p className="user-name">{isSentra ? "Admin Sentra KIR" : "Admin Padajaya"}</p>
+                <p className="user-role">Administrator</p>
+              </div>
+            </div>
           </header>
 
           {/* Tab Views */}
@@ -246,6 +283,9 @@ export default function AdminDashboard({
               onUpdate={refreshData}
             />
           )}
+          {activeTab === "chat" && (
+            <AdminChatPanel adminId={user.adminId} />
+          )}
         </main>
       </div>
     </div>
@@ -256,7 +296,7 @@ export default function AdminDashboard({
 // SUB-VIEW 1: BUSINESS DASHBOARD (ADMIN)
 // ====================================================
 function BusinessDashboardView({ db, adminId, navigate }) {
-  const filteredCompanies = getClientsForAdminView(adminId);
+  const filteredCompanies = db.companies.filter(c => c.adminId === adminId && c.ownerType !== 'admin');
   const companyIds = filteredCompanies.map((c) => c.id);
   const filteredVehicles = db.vehicles.filter((v) =>
     companyIds.includes(v.companyId),
@@ -412,7 +452,7 @@ function BusinessDashboardView({ db, adminId, navigate }) {
                 </tr>
               </thead>
               <tbody>
-                {getRequestsForAdmin(adminId)
+                {db.requests.filter(r => r.adminId === adminId)
                   .filter((r) => r.status === "pending")
                   .slice(0, 5).length === 0 ? (
                   <tr>
@@ -428,13 +468,13 @@ function BusinessDashboardView({ db, adminId, navigate }) {
                     </td>
                   </tr>
                 ) : (
-                  getRequestsForAdmin(adminId)
+                  db.requests.filter(r => r.adminId === adminId)
                     .filter((r) => r.status === "pending")
                     .slice(0, 5)
                     .map((r) => (
                       <tr key={r.id}>
-                        <td style={{ fontWeight: "600" }}>{r.companyName}</td>
-                        <td>{r.plateNumber}</td>
+                        <td style={{ fontWeight: "600" }}>{r.companyName || getCompanyName(db, r.companyId)}</td>
+                        <td>{r.plateNumber || getPlateNumber(db, r.vehicleId)}</td>
                         <td>{r.serviceTypeLabel}</td>
                         <td>Rp {r.estimatedCost?.toLocaleString("id-ID")}</td>
                         <td>
@@ -517,7 +557,7 @@ function BusinessDashboardView({ db, adminId, navigate }) {
 function ClientsView({ db, adminId, onUpdate }) {
   const [search, setSearch] = useState("");
 
-  const adminCompanies = getClientsForAdminView(adminId);
+  const adminCompanies = db.companies.filter(c => c.adminId === adminId && c.ownerType !== 'admin');
 
   const filteredCompanies = adminCompanies.filter(
     (c) =>
@@ -673,7 +713,7 @@ function NationalVehiclesView({ db, adminId }) {
   const [search, setSearch] = useState("");
   const [filterCompany, setFilterCompany] = useState("all");
 
-  const adminCompanies = getClientsForAdminView(adminId);
+  const adminCompanies = db.companies.filter(c => c.adminId === adminId && c.ownerType !== 'admin');
   const companyIds = adminCompanies.map((c) => c.id);
 
   const filteredVehicles = db.vehicles.filter((v) => {
@@ -798,6 +838,21 @@ function OrderTrackerView({ db, adminId, onUpdate }) {
   const [serviceFee, setServiceFee] = useState("");
   const [estimatedTime, setEstimatedTime] = useState("");
   const [terms, setTerms] = useState("");
+  const [docRequirements, setDocRequirements] = useState({}); // { "KTP Pemilik": { asli: true, fotocopy: false }, ... }
+  const [customDocs, setCustomDocs] = useState([]); // [{ name: "...", asli: false, fotocopy: false }]
+
+  // Daftar dokumen standar yang sering dibutuhin admin
+  const STANDARD_DOC_LIST = [
+    "KTP Pemilik",
+    "BPKB",
+    "STNK",
+    "Buku KIR",
+    "Sertifikat KIR",
+    "SIM Pemilik",
+    "Surat Keterangan Cabut Berkas",
+    "Surat Kuasa PT",
+    "Surat Kuasa Perorangan",
+  ];
 
   // Populate form when request is selected
   useEffect(() => {
@@ -805,43 +860,144 @@ function OrderTrackerView({ db, adminId, onUpdate }) {
       setServiceFee(selectedRequest.serviceQuote?.serviceFee || selectedRequest.estimatedCost || "");
       setEstimatedTime(selectedRequest.serviceQuote?.estimatedTime || "");
       setTerms(selectedRequest.serviceQuote?.terms || "");
+      setDocRequirements(selectedRequest.serviceQuote?.docRequirements || {});
+      setCustomDocs(selectedRequest.serviceQuote?.customDocs || []);
     }
   }, [selectedRequest]);
 
-  const handleStatusChange = (reqId, newStatus) => {
-    updateRequestStatus(reqId, newStatus);
+  const handleStatusChange = async (reqId, newStatus) => {
+    // Determine if we're dealing with a Supabase request (id format "req-123...") or legacy mock
+    if (reqId.startsWith('req-')) {
+      const result = await updateRequestStatusSupabase(reqId, newStatus);
+      if (!result.success) {
+        alert("Gagal update status: " + result.error);
+        return;
+      }
+    } else {
+      updateRequestStatus(reqId, newStatus);
+    }
+
     onUpdate();
     alert(`Status pengerjaan berhasil diubah menjadi ${newStatus.toUpperCase()}.`);
   };
 
-  const handleSendQuote = (e) => {
+  const handleSendQuote = async (e) => {
     e.preventDefault();
-    if (!serviceFee || !estimatedTime || !terms) {
-      alert("Harap lengkapi semua kolom rincian biaya, estimasi waktu, dan syarat!");
+    if (!serviceFee || !estimatedTime) {
+      alert("Harap lengkapi rincian biaya dan estimasi waktu!");
       return;
     }
 
-    submitServiceQuote(selectedRequest.id, {
-      serviceFee: Number(serviceFee),
-      estimatedTime,
-      terms
+    // Bangun list dokumen yang dibutuhin dari checklist
+    const requiredDocsList = [];
+    Object.entries(docRequirements).forEach(([docName, types]) => {
+      const formats = [];
+      if (types.asli) formats.push("Asli");
+      if (types.fotocopy) formats.push("Fotocopy");
+      if (formats.length > 0) {
+        requiredDocsList.push(`${docName} (${formats.join(" & ")})`);
+      }
     });
+
+    customDocs.forEach(doc => {
+      const formats = [];
+      if (doc.asli) formats.push("Asli");
+      if (doc.fotocopy) formats.push("Fotocopy");
+      if (doc.name && formats.length > 0) {
+        requiredDocsList.push(`${doc.name} (${formats.join(" & ")})`);
+      }
+    });
+
+    if (requiredDocsList.length === 0 && !terms.trim()) {
+      alert("Harap centang minimal satu dokumen syarat atau isi catatan tambahan!");
+      return;
+    }
+
+    // Gabungkan jadi text terms
+    let finalTerms = "";
+    if (requiredDocsList.length > 0) {
+      finalTerms = "Dokumen yang harus disiapkan:\n" + requiredDocsList.map((d, i) => `${i + 1}. ${d}`).join("\n");
+    }
+    if (terms.trim()) {
+      finalTerms += (finalTerms ? "\n\nCatatan Tambahan:\n" : "") + terms.trim();
+    }
+
+    const quoteData = {
+      serviceQuote: {
+        serviceFee: Number(serviceFee),
+        estimatedTime,
+        terms: finalTerms,
+        docRequirements,
+        customDocs,
+        quotedAt: new Date().toISOString()
+      }
+    };
+
+    if (selectedRequest.id.startsWith('req-')) {
+      const result = await updateRequestStatusSupabase(selectedRequest.id, "waiting_approval", quoteData);
+      if (!result.success) {
+        alert("Gagal mengirim rincian: " + result.error);
+        return;
+      }
+    } else {
+      submitServiceQuote(selectedRequest.id, {
+        serviceFee: Number(serviceFee),
+        estimatedTime,
+        terms: finalTerms
+      });
+    }
 
     alert("Rincian penawaran & syarat berhasil dikirimkan ke klien!");
     setSelectedRequest(null);
     onUpdate();
   };
 
-  const adminRequests = getRequestsForAdmin(adminId);
+  const toggleDocType = (docName, type) => {
+    setDocRequirements(prev => {
+      const existing = prev[docName] || { asli: false, fotocopy: false };
+      return {
+        ...prev,
+        [docName]: { ...existing, [type]: !existing[type] }
+      };
+    });
+  };
+
+  const addCustomDoc = () => {
+    setCustomDocs(prev => [...prev, { name: "", asli: false, fotocopy: false }]);
+  };
+
+  const updateCustomDoc = (idx, field, value) => {
+    setCustomDocs(prev => prev.map((d, i) => i === idx ? { ...d, [field]: value } : d));
+  };
+
+  const removeCustomDoc = (idx) => {
+    setCustomDocs(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  const adminRequests = db.requests.filter(r => r.adminId === adminId);
 
   const getStatusBadgeClass = (status) => {
     if (status === "pending") return "warning";
     if (status === "quoted") return "warning";
+    if (status === "waiting_approval") return "warning";
     if (status === "approved") return "success";
     if (status === "in_progress") return "neutral";
     if (status === "completed") return "success";
     if (status === "cancelled") return "danger";
     return "neutral";
+  };
+
+  const getStatusLabel = (status) => {
+    const map = {
+      pending: "Perlu Penawaran",
+      quoted: "Penawaran Terkirim",
+      waiting_approval: "Menunggu ACC Klien",
+      approved: "Disetujui Klien",
+      in_progress: "Sedang Dikerjakan",
+      completed: "Selesai",
+      cancelled: "Dibatalkan Klien",
+    };
+    return map[status] || status;
   };
 
   return (
@@ -900,7 +1056,7 @@ function OrderTrackerView({ db, adminId, onUpdate }) {
                       {r.id}
                     </td>
                     <td style={{ fontWeight: "600" }}>
-                      {r.companyName}
+                      {r.companyName || getCompanyName(db, r.companyId)}
                       {isCrossAdmin && (
                         <span
                           style={{
@@ -920,7 +1076,7 @@ function OrderTrackerView({ db, adminId, onUpdate }) {
                         </span>
                       )}
                     </td>
-                    <td style={{ fontWeight: "700" }}>{r.plateNumber}</td>
+                    <td style={{ fontWeight: "700" }}>{r.plateNumber || getPlateNumber(db, r.vehicleId)}</td>
                     <td>{r.serviceTypeLabel}</td>
                     <td
                       style={{
@@ -958,15 +1114,11 @@ function OrderTrackerView({ db, adminId, onUpdate }) {
                       {finalFee ? `Rp ${finalFee.toLocaleString("id-ID")}` : "Menunggu Quote"}
                     </td>
                     <td>
-                      {new Date(r.createdAt).toLocaleDateString("id-ID", {
-                        day: "numeric",
-                        month: "short",
-                        year: "numeric",
-                      })}
+                      {formatDate(r.created_at || r.createdAt)}
                     </td>
                     <td>
                       <span className={`badge-status ${getStatusBadgeClass(r.status)}`}>
-                        {r.statusLabel || r.status}
+                        {getStatusLabel(r.status)}
                       </span>
                     </td>
                     <td style={{ textAlign: "center" }}>
@@ -1010,7 +1162,7 @@ function OrderTrackerView({ db, adminId, onUpdate }) {
                 }}
               >
                 <h4 style={{ margin: "0 0 10px 0", fontSize: "13.5px", color: "#1C3967" }}>Info Pengajuan Klien:</h4>
-                <p style={{ margin: "0 0 6px 0", fontSize: "13px" }}>PT/Klien: <strong>{selectedRequest.companyName}</strong></p>
+                <p style={{ margin: "0 0 6px 0", fontSize: "13px" }}>PT/Klien: <strong>{selectedRequest.companyName || getCompanyName(db, selectedRequest.companyId)}</strong></p>
                 <p style={{ margin: "0 0 6px 0", fontSize: "13px" }}>Jenis Jasa: <strong>{selectedRequest.serviceTypeLabel}</strong></p>
                 <p style={{ margin: "0 0 6px 0", fontSize: "13px" }}>Deskripsi: <span style={{ color: "#475569" }}>{selectedRequest.description}</span></p>
               </div>
@@ -1047,14 +1199,144 @@ function OrderTrackerView({ db, adminId, onUpdate }) {
                   </div>
 
                   <div className="fleet-form-group">
-                    <label className="fleet-label">Syarat-syarat Dokumen Asli *</label>
+                    <label className="fleet-label">Syarat-syarat Dokumen</label>
+                    <p style={{ fontSize: "11.5px", color: "#64748b", margin: "0 0 10px 0" }}>
+                      Centang dokumen yang harus disiapkan klien beserta formatnya:
+                    </p>
+
+                    <div style={{
+                      border: "1px solid #cbd5e1",
+                      borderRadius: "8px",
+                      padding: "10px",
+                      background: "#f8fafc",
+                      maxHeight: "300px",
+                      overflowY: "auto"
+                    }}>
+                      {STANDARD_DOC_LIST.map(docName => {
+                        const types = docRequirements[docName] || { asli: false, fotocopy: false };
+                        return (
+                          <div key={docName} style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            padding: "6px 8px",
+                            borderRadius: "6px",
+                            marginBottom: "4px",
+                            background: (types.asli || types.fotocopy) ? "#eff6ff" : "transparent",
+                            border: (types.asli || types.fotocopy) ? "1px solid #bfdbfe" : "1px solid transparent",
+                          }}>
+                            <span style={{ fontSize: "13px", fontWeight: "600", color: "#1e3a8a", flex: 1 }}>{docName}</span>
+                            <div style={{ display: "flex", gap: "10px" }}>
+                              <label style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "12px", cursor: "pointer", userSelect: "none" }}>
+                                <input
+                                  type="checkbox"
+                                  checked={types.asli}
+                                  onChange={() => toggleDocType(docName, "asli")}
+                                />
+                                Asli
+                              </label>
+                              <label style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "12px", cursor: "pointer", userSelect: "none" }}>
+                                <input
+                                  type="checkbox"
+                                  checked={types.fotocopy}
+                                  onChange={() => toggleDocType(docName, "fotocopy")}
+                                />
+                                Fotocopy
+                              </label>
+                            </div>
+                          </div>
+                        );
+                      })}
+
+                      {/* Dokumen custom (tambahan) */}
+                      {customDocs.map((doc, idx) => (
+                        <div key={`custom-${idx}`} style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "8px",
+                          padding: "6px 8px",
+                          borderRadius: "6px",
+                          marginBottom: "4px",
+                          background: (doc.asli || doc.fotocopy) ? "#fef3c7" : "#f1f5f9",
+                          border: (doc.asli || doc.fotocopy) ? "1px solid #fde68a" : "1px dashed #cbd5e1",
+                        }}>
+                          <input
+                            type="text"
+                            placeholder="Nama dokumen custom..."
+                            value={doc.name}
+                            onChange={(e) => updateCustomDoc(idx, "name", e.target.value)}
+                            style={{
+                              flex: 1,
+                              fontSize: "13px",
+                              fontWeight: "600",
+                              padding: "4px 6px",
+                              border: "1px solid #cbd5e1",
+                              borderRadius: "4px",
+                              background: "white"
+                            }}
+                          />
+                          <label style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "12px", cursor: "pointer", userSelect: "none" }}>
+                            <input
+                              type="checkbox"
+                              checked={doc.asli}
+                              onChange={(e) => updateCustomDoc(idx, "asli", e.target.checked)}
+                            />
+                            Asli
+                          </label>
+                          <label style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "12px", cursor: "pointer", userSelect: "none" }}>
+                            <input
+                              type="checkbox"
+                              checked={doc.fotocopy}
+                              onChange={(e) => updateCustomDoc(idx, "fotocopy", e.target.checked)}
+                            />
+                            Fotocopy
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => removeCustomDoc(idx)}
+                            style={{
+                              background: "#fee2e2",
+                              color: "#b91c1c",
+                              border: "none",
+                              borderRadius: "4px",
+                              padding: "2px 8px",
+                              cursor: "pointer",
+                              fontSize: "12px"
+                            }}
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+
+                      <button
+                        type="button"
+                        onClick={addCustomDoc}
+                        style={{
+                          marginTop: "8px",
+                          padding: "6px 12px",
+                          fontSize: "12px",
+                          background: "#dbeafe",
+                          color: "#1e3a8a",
+                          border: "1px dashed #60a5fa",
+                          borderRadius: "6px",
+                          cursor: "pointer",
+                          fontWeight: "600"
+                        }}
+                      >
+                        + Tambah Dokumen Custom
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="fleet-form-group">
+                    <label className="fleet-label">Catatan Tambahan (opsional)</label>
                     <textarea
                       className="fleet-input"
-                      rows="3"
-                      placeholder="Contoh:&#10;1. Buku KIR Asli&#10;2. STNK Asli&#10;3. Fotokopi KTP Pemilik"
+                      rows="2"
+                      placeholder="Contoh: Berkas dijemput di kantor klien atau ada syarat khusus lainnya..."
                       value={terms}
                       onChange={(e) => setTerms(e.target.value)}
-                      required
                       style={{ resize: "vertical", fontFamily: "inherit" }}
                     />
                   </div>
@@ -1140,19 +1422,19 @@ function OrderTrackerView({ db, adminId, onUpdate }) {
                   ) : (
                     <div
                       style={{
-                        background: selectedRequest.status === "quoted" ? "#fffbeb" : selectedRequest.status === "completed" ? "#f0fdf4" : "#fef2f2",
-                        border: `1px solid ${selectedRequest.status === "quoted" ? "#fde68a" : selectedRequest.status === "completed" ? "#bbf7d0" : "#fca5a5"}`,
+                        background: (selectedRequest.status === "quoted" || selectedRequest.status === "waiting_approval") ? "#fffbeb" : selectedRequest.status === "completed" ? "#f0fdf4" : "#fef2f2",
+                        border: `1px solid ${(selectedRequest.status === "quoted" || selectedRequest.status === "waiting_approval") ? "#fde68a" : selectedRequest.status === "completed" ? "#bbf7d0" : "#fca5a5"}`,
                         borderRadius: "8px",
                         padding: "12px",
                         textAlign: "center",
                         fontSize: "13px",
                         fontWeight: "600",
-                        color: selectedRequest.status === "quoted" ? "#b45309" : selectedRequest.status === "completed" ? "#15803d" : "#b91c1c",
+                        color: (selectedRequest.status === "quoted" || selectedRequest.status === "waiting_approval") ? "#b45309" : selectedRequest.status === "completed" ? "#15803d" : "#b91c1c",
                       }}
                     >
-                      {selectedRequest.status === "quoted" && "⏳ Menunggu Persetujuan Klien untuk Melanjutkan (ACC)"}
+                      {(selectedRequest.status === "quoted" || selectedRequest.status === "waiting_approval") && "⏳ Menunggu Persetujuan Klien untuk Melanjutkan (ACC)"}
                       {selectedRequest.status === "completed" && "✅ Order ini telah selesai dikerjakan!"}
-                      {selectedRequest.status === "cancelled" && "❌ Order ini telah dibatalkan."}
+                      {selectedRequest.status === "cancelled" && "❌ Order ini telah dibatalkan klien."}
                     </div>
                   )}
 
@@ -1181,7 +1463,7 @@ function OrderTrackerView({ db, adminId, onUpdate }) {
 // SUB-VIEW 5: DOCUMENT VERIFICATION
 // ====================================================
 function VerificationsView({ db, adminId, onUpdate }) {
-  const adminCompanies = getClientsForAdminView(adminId);
+  const adminCompanies = db.companies.filter(c => c.adminId === adminId && c.ownerType !== 'admin');
   const companyIds = adminCompanies.map((c) => c.id);
 
   const pendingDocs = db.documents.filter((d) => {
@@ -1439,7 +1721,7 @@ function MembershipRequestsView({ db, adminId, onUpdate }) {
                 return (
                   <tr key={r.id}>
                     <td style={{ fontWeight: "700", color: "#1C3967" }}>
-                      {r.companyName}
+                      {r.companyName || getCompanyName(db, r.companyId)}
                     </td>
                     <td>
                       {r.clientPic ? (
@@ -1497,11 +1779,7 @@ function MembershipRequestsView({ db, adminId, onUpdate }) {
                       )}
                     </td>
                     <td style={{ fontSize: "12px", color: "#64748b" }}>
-                      {new Date(r.createdAt).toLocaleDateString("id-ID", {
-                        day: "numeric",
-                        month: "short",
-                        year: "numeric",
-                      })}
+                      {formatDate(r.created_at || r.createdAt)}
                     </td>
                     <td>
                       <span

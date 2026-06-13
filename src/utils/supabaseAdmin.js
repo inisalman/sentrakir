@@ -6,7 +6,7 @@ export const getAdminByEmail = async (email) => {
     const { data, error } = await supabase
       .from('admins')
       .select('*')
-      .eq('email', email.toLowerCase())
+      .ilike('email', email)
       .single();
 
     if (error) {

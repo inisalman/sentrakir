@@ -26,9 +26,31 @@ import {
   createVehicle,
   updateVehicleSupabase,
   deleteVehicleSupabase,
-  getAllVehicles
+  getAllVehicles,
 } from "../../utils/supabaseVehicles.js";
+import {
+  getRequestsByCompanyId,
+  createRequest,
+  updateRequestStatusSupabase,
+} from "../../utils/supabaseRequests.js";
 import { getAllCompanies } from "../../utils/supabaseClientAuth.js";
+import { getAllServicePrices } from "../../utils/supabasePricing.js";
+import ChatWidget from "../Chat/ChatWidget";
+
+const formatDateLong = (dateStr) => {
+  if (!dateStr) return "-";
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return "-";
+    return d.toLocaleDateString("id-ID", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+  } catch {
+    return "-";
+  }
+};
 
 export default function ClientDashboard({
   user,
@@ -38,6 +60,7 @@ export default function ClientDashboard({
 }) {
   const [db, setDb] = useState(() => getFleetDatabase());
   const [activeTab, setActiveTab] = useState("dashboard");
+  const [servicePrices, setServicePrices] = useState({}); // { service_code: base_price }
 
   // Sync active tab with currentPath
   useEffect(() => {
@@ -65,29 +88,40 @@ export default function ClientDashboard({
     try {
       // 1. Fetch updated companies from Supabase
       const supabaseCompanies = await getAllCompanies();
-      mockDb.companies = supabaseCompanies.map(c => ({
+      mockDb.companies = supabaseCompanies.map((c) => ({
         ...c,
         adminId: c.admin_id,
         picName: c.pic_name,
         picPhone: c.pic_phone,
         membershipTier: c.membership_tier,
         membershipPrice: c.membership_price,
-        subscriptionStatus: c.subscription_status
+        subscriptionStatus: c.subscription_status,
       }));
 
       // 2. Fetch updated vehicles from Supabase
       const supabaseVehicles = await getAllVehicles();
-      mockDb.vehicles = supabaseVehicles.map(v => ({
+      mockDb.vehicles = supabaseVehicles.map((v) => ({
         ...v,
+        ...(v.meta_data || {}),
         companyId: v.company_id,
         plateNumber: v.plate_number,
         vehicleType: v.jenis_kendaraan,
         kirStatus: v.status_kir,
         stnkStatus: v.status_stnk,
-        // Untuk mock app, kita isi default expiry kalau kosong biar UI ngga error
-        kirExpiry: v.kir_expiry || "2026-12-31",
-        stnkExpiry: v.stnk_expiry || "2031-12-31",
-        pajakExpiry: v.pajak_expiry || "2026-12-31"
+        kirExpiry: v.meta_data?.kirExpiry || "2026-12-31",
+        stnkExpiry: v.meta_data?.stnkExpiry || "2031-12-31",
+        pajakExpiry: v.meta_data?.pajakExpiry || "2026-12-31",
+      }));
+
+      // 3. Fetch updated requests from Supabase
+      const supabaseRequests = await getRequestsByCompanyId(user.clientId);
+      mockDb.requests = supabaseRequests.map((r) => ({
+        ...r,
+        ...(r.meta_data || {}),
+        companyId: r.company_id,
+        vehicleId: r.vehicle_id,
+        serviceType: r.service_type,
+        adminId: r.admin_id,
       }));
 
       localStorage.setItem("sentra_fleet_database", JSON.stringify(mockDb));
@@ -97,8 +131,23 @@ export default function ClientDashboard({
     setDb({ ...mockDb });
   };
 
+  // Fetch service prices from Supabase
+  const loadServicePrices = async () => {
+    try {
+      const prices = await getAllServicePrices();
+      const priceMap = {};
+      prices.forEach((p) => {
+        priceMap[p.service_code] = p.base_price;
+      });
+      setServicePrices(priceMap);
+    } catch (e) {
+      console.error("Failed to load service prices", e);
+    }
+  };
+
   useEffect(() => {
     refreshData();
+    loadServicePrices();
   }, []);
 
   // Get current company details
@@ -268,6 +317,7 @@ export default function ClientDashboard({
               clientId={user.clientId}
               company={company}
               onUpdate={refreshData}
+              servicePrices={servicePrices}
             />
           )}
           {activeTab === "timeline" && (
@@ -288,6 +338,14 @@ export default function ClientDashboard({
           )}
         </main>
       </div>
+
+      {/* Chat Widget */}
+      {company && company.id && (
+        <ChatWidget
+          companyId={company.id}
+          clientName={company.name || "Client"}
+        />
+      )}
     </div>
   );
 }
@@ -502,7 +560,14 @@ function DashboardView({ vehicles, requests, navigate }) {
 // ====================================================
 // SUB-VIEW 2: VEHICLE MANAGEMENT
 // ====================================================
-function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
+function VehiclesView({
+  vehicles,
+  docs,
+  clientId,
+  company,
+  onUpdate,
+  servicePrices = {},
+}) {
   const [search, setSearch] = useState("");
   const [modalType, setModalType] = useState(null); // 'add' | 'edit' | 'upload' | 'urus' | null
   const [selectedVehicle, setSelectedVehicle] = useState(null);
@@ -796,13 +861,13 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
     if (!vehicle) return "";
 
     const descriptions = {
-      kir_renewal: `Pengurusan perpanjangan Uji KIR untuk kendaraan ${vehicle.plateNumber} yang habis pada tanggal ${vehicle.kirExpiry}.`,
+      kir_renewal: `Pengurusan perpanjangan Uji KIR untuk kendaraan ${vehicle.plateNumber} yang habis pada tanggal ${formatDateLong(vehicle.kirExpiry)}.`,
 
-      stnk_renewal: `Pengurusan perpanjangan STNK (Surat Tanda Nomor Kendaraan) 5 tahunan untuk kendaraan ${vehicle.plateNumber} yang habis tanggal ${vehicle.stnkExpiry}.`,
+      stnk_renewal: `Pengurusan perpanjangan STNK (Surat Tanda Nomor Kendaraan) 5 tahunan untuk kendaraan ${vehicle.plateNumber} yang habis tanggal ${formatDateLong(vehicle.stnkExpiry)}.`,
 
-      pajak_renewal: `Pengurusan perpanjangan Pajak Kendaraan Tahunan untuk kendaraan ${vehicle.plateNumber} yang habis tanggal ${vehicle.pajakExpiry}. Proses pembayaran dan pengurusan dokumen kami tangani.`,
+      pajak_renewal: `Pengurusan perpanjangan Pajak Kendaraan Tahunan untuk kendaraan ${vehicle.plateNumber} yang habis tanggal ${formatDateLong(vehicle.pajakExpiry)}. Proses pembayaran dan pengurusan dokumen kami tangani.`,
 
-      buka_blokir_kir: `Pengurusan Buka Blokir Data Kendaraan KIR untuk kendaraan ${vehicle.plateNumber} karena KIR telah kadaluwarsa lebih dari 1 tahun (Habis sejak ${vehicle.kirExpiry}). Diperlukan proses khusus ke Dishub untuk membuka status terblokir.`,
+      buka_blokir_kir: `Pengurusan Buka Blokir Data Kendaraan KIR untuk kendaraan ${vehicle.plateNumber} karena KIR telah kadaluwarsa lebih dari 1 tahun (Habis sejak ${formatDateLong(vehicle.kirExpiry)}). Diperlukan proses khusus ke Dishub untuk membuka status terblokir.`,
 
       balik_nama: `Pengurusan Balik Nama Kendaraan (BBN-KB) untuk kendaraan ${vehicle.plateNumber} karena data pemilik/NOPOL pada STNK tidak sesuai dengan data pada Sertifikat KIR. Wajib menyesuaikan data saat perpanjangan KIR.`,
 
@@ -905,9 +970,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
       formData.sertifikatKirBelumAda ||
       !!formData.sertifikatKirFile;
     const isStnkOk =
-      formData.stnkHilang ||
-      formData.stnkBelumAda ||
-      !!formData.stnkFile;
+      formData.stnkHilang || formData.stnkBelumAda || !!formData.stnkFile;
 
     if (!isKartuKirOk || !isSertifikatKirOk || !isStnkOk) {
       alert(
@@ -970,14 +1033,19 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
       sertifikatKirMobilBaru: !!formData.sertifikatKirMobilBaru,
       sertifikatKirBelumAda: !!formData.sertifikatKirBelumAda,
       kartuKirFileName:
-        formData.kartuKirHilang || formData.kartuKirMobilBaru || formData.kartuKirBelumAda
+        formData.kartuKirHilang ||
+        formData.kartuKirMobilBaru ||
+        formData.kartuKirBelumAda
           ? null
           : formData.kartuKirFile,
       sertifikatKirFileName:
-        formData.sertifikatKirHilang || formData.sertifikatKirMobilBaru || formData.sertifikatKirBelumAda
+        formData.sertifikatKirHilang ||
+        formData.sertifikatKirMobilBaru ||
+        formData.sertifikatKirBelumAda
           ? null
           : formData.sertifikatKirFile,
-      stnkFileName: formData.stnkHilang || formData.stnkBelumAda ? null : formData.stnkFile,
+      stnkFileName:
+        formData.stnkHilang || formData.stnkBelumAda ? null : formData.stnkFile,
       stnkHilang: !!formData.stnkHilang,
       stnkBelumAda: !!formData.stnkBelumAda,
     });
@@ -1054,14 +1122,19 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
       stnkHilang: !!formData.stnkHilang,
       stnkBelumAda: !!formData.stnkBelumAda,
       kartuKirFileName:
-        formData.kartuKirHilang || formData.kartuKirMobilBaru || formData.kartuKirBelumAda
+        formData.kartuKirHilang ||
+        formData.kartuKirMobilBaru ||
+        formData.kartuKirBelumAda
           ? null
           : formData.kartuKirFile,
       sertifikatKirFileName:
-        formData.sertifikatKirHilang || formData.sertifikatKirMobilBaru || formData.sertifikatKirBelumAda
+        formData.sertifikatKirHilang ||
+        formData.sertifikatKirMobilBaru ||
+        formData.sertifikatKirBelumAda
           ? null
           : formData.sertifikatKirFile,
-      stnkFileName: formData.stnkHilang || formData.stnkBelumAda ? null : formData.stnkFile,
+      stnkFileName:
+        formData.stnkHilang || formData.stnkBelumAda ? null : formData.stnkFile,
     });
 
     // Jika modal Data Lengkap terbuka untuk kendaraan ini, refresh datanya
@@ -1128,7 +1201,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
     }
   };
 
-  const handleUrusSubmit = (e) => {
+  const handleUrusSubmit = async (e) => {
     e.preventDefault();
 
     if (!requestServiceType) {
@@ -1161,7 +1234,8 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
       addOnDesc += "\n• Konsultasi Pengurusan SIM Khusus (Rp 100.000)";
     }
 
-    const costMap = {
+    // Fallback prices (dipakai kalau harga dari Supabase belum ke-load)
+    const fallbackCostMap = {
       kir_renewal: 350000,
       buka_blokir_kir: 1500000,
       balik_nama: 2000000,
@@ -1185,7 +1259,11 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
       perpanjang_sim_a: 350000,
       perpanjang_sim_c: 300000,
     };
-    let baseCost = costMap[requestServiceType] || 350000;
+    // Prioritaskan harga dari database (servicePrices), fallback ke hardcode
+    let baseCost =
+      servicePrices[requestServiceType] ||
+      fallbackCostMap[requestServiceType] ||
+      350000;
 
     const serviceLabels = {
       kir_renewal: "Perpanjangan Uji KIR",
@@ -1223,12 +1301,15 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
       description:
         requestDesc + (addOnDesc ? `\n\nLayanan Tambahan:${addOnDesc}` : ""),
       estimatedCost: baseCost + addOnCost,
+      adminId: company.adminId || "admin-1", // Sertakan admin asal perusahaannya
     };
 
-    // REMOVED: Let automatic routing handle admin assignment
-    // No longer override with chosenAdminId - routing logic in fleetMockData.js will handle this
+    const result = await createRequest(requestPayload);
 
-    addServiceRequest(requestPayload);
+    if (!result.success) {
+      alert("Gagal membuat pengajuan layanan: " + result.error);
+      return;
+    }
 
     alert(
       'Pengajuan pengurusan berhasil dibuat! Silakan cek menu "Status Pengurusan" secara berkala.',
@@ -1408,7 +1489,9 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                 className="fleet-btn fleet-btn-primary"
                 onClick={handleOpenAdd}
                 disabled={isFull}
-                title={isFull ? "Kuota armada penuh — ajukan upgrade paket" : ""}
+                title={
+                  isFull ? "Kuota armada penuh — ajukan upgrade paket" : ""
+                }
                 style={isFull ? { opacity: 0.55, cursor: "not-allowed" } : {}}
               >
                 ➕ Tambah Kendaraan
@@ -1475,17 +1558,18 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                     </td>
                     <td>
                       <span className={getDocStatus(v.kirExpiry).textClass}>
-                        {v.kirExpiry} ({getDaysRemaining(v.kirExpiry)} hari)
+                        {formatDateLong(v.kirExpiry)} (
+                        {getDaysRemaining(v.kirExpiry)} hari)
                       </span>
                     </td>
                     <td>
                       <span className={getDocStatus(v.stnkExpiry).textClass}>
-                        {v.stnkExpiry}
+                        {formatDateLong(v.stnkExpiry)}
                       </span>
                     </td>
                     <td>
                       <span className={getDocStatus(v.pajakExpiry).textClass}>
-                        {v.pajakExpiry}
+                        {formatDateLong(v.pajakExpiry)}
                       </span>
                     </td>
                     <td>
@@ -1703,7 +1787,9 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                 </div>
 
                 <div className="fleet-form-group">
-                  <label className="fleet-label">Nomor Buku Uji KIR {formData.noJktBelumAda ? "" : "*"}</label>
+                  <label className="fleet-label">
+                    Nomor Buku Uji KIR {formData.noJktBelumAda ? "" : "*"}
+                  </label>
                   <input
                     type="text"
                     className="fleet-input"
@@ -1714,7 +1800,11 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                     }
                     disabled={formData.noJktBelumAda}
                     required={!formData.noJktBelumAda}
-                    style={formData.noJktBelumAda ? { background: "#f1f5f9", color: "#94a3b8" } : {}}
+                    style={
+                      formData.noJktBelumAda
+                        ? { background: "#f1f5f9", color: "#94a3b8" }
+                        : {}
+                    }
                   />
                   <label
                     style={{
@@ -1734,7 +1824,9 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                         setFormData({
                           ...formData,
                           noJktBelumAda: e.target.checked,
-                          testNumber: e.target.checked ? "" : formData.testNumber,
+                          testNumber: e.target.checked
+                            ? ""
+                            : formData.testNumber,
                         })
                       }
                     />
@@ -3085,6 +3177,7 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                           const region = getPlateRegion(selectedVehicle);
                           const dataMismatch =
                             selectedVehicle && isDataMismatch(selectedVehicle);
+                          const isBelumAda = selectedVehicle?.noJktBelumAda;
 
                           // Outside-Jakarta-and-BODETABEK plates may only use
                           // these 3 services
@@ -3094,10 +3187,22 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                             "mutasi_masuk_stnk",
                           ];
 
+                          // Opsi yang diblokir jika KIR armada terblokir (> 1 tahun)
+                          const blockedWhenKirBlocked = [
+                            "kir_uji_baru",
+                            "kir_numpang_uji",
+                            "kir_balik_nama",
+                            "kir_ganti_nopol",
+                          ];
+
                           // Returns true when the option must be disabled
                           // because of plate-region rules (outside: only the
                           // 3 allowed; bodetabek: disables only kir_numpang_uji)
                           const isRegionDisabled = (val) => {
+                            // Jika KIR terblokir, disable opsi tertentu
+                            if (isKirBlocked && blockedWhenKirBlocked.includes(val)) {
+                              return true;
+                            }
                             if (region === "outside") {
                               return !allowedForOutside.includes(val);
                             }
@@ -3116,60 +3221,82 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                               <option disabled style={{ opacity: 0.5 }}>
                                 ─── Pengurusan KIR (Jakarta) ───
                               </option>
-                              <option
-                                value="kir_renewal"
-                                disabled={
-                                  isRegionDisabled("kir_renewal") ||
-                                  kirRenewalDisabled
-                                }
-                              >
-                                Perpanjang Uji KIR
-                              </option>
-                              <option
-                                value="buka_blokir_kir"
-                                disabled={
-                                  isRegionDisabled("buka_blokir_kir") ||
-                                  bukaBlokirDisabled
-                                }
-                              >
-                                Buka Blokir Data
-                              </option>
-                              <option
-                                value="kir_uji_baru"
-                                disabled={isRegionDisabled("kir_uji_baru")}
-                              >
-                                Uji Baru
-                              </option>
-                              <option
-                                value="kir_numpang_uji"
-                                disabled={isRegionDisabled("kir_numpang_uji")}
-                              >
-                                Numpang Uji
-                              </option>
-                              <option
-                                value="kir_mutasi_masuk"
-                                disabled={isRegionDisabled("kir_mutasi_masuk")}
-                              >
-                                Mutasi Masuk (Ke-Jakarta)
-                              </option>
-                              <option
-                                value="kir_mutasi_keluar"
-                                disabled={isRegionDisabled("kir_mutasi_keluar")}
-                              >
-                                Mutasi Keluar (Cabut Berkas)
-                              </option>
-                              <option
-                                value="kir_balik_nama"
-                                disabled={isRegionDisabled("kir_balik_nama")}
-                              >
-                                Balik Nama
-                              </option>
-                              <option
-                                value="kir_ganti_nopol"
-                                disabled={isRegionDisabled("kir_ganti_nopol")}
-                              >
-                                Ganti Nopol
-                              </option>
+                              {isBelumAda ? (
+                                // Kalo mobil belum ada Nopol Jakarta, opsi KIR cuman boleh Uji Baru
+                                <option
+                                  value="kir_uji_baru"
+                                  disabled={isRegionDisabled("kir_uji_baru")}
+                                >
+                                  Uji Baru
+                                </option>
+                              ) : (
+                                <>
+                                  <option
+                                    value="kir_renewal"
+                                    disabled={
+                                      isRegionDisabled("kir_renewal") ||
+                                      kirRenewalDisabled
+                                    }
+                                  >
+                                    Perpanjang Uji KIR
+                                  </option>
+                                  <option
+                                    value="buka_blokir_kir"
+                                    disabled={
+                                      isRegionDisabled("buka_blokir_kir") ||
+                                      bukaBlokirDisabled
+                                    }
+                                  >
+                                    Buka Blokir Data
+                                  </option>
+                                  <option
+                                    value="kir_uji_baru"
+                                    disabled={isRegionDisabled("kir_uji_baru")}
+                                  >
+                                    Uji Baru
+                                  </option>
+                                  <option
+                                    value="kir_numpang_uji"
+                                    disabled={isRegionDisabled(
+                                      "kir_numpang_uji",
+                                    )}
+                                  >
+                                    Numpang Uji
+                                  </option>
+                                  <option
+                                    value="kir_mutasi_masuk"
+                                    disabled={isRegionDisabled(
+                                      "kir_mutasi_masuk",
+                                    )}
+                                  >
+                                    Mutasi Masuk (Ke-Jakarta)
+                                  </option>
+                                  <option
+                                    value="kir_mutasi_keluar"
+                                    disabled={isRegionDisabled(
+                                      "kir_mutasi_keluar",
+                                    )}
+                                  >
+                                    Mutasi Keluar (Cabut Berkas)
+                                  </option>
+                                  <option
+                                    value="kir_balik_nama"
+                                    disabled={isRegionDisabled(
+                                      "kir_balik_nama",
+                                    )}
+                                  >
+                                    Balik Nama
+                                  </option>
+                                  <option
+                                    value="kir_ganti_nopol"
+                                    disabled={isRegionDisabled(
+                                      "kir_ganti_nopol",
+                                    )}
+                                  >
+                                    Ganti Nopol
+                                  </option>
+                                </>
+                              )}
                             </>
                           );
 
@@ -3256,17 +3383,23 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                               </option>
                               <option value="bikin_sim_a">Bikin SIM A</option>
                               <option value="bikin_sim_c">Bikin SIM C</option>
-                              <option value="perpanjang_sim_a">Perpanjang SIM A</option>
-                              <option value="perpanjang_sim_c">Perpanjang SIM C</option>
+                              <option value="perpanjang_sim_a">
+                                Perpanjang SIM A
+                              </option>
+                              <option value="perpanjang_sim_c">
+                                Perpanjang SIM C
+                              </option>
                             </>
                           );
 
                           if (dataMismatch) {
                             return (
                               <>
-                                <option value="balik_nama">
-                                  Balik Nama Kendaraan (BBN-KB)
-                                </option>
+                                {!isBelumAda && (
+                                  <option value="balik_nama">
+                                    Balik Nama Kendaraan (BBN-KB)
+                                  </option>
+                                )}
                                 {kirJakartaGroup({
                                   kirRenewalDisabled: true,
                                   bukaBlokirDisabled: true,
@@ -3440,9 +3573,12 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                       </div>
                     )}
 
-                    {["bikin_sim_a", "bikin_sim_c", "perpanjang_sim_a", "perpanjang_sim_c"].includes(
-                      requestServiceType,
-                    ) && (
+                    {[
+                      "bikin_sim_a",
+                      "bikin_sim_c",
+                      "perpanjang_sim_a",
+                      "perpanjang_sim_c",
+                    ].includes(requestServiceType) && (
                       <div
                         style={{
                           background: "#eff6ff",
@@ -3456,7 +3592,12 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                           textAlign: "left",
                         }}
                       >
-                        ℹ️ Permohonan {requestServiceType === "bikin_sim_a" || requestServiceType === "bikin_sim_c" ? "pembuatan" : "perpanjangan"} SIM akan diproses oleh{" "}
+                        ℹ️ Permohonan{" "}
+                        {requestServiceType === "bikin_sim_a" ||
+                        requestServiceType === "bikin_sim_c"
+                          ? "pembuatan"
+                          : "perpanjangan"}{" "}
+                        SIM akan diproses oleh{" "}
                         <strong>
                           {company.adminId === "admin-2"
                             ? "Administrator Padajaya"
@@ -3500,13 +3641,20 @@ function VehiclesView({ vehicles, docs, clientId, company, onUpdate }) {
                     let total = (() => {
                       const st = requestServiceType;
                       if (!st) return 0;
+                      // Prioritaskan harga dari database (servicePrices)
+                      if (servicePrices[st]) return servicePrices[st];
+                      // Fallback ke angka lama kalau database belum ke-load
                       if (st === "multiple") return 750000;
                       if (st === "buka_blokir_kir") return 1500000;
                       if (st === "balik_nama") return 2000000;
                       return 350000;
                     })();
+                    // Tambahan layanan (add-on)
                     if (requestLaporHilang) total += 50000;
                     if (requestMediaNasional) total += 50000;
+                    if (requestSimService === "sim_baru") total += 500000;
+                    if (requestSimService === "sim_perpanjang") total += 350000;
+                    if (requestSimService === "sim_konsultasi") total += 100000;
                     return (
                       <span>
                         💰 Estimasi Total:{" "}
@@ -5261,11 +5409,25 @@ function RequestsView({ requests, onUpdate }) {
   const getStatusBadgeClass = (status) => {
     if (status === "pending") return "warning";
     if (status === "quoted") return "warning";
+    if (status === "waiting_approval") return "warning";
     if (status === "approved") return "success";
     if (status === "in_progress") return "neutral";
     if (status === "completed") return "success";
     if (status === "cancelled") return "danger";
     return "neutral";
+  };
+
+  const getStatusLabel = (status) => {
+    const map = {
+      pending: "Menunggu Penawaran",
+      quoted: "Penawaran Diterima",
+      waiting_approval: "Menunggu Persetujuan Anda",
+      approved: "Disetujui — Sedang Diurus",
+      in_progress: "Sedang Dikerjakan",
+      completed: "Selesai",
+      cancelled: "Dibatalkan",
+    };
+    return map[status] || status;
   };
 
   const getServiceLabel = (type) => {
@@ -5299,18 +5461,50 @@ function RequestsView({ requests, onUpdate }) {
     return labels[type] || "Pengurusan Jasa";
   };
 
-  const handleApproveQuote = (reqId) => {
-    if (confirm("Apakah Anda menyetujui rincian biaya, estimasi waktu, dan persyaratan pengurusan ini?")) {
-      clientRespondToQuote(reqId, "approve");
-      alert("Persetujuan berhasil dikirim! Status pengurusan saat ini: Disetujui Klien.");
+  const handleApproveQuote = async (reqId) => {
+    if (
+      confirm(
+        "Apakah Anda menyetujui rincian biaya, estimasi waktu, dan persyaratan pengurusan ini?",
+      )
+    ) {
+      if (reqId.startsWith("req-")) {
+        const result = await updateRequestStatusSupabase(reqId, "approved", {
+          clientResponse: "approved",
+          respondedAt: new Date().toISOString(),
+        });
+        if (!result.success) {
+          alert("Gagal mengirim persetujuan: " + result.error);
+          return;
+        }
+      } else {
+        clientRespondToQuote(reqId, "approve");
+      }
+      alert(
+        "Persetujuan berhasil dikirim! Status pengurusan saat ini: Disetujui Klien.",
+      );
       setSelectedRequest(null);
       onUpdate();
     }
   };
 
-  const handleCancelQuote = (reqId) => {
-    if (confirm("Apakah Anda yakin ingin membatalkan pengajuan pengurusan jasa ini?")) {
-      clientRespondToQuote(reqId, "cancel");
+  const handleCancelQuote = async (reqId) => {
+    if (
+      confirm(
+        "Apakah Anda yakin ingin membatalkan pengajuan pengurusan jasa ini?",
+      )
+    ) {
+      if (reqId.startsWith("req-")) {
+        const result = await updateRequestStatusSupabase(reqId, "cancelled", {
+          clientResponse: "cancelled",
+          respondedAt: new Date().toISOString(),
+        });
+        if (!result.success) {
+          alert("Gagal membatalkan pengajuan: " + result.error);
+          return;
+        }
+      } else {
+        clientRespondToQuote(reqId, "cancel");
+      }
       alert("Pengajuan berhasil dibatalkan.");
       setSelectedRequest(null);
       onUpdate();
@@ -5376,25 +5570,21 @@ function RequestsView({ requests, onUpdate }) {
                       wordBreak: "break-word",
                     }}
                   >
-                    {r.description.length > 60 ? `${r.description.slice(0, 60)}...` : r.description}
+                    {r.description.length > 60
+                      ? `${r.description.slice(0, 60)}...`
+                      : r.description}
                   </td>
                   <td style={{ fontWeight: "600", color: "#1e3a8a" }}>
                     {r.estimatedCost
                       ? `Rp ${Number(r.estimatedCost).toLocaleString("id-ID")}`
                       : "Estimating..."}
                   </td>
-                  <td>
-                    {new Date(r.createdAt).toLocaleDateString("id-ID", {
-                      day: "numeric",
-                      month: "short",
-                      year: "numeric",
-                    })}
-                  </td>
+                  <td>{formatDateLong(r.created_at || r.createdAt)}</td>
                   <td>
                     <span
                       className={`badge-status ${getStatusBadgeClass(r.status)}`}
                     >
-                      {r.statusLabel || r.status}
+                      {getStatusLabel(r.status)}
                     </span>
                   </td>
                   <td style={{ textAlign: "center" }}>
@@ -5418,7 +5608,9 @@ function RequestsView({ requests, onUpdate }) {
         <div className="fleet-modal-overlay">
           <div className="fleet-modal" style={{ maxWidth: "550px" }}>
             <div className="fleet-modal-header">
-              <h3>📄 Detail Status Pengurusan — {selectedRequest.plateNumber}</h3>
+              <h3>
+                📄 Detail Status Pengurusan — {selectedRequest.plateNumber}
+              </h3>
               <span
                 className="btn-close-modal"
                 onClick={() => setSelectedRequest(null)}
@@ -5440,27 +5632,95 @@ function RequestsView({ requests, onUpdate }) {
                 }}
               >
                 <div>
-                  <p style={{ margin: "0 0 4px 0", fontSize: "11px", color: "#64748b", fontWeight: "600" }}>ID Request</p>
-                  <p style={{ margin: 0, fontSize: "13px", fontWeight: "700", fontFamily: "monospace" }}>{selectedRequest.id}</p>
+                  <p
+                    style={{
+                      margin: "0 0 4px 0",
+                      fontSize: "11px",
+                      color: "#64748b",
+                      fontWeight: "600",
+                    }}
+                  >
+                    ID Request
+                  </p>
+                  <p
+                    style={{
+                      margin: 0,
+                      fontSize: "13px",
+                      fontWeight: "700",
+                      fontFamily: "monospace",
+                    }}
+                  >
+                    {selectedRequest.id}
+                  </p>
                 </div>
                 <div>
-                  <p style={{ margin: "0 0 4px 0", fontSize: "11px", color: "#64748b", fontWeight: "600" }}>Plat Nomor</p>
-                  <p style={{ margin: 0, fontSize: "13px", fontWeight: "700" }}>{selectedRequest.plateNumber}</p>
+                  <p
+                    style={{
+                      margin: "0 0 4px 0",
+                      fontSize: "11px",
+                      color: "#64748b",
+                      fontWeight: "600",
+                    }}
+                  >
+                    Plat Nomor
+                  </p>
+                  <p style={{ margin: 0, fontSize: "13px", fontWeight: "700" }}>
+                    {selectedRequest.plateNumber}
+                  </p>
                 </div>
                 <div>
-                  <p style={{ margin: "0 0 4px 0", fontSize: "11px", color: "#64748b", fontWeight: "600" }}>Jenis Jasa</p>
-                  <p style={{ margin: 0, fontSize: "13px", fontWeight: "700", color: "#1e3a8a" }}>{getServiceLabel(selectedRequest.serviceType)}</p>
+                  <p
+                    style={{
+                      margin: "0 0 4px 0",
+                      fontSize: "11px",
+                      color: "#64748b",
+                      fontWeight: "600",
+                    }}
+                  >
+                    Jenis Jasa
+                  </p>
+                  <p
+                    style={{
+                      margin: 0,
+                      fontSize: "13px",
+                      fontWeight: "700",
+                      color: "#1e3a8a",
+                    }}
+                  >
+                    {getServiceLabel(selectedRequest.serviceType)}
+                  </p>
                 </div>
                 <div>
-                  <p style={{ margin: "0 0 4px 0", fontSize: "11px", color: "#64748b", fontWeight: "600" }}>Status Progres</p>
-                  <span className={`badge-status ${getStatusBadgeClass(selectedRequest.status)}`} style={{ display: "inline-block", marginTop: "2px" }}>
-                    {selectedRequest.statusLabel || selectedRequest.status}
+                  <p
+                    style={{
+                      margin: "0 0 4px 0",
+                      fontSize: "11px",
+                      color: "#64748b",
+                      fontWeight: "600",
+                    }}
+                  >
+                    Status Progres
+                  </p>
+                  <span
+                    className={`badge-status ${getStatusBadgeClass(selectedRequest.status)}`}
+                    style={{ display: "inline-block", marginTop: "2px" }}
+                  >
+                    {getStatusLabel(selectedRequest.status)}
                   </span>
                 </div>
               </div>
 
               <div style={{ marginBottom: "20px" }}>
-                <h4 style={{ fontSize: "13px", fontWeight: "800", color: "#1C3967", margin: "0 0 8px 0" }}>Deskripsi Pengajuan</h4>
+                <h4
+                  style={{
+                    fontSize: "13px",
+                    fontWeight: "800",
+                    color: "#1C3967",
+                    margin: "0 0 8px 0",
+                  }}
+                >
+                  Deskripsi Pengajuan
+                </h4>
                 <p
                   style={{
                     margin: 0,
@@ -5494,7 +5754,9 @@ function RequestsView({ requests, onUpdate }) {
                 >
                   ⏳ <strong>Sedang Diajukan</strong>
                   <p style={{ margin: "8px 0 0 0", fontSize: "12.5px" }}>
-                    Menunggu Admin tujuan mengkonfirmasi, memeriksa berkas, dan memberikan rincian harga jasa resmi, estimasi waktu, serta syarat-syarat pengurusan berkas asli.
+                    Menunggu Admin tujuan mengkonfirmasi, memeriksa berkas, dan
+                    memberikan rincian harga jasa resmi, estimasi waktu, serta
+                    syarat-syarat pengurusan berkas asli.
                   </p>
                 </div>
               ) : (
@@ -5520,23 +5782,77 @@ function RequestsView({ requests, onUpdate }) {
                     📋 Rincian Penawaran & Syarat dari Admin
                   </h4>
 
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px", marginBottom: "14px" }}>
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "1fr 1fr",
+                      gap: "14px",
+                      marginBottom: "14px",
+                    }}
+                  >
                     <div>
-                      <p style={{ margin: "0 0 4px 0", fontSize: "11px", color: "#166534", fontWeight: "600" }}>Biaya Jasa Resmi</p>
-                      <p style={{ margin: 0, fontSize: "15px", fontWeight: "800", color: "#166534" }}>
-                        Rp {selectedRequest.serviceQuote?.serviceFee?.toLocaleString("id-ID") || selectedRequest.estimatedCost?.toLocaleString("id-ID")}
+                      <p
+                        style={{
+                          margin: "0 0 4px 0",
+                          fontSize: "11px",
+                          color: "#166534",
+                          fontWeight: "600",
+                        }}
+                      >
+                        Biaya Jasa Resmi
+                      </p>
+                      <p
+                        style={{
+                          margin: 0,
+                          fontSize: "15px",
+                          fontWeight: "800",
+                          color: "#166534",
+                        }}
+                      >
+                        Rp{" "}
+                        {selectedRequest.serviceQuote?.serviceFee?.toLocaleString(
+                          "id-ID",
+                        ) ||
+                          selectedRequest.estimatedCost?.toLocaleString(
+                            "id-ID",
+                          )}
                       </p>
                     </div>
                     <div>
-                      <p style={{ margin: "0 0 4px 0", fontSize: "11px", color: "#166534", fontWeight: "600" }}>Estimasi Waktu</p>
-                      <p style={{ margin: 0, fontSize: "14px", fontWeight: "700", color: "#166534" }}>
+                      <p
+                        style={{
+                          margin: "0 0 4px 0",
+                          fontSize: "11px",
+                          color: "#166534",
+                          fontWeight: "600",
+                        }}
+                      >
+                        Estimasi Waktu
+                      </p>
+                      <p
+                        style={{
+                          margin: 0,
+                          fontSize: "14px",
+                          fontWeight: "700",
+                          color: "#166534",
+                        }}
+                      >
                         {selectedRequest.serviceQuote?.estimatedTime || "-"}
                       </p>
                     </div>
                   </div>
 
                   <div>
-                    <p style={{ margin: "0 0 4px 0", fontSize: "11px", color: "#166534", fontWeight: "600" }}>Syarat-syarat Pengurusan</p>
+                    <p
+                      style={{
+                        margin: "0 0 4px 0",
+                        fontSize: "11px",
+                        color: "#166534",
+                        fontWeight: "600",
+                      }}
+                    >
+                      Syarat-syarat Pengurusan
+                    </p>
                     <div
                       style={{
                         background: "#ffffff",
@@ -5549,15 +5865,20 @@ function RequestsView({ requests, onUpdate }) {
                         lineHeight: "1.5",
                       }}
                     >
-                      {selectedRequest.serviceQuote?.terms || "Tidak ada persyaratan khusus."}
+                      {selectedRequest.serviceQuote?.terms ||
+                        "Tidak ada persyaratan khusus."}
                     </div>
                   </div>
                 </div>
               )}
             </div>
 
-            <div className="fleet-modal-footer" style={{ justifyContent: "flex-end" }}>
-              {selectedRequest.status === "quoted" ? (
+            <div
+              className="fleet-modal-footer"
+              style={{ justifyContent: "flex-end" }}
+            >
+              {selectedRequest.status === "quoted" ||
+              selectedRequest.status === "waiting_approval" ? (
                 <>
                   <button
                     type="button"
@@ -5715,9 +6036,9 @@ function BillingView({ company, vehiclesCount, onUpdate }) {
           {(company.adminId || "admin-1") !== "admin-1" && managingAdmin && (
             <>
               {" "}
-              Akun Anda dikelola oleh <strong>Admin {managingAdmin.name}</strong>
-              , namun permintaan membership akan otomatis dialihkan ke Admin
-              Sentra.
+              Akun Anda dikelola oleh{" "}
+              <strong>Admin {managingAdmin.name}</strong>, namun permintaan
+              membership akan otomatis dialihkan ke Admin Sentra.
             </>
           )}
         </div>
@@ -5733,7 +6054,14 @@ function BillingView({ company, vehiclesCount, onUpdate }) {
             marginTop: "16px",
           }}
         >
-          <p style={{ margin: 0, fontSize: "13px", color: "#b45309", fontWeight: "600" }}>
+          <p
+            style={{
+              margin: 0,
+              fontSize: "13px",
+              color: "#b45309",
+              fontWeight: "600",
+            }}
+          >
             ⏳ Permintaan{" "}
             {pendingReq.requestType === "cancel"
               ? "berhenti berlangganan"
@@ -5757,7 +6085,9 @@ function BillingView({ company, vehiclesCount, onUpdate }) {
       <div className="membership-grid">
         {tiers.map((t) => {
           const isActive = (company.membershipTier || "free") === t.id;
-          const currentIdx = tierOrder.indexOf(company.membershipTier || "free");
+          const currentIdx = tierOrder.indexOf(
+            company.membershipTier || "free",
+          );
           const thisIdx = tierOrder.indexOf(t.id);
           const isUpgrade = thisIdx > currentIdx;
           return (
@@ -5829,7 +6159,12 @@ function BillingView({ company, vehiclesCount, onUpdate }) {
       {myRequests.length > 0 && (
         <div className="fleet-card" style={{ marginTop: "24px" }}>
           <h3
-            style={{ fontSize: "15px", fontWeight: "800", color: "#1C3967", margin: "0 0 16px 0" }}
+            style={{
+              fontSize: "15px",
+              fontWeight: "800",
+              color: "#1C3967",
+              margin: "0 0 16px 0",
+            }}
           >
             Riwayat Permintaan Membership
           </h3>
@@ -5848,11 +6183,13 @@ function BillingView({ company, vehiclesCount, onUpdate }) {
                 {[...myRequests].reverse().map((r) => (
                   <tr key={r.id}>
                     <td style={{ textTransform: "capitalize" }}>
-                      {r.requestType === "cancel"
-                        ? "Berhenti"
-                        : r.requestType}
+                      {r.requestType === "cancel" ? "Berhenti" : r.requestType}
                     </td>
-                    <td>{r.requestedTier ? getTierConfig(r.requestedTier).name : "-"}</td>
+                    <td>
+                      {r.requestedTier
+                        ? getTierConfig(r.requestedTier).name
+                        : "-"}
+                    </td>
                     <td>
                       <span
                         className={`badge-status ${r.status === "approved" ? "success" : r.status === "rejected" ? "danger" : "warning"}`}
@@ -5864,13 +6201,7 @@ function BillingView({ company, vehiclesCount, onUpdate }) {
                             : "Pending"}
                       </span>
                     </td>
-                    <td>
-                      {new Date(r.createdAt).toLocaleDateString("id-ID", {
-                        day: "numeric",
-                        month: "short",
-                        year: "numeric",
-                      })}
-                    </td>
+                    <td>{formatDateLong(r.created_at || r.createdAt)}</td>
                     <td style={{ color: "#64748b" }}>{r.adminNote || "-"}</td>
                   </tr>
                 ))}

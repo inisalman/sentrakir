@@ -6,7 +6,7 @@ export const getCompanyByEmail = async (email) => {
     const { data, error } = await supabase
       .from('companies')
       .select('*')
-      .eq('email', email.toLowerCase())
+      .ilike('email', email)
       .single();
 
     if (error) {
@@ -22,24 +22,28 @@ export const getCompanyByEmail = async (email) => {
   }
 };
 
-// Create new company
+// Create new company — returns the created company object directly (or null on error)
 export const createCompany = async (companyData) => {
   try {
+    // Biarkan Supabase generate UUID lewat default gen_random_uuid()
+    // jangan kirim field id sama sekali
+    const { id: _ignored, ...payload } = companyData;
+
     const { data, error } = await supabase
       .from('companies')
-      .insert([companyData])
+      .insert([payload])
       .select()
       .single();
 
     if (error) {
       console.error('Error creating company:', error.message);
-      return { success: false, error: error.message };
+      return null;
     }
 
-    return { success: true, data };
+    return data; // langsung return object company
   } catch (err) {
     console.error('Unexpected error:', err);
-    return { success: false, error: err.message };
+    return null;
   }
 };
 
