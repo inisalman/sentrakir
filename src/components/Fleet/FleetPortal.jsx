@@ -95,6 +95,7 @@ export default function FleetPortal() {
   };
 
   const handleLogout = () => {
+    const role = user?.role;
     localStorage.removeItem("fleet_logged_in");
     localStorage.removeItem("fleet_user_role");
     localStorage.removeItem("fleet_client_id");
@@ -102,7 +103,11 @@ export default function FleetPortal() {
     localStorage.removeItem("fleet_user_email");
     localStorage.removeItem("fleet_company_name");
     setUser(null);
-    navigate("/fleet/login");
+    if (role === "admin") {
+      navigate("/fleet/admin/login");
+    } else {
+      navigate("/fleet/login");
+    }
   };
 
   if (loading) {
@@ -125,6 +130,11 @@ export default function FleetPortal() {
   const isAuthenticated = !!user;
 
   if (!isAuthenticated) {
+    // Admin login — halaman terpisah
+    if (path === "/fleet/admin/login") {
+      return <AdminLoginPage onLogin={handleLogin} navigate={navigate} />;
+    }
+    // Client routes
     return (
       <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
         {path === "/fleet/register" ? (
@@ -166,7 +176,6 @@ export default function FleetPortal() {
 function LoginPage({ onLogin, navigate }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [roleTab, setRoleTab] = useState("client"); // client | admin
   const [error, setError] = useState("");
   const [showQuickLogin, setShowQuickLogin] = useState(false);
 
@@ -179,29 +188,15 @@ function LoginPage({ onLogin, navigate }) {
       return;
     }
 
-    const db = getFleetDatabase();
-
-    if (roleTab === "admin") {
-      // Admin Authentication
-      const admin = await getAdminByEmail(email);
-      if (admin && admin.password === password) {
-        onLogin("admin", admin.id, email, `${admin.name} Admin`);
-      } else {
-        setError("Kredensial Admin tidak valid.");
+    const company = await getCompanyByEmail(email);
+    if (company && company.password === password) {
+      if (company.status !== "active") {
+        setError("Akun perusahaan Anda sedang tidak aktif.");
+        return;
       }
+      onLogin("client", company.id, company.email, company.name);
     } else {
-      // Client Authentication
-      const company = await getCompanyByEmail(email);
-
-      if (company && company.password === password) {
-        if (company.status !== "active") {
-          setError("Akun perusahaan Anda sedang tidak aktif.");
-          return;
-        }
-        onLogin("client", company.id, company.email, company.name);
-      } else {
-        setError("Kredensial Perusahaan tidak valid.");
-      }
+      setError("Kredensial Perusahaan tidak valid.");
     }
   };
 
@@ -213,17 +208,9 @@ function LoginPage({ onLogin, navigate }) {
     onLogin("client", company.id, company.email, company.name);
   };
 
-  const handleQuickAdminLogin = (admin) => {
-    onLogin("admin", admin.id, admin.email, `${admin.name} Admin`);
-  };
-
   const getClientAccounts = () => {
     const db = getFleetDatabase();
     return db.companies || [];
-  };
-
-  const getAdminAccounts = () => {
-    return ADMINS || [];
   };
 
   return (
@@ -245,23 +232,9 @@ function LoginPage({ onLogin, navigate }) {
         <div className="role-tabs">
           <button
             type="button"
-            className={`role-tab-btn ${roleTab === "client" ? "active" : ""}`}
-            onClick={() => {
-              setRoleTab("client");
-              setError("");
-            }}
+            className="role-tab-btn active"
           >
             Klien Perusahaan
-          </button>
-          <button
-            type="button"
-            className={`role-tab-btn ${roleTab === "admin" ? "active" : ""}`}
-            onClick={() => {
-              setRoleTab("admin");
-              setError("");
-            }}
-          >
-            Administrator
           </button>
         </div>
 
@@ -310,8 +283,7 @@ function LoginPage({ onLogin, navigate }) {
         </form>
 
         {/* Quick Login for Development */}
-        {roleTab === "client" && (
-          <div style={{ marginTop: "16px" }}>
+        <div style={{ marginTop: "16px" }}>
             <button
               type="button"
               onClick={() => setShowQuickLogin(!showQuickLogin)}
@@ -467,164 +439,13 @@ function LoginPage({ onLogin, navigate }) {
           </div>
         )}
 
-        {/* Quick Login for Admin */}
-        {roleTab === "admin" && (
-          <div style={{ marginTop: "16px" }}>
-            <button
-              type="button"
-              onClick={() => setShowQuickLogin(!showQuickLogin)}
-              style={{
-                width: "100%",
-                padding: "10px",
-                background: "#f8fafc",
-                border: "1px solid #cbd5e1",
-                borderRadius: "8px",
-                fontSize: "13px",
-                fontWeight: "600",
-                color: "#475569",
-                cursor: "pointer",
-                transition: "all 0.2s ease",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = "#f1f5f9";
-                e.currentTarget.style.borderColor = "#94a3b8";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = "#f8fafc";
-                e.currentTarget.style.borderColor = "#cbd5e1";
-              }}
-            >
-              {showQuickLogin ? "🔒 Sembunyikan Quick Login" : "⚡ Quick Login (Dev Mode)"}
-            </button>
-
-            {showQuickLogin && (
-              <div
-                style={{
-                  marginTop: "12px",
-                  background: "#f8fafc",
-                  border: "1px solid #cbd5e1",
-                  borderRadius: "8px",
-                  padding: "12px",
-                }}
-              >
-                <p
-                  style={{
-                    fontSize: "12px",
-                    color: "#64748b",
-                    margin: "0 0 12px 0",
-                    fontWeight: "600",
-                  }}
-                >
-                  👤 Daftar Akun Admin:
-                </p>
-                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                  {getAdminAccounts().map((admin) => (
-                    <button
-                      key={admin.id}
-                      type="button"
-                      onClick={() => handleQuickAdminLogin(admin)}
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        padding: "10px 12px",
-                        background: "#ffffff",
-                        border: "1px solid #e2e8f0",
-                        borderRadius: "6px",
-                        cursor: "pointer",
-                        transition: "all 0.2s ease",
-                        textAlign: "left",
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.background = "#eff6ff";
-                        e.currentTarget.style.borderColor = "#3b82f6";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = "#ffffff";
-                        e.currentTarget.style.borderColor = "#e2e8f0";
-                      }}
-                    >
-                      <div style={{ flex: 1 }}>
-                        <div
-                          style={{
-                            fontSize: "13px",
-                            fontWeight: "700",
-                            color: "#1C3967",
-                            marginBottom: "2px",
-                          }}
-                        >
-                          {admin.name} Admin
-                        </div>
-                        <div
-                          style={{
-                            fontSize: "11px",
-                            color: "#64748b",
-                          }}
-                        >
-                          {admin.email}
-                        </div>
-                      </div>
-                      <div
-                        style={{
-                          display: "flex",
-                          flexDirection: "column",
-                          alignItems: "flex-end",
-                          gap: "4px",
-                        }}
-                      >
-                        <span
-                          style={{
-                            fontSize: "10px",
-                            fontWeight: "600",
-                            color: admin.status === "active" ? "#16a34a" : "#dc2626",
-                            background: admin.status === "active" ? "#f0fdf4" : "#fef2f2",
-                            padding: "2px 6px",
-                            borderRadius: "4px",
-                            border: `1px solid ${admin.status === "active" ? "#bbf7d0" : "#fecaca"}`,
-                          }}
-                        >
-                          {admin.status === "active" ? "✓ Aktif" : "✗ Non-aktif"}
-                        </span>
-                        <span
-                          style={{
-                            fontSize: "10px",
-                            color: admin.tier === "primary" ? "#7c3aed" : "#f59e0b",
-                            background: admin.tier === "primary" ? "#faf5ff" : "#fffbeb",
-                            padding: "2px 6px",
-                            borderRadius: "4px",
-                            border: `1px solid ${admin.tier === "primary" ? "#e9d5ff" : "#fde68a"}`,
-                            fontWeight: "600",
-                          }}
-                        >
-                          {admin.tier === "primary" ? "Primary" : "Secondary"}
-                        </span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
+        {/* Quick Login for Admin — hapus, sudah pindah ke AdminLoginPage */}
 
         {/* Google Login */}
         <div style={{ marginTop: "20px", textAlign: "center" }}>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "12px",
-              marginBottom: "16px",
-            }}
-          >
+          <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px" }}>
             <div style={{ flex: 1, borderTop: "1px solid #e2e8f0" }}></div>
-            <span
-              style={{
-                fontSize: "12px",
-                color: "#94a3b8",
-                whiteSpace: "nowrap",
-              }}
-            >
+            <span style={{ fontSize: "12px", color: "#94a3b8", whiteSpace: "nowrap" }}>
               atau masuk dengan
             </span>
             <div style={{ flex: 1, borderTop: "1px solid #e2e8f0" }}></div>
@@ -633,28 +454,16 @@ function LoginPage({ onLogin, navigate }) {
             onSuccess={async (credentialResponse) => {
               if (credentialResponse.credential) {
                 const decoded = jwtDecode(credentialResponse.credential);
-                const { email, name } = decoded;
-                const db = getFleetDatabase();
-                if (roleTab === "admin") {
-                  const admin = await getAdminByEmail(email);
-                  if (admin) {
-                    onLogin("admin", admin.id, email, `${admin.name} Admin`);
-                  } else {
-                    setError("Akun Google tidak terdaftar sebagai Admin.");
+                const { email } = decoded;
+                const company = await getCompanyByEmail(email);
+                if (company) {
+                  if (company.status !== "active") {
+                    setError("Akun perusahaan Anda sedang tidak aktif.");
+                    return;
                   }
+                  onLogin("client", company.id, email, company.name);
                 } else {
-                  const company = await getCompanyByEmail(email);
-                  if (company) {
-                    if (company.status !== "active") {
-                      setError("Akun perusahaan Anda sedang tidak aktif.");
-                      return;
-                    }
-                    onLogin("client", company.id, email, company.name);
-                  } else {
-                    setError(
-                      "Email Google tidak terdaftar. Silakan daftar terlebih dahulu.",
-                    );
-                  }
+                  setError("Email Google tidak terdaftar. Silakan daftar terlebih dahulu.");
                 }
               }
             }}
@@ -667,39 +476,138 @@ function LoginPage({ onLogin, navigate }) {
           />
         </div>
 
-        {roleTab === "client" && (
-          <p
-            style={{
-              marginTop: "24px",
-              fontSize: "14px",
-              color: "#6b7a96",
-              textAlign: "center",
-            }}
+        <p style={{ marginTop: "24px", fontSize: "14px", color: "#6b7a96", textAlign: "center" }}>
+          Perusahaan Anda belum terdaftar?{" "}
+          <span
+            style={{ color: "#1C3967", fontWeight: "700", cursor: "pointer", textDecoration: "underline" }}
+            onClick={() => navigate("/fleet/register")}
           >
-            Perusahaan Anda belum terdaftar?{" "}
-            <span
-              style={{
-                color: "#1C3967",
-                fontWeight: "700",
-                cursor: "pointer",
-                textDecoration: "underline",
-              }}
-              onClick={() => navigate("/fleet/register")}
-            >
-              Daftar Sekarang
-            </span>
-          </p>
-        )}
+            Daftar Sekarang
+          </span>
+        </p>
 
-        <div style={{ marginTop: "20px", textAlign: "center" }}>
-          <a
-            href="/"
-            style={{
-              fontSize: "13px",
-              color: "#6b7a96",
-              textDecoration: "none",
-            }}
+        <p style={{ marginTop: "12px", fontSize: "12px", color: "#94a3b8", textAlign: "center" }}>
+          Login sebagai Administrator?{" "}
+          <span
+            style={{ color: "#1C3967", fontWeight: "700", cursor: "pointer", textDecoration: "underline" }}
+            onClick={() => navigate("/fleet/admin/login")}
           >
+            Masuk di sini
+          </span>
+        </p>
+
+        <div style={{ marginTop: "16px", textAlign: "center" }}>
+          <a href="/" style={{ fontSize: "13px", color: "#6b7a96", textDecoration: "none" }}>
+            ← Kembali ke Landing Page
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ----------------------------------------------------
+// ADMIN LOGIN PAGE COMPONENT
+// ----------------------------------------------------
+function AdminLoginPage({ onLogin, navigate }) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+    setIsLoading(true);
+
+    if (!email || !password) {
+      setError("Email dan password harus diisi.");
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      const admin = await getAdminByEmail(email);
+      if (admin && admin.password === password) {
+        onLogin("admin", admin.id, email, `${admin.name} Admin`);
+      } else {
+        setError("Kredensial Administrator tidak valid.");
+      }
+    } catch (err) {
+      setError("Terjadi kesalahan. Silakan coba lagi.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="fleet-login-bg">
+      <div className="fleet-login-card">
+        <div className="fleet-login-header">
+          <img
+            src="/logo-sentra-kir.png"
+            alt="Sentra KIR Logo"
+            className="fleet-login-logo"
+            style={{ objectFit: "contain" }}
+          />
+          <h1 className="fleet-login-title">Sentra Fleet</h1>
+          <p className="fleet-login-subtitle">Portal Administrator</p>
+        </div>
+
+        <div className="role-tabs">
+          <button type="button" className="role-tab-btn active">
+            Administrator
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit}>
+          <div className="fleet-form-group">
+            <label className="fleet-label">Email Administrator</label>
+            <input
+              type="email"
+              className="fleet-input"
+              placeholder="admin@sentrakir.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </div>
+
+          <div className="fleet-form-group">
+            <label className="fleet-label">Password</label>
+            <input
+              type="password"
+              className="fleet-input"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+          </div>
+
+          {error && (
+            <div style={{ color: "#dc2626", fontSize: "13px", margin: "-10px 0 20px 0", fontWeight: "600" }}>
+              ⚠️ {error}
+            </div>
+          )}
+
+          <button type="submit" className="fleet-btn-submit" disabled={isLoading}>
+            {isLoading ? "Memverifikasi..." : "Masuk sebagai Administrator"}
+          </button>
+        </form>
+
+        <p style={{ marginTop: "24px", fontSize: "12px", color: "#94a3b8", textAlign: "center" }}>
+          Login sebagai Klien Perusahaan?{" "}
+          <span
+            style={{ color: "#1C3967", fontWeight: "700", cursor: "pointer", textDecoration: "underline" }}
+            onClick={() => navigate("/fleet/login")}
+          >
+            Masuk di sini
+          </span>
+        </p>
+
+        <div style={{ marginTop: "16px", textAlign: "center" }}>
+          <a href="/" style={{ fontSize: "13px", color: "#6b7a96", textDecoration: "none" }}>
             ← Kembali ke Landing Page
           </a>
         </div>
