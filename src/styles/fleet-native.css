@@ -1,0 +1,109 @@
+/* Native APK specific styles — better scaling and touch targets */
+
+/* Force proper viewport behavior on native */
+html {
+  -webkit-text-size-adjust: 100%;
+  -ms-text-size-adjust: 100%;
+  touch-action: manipulation;
+}
+
+/* Increase base font size for native screens */
+.capacitor-native {
+  font-size: 16px !important;
+}
+
+.capacitor-native .fleet-login-card {
+  padding: 32px 24px;
+  max-width: 100%;
+  margin: 0 16px;
+}
+
+.capacitor-native .fleet-login-title {
+  font-size: 28px;
+}
+
+.capacitor-native .fleet-btn-submit {
+  min-height: 48px;
+  font-size: 16px;
+  padding: 12px 20px;
+}
+
+.capacitor-native .fleet-input {
+  min-height: 48px;
+  font-size: 16px;
+  padding: 12px 16px;
+}
+
+/* Admin Dashboard scaling */
+.capacitor-native .fleet-sidebar {
+  width: 240px;
+}
+
+.capacitor-native .sidebar-link {
+  min-height: 48px;
+  font-size: 15px;
+  padding: 12px 16px;
+}
+
+.capacitor-native .fleet-page-header h1 {
+  font-size: 24px;
+}
+
+.capacitor-native .fleet-page-header p {
+  font-size: 14px;
+}
+
+.capacitor-native .fleet-card {
+  padding: 20px;
+}
+
+.capacitor-native .fleet-table {
+  font-size: 14px;
+}
+
+.capacitor-native .fleet-table th,
+.capacitor-native .fleet-table td {
+  padding: 12px;
+}
+
+.capacitor-native .fleet-btn,
+.capacitor-native .fleet-btn-secondary {
+  min-height: 44px;
+  font-size: 15px;
+  padding: 10px 18px;
+}
+
+/* Modal full-screen on native */
+.capacitor-native .fleet-modal {
+  max-width: 100%;
+  width: 100%;
+  max-height: 95vh;
+  margin: 0;
+  border-radius: 16px 16px 0 0;
+}
+
+.capacitor-native .fleet-modal-body {
+  padding: 20px;
+}
+
+/* Touch targets — minimum 44x44 */
+.capacitor-native button,
+.capacitor-native .fleet-btn,
+.capacitor-native .sidebar-link,
+.capacitor-native input[type="checkbox"],
+.capacitor-native input[type="radio"] {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+/* Better scrolling */
+.capacitor-native .fleet-main,
+.capacitor-native .fleet-modal-body,
+.capacitor-native .fleet-table-container {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Hide elements that don't make sense on native */
+.capacitor-native .fleet-login-bg {
+  padding: 16px;
+}

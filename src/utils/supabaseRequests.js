@@ -7,7 +7,12 @@ export const getRequestsByCompanyId = async (companyId) => {
   try {
     const { data, error } = await supabase
       .from('requests')
-      .select('*')
+      .select(`
+        id, company_id, vehicle_id, service_type,
+        service_type_label, description, estimated_cost,
+        status, admin_id, meta_data,
+        created_at, updated_at
+      `)
       .eq('company_id', companyId)
       .order('created_at', { ascending: false });
 
@@ -28,7 +33,12 @@ export const getRequestsByAdminId = async (adminId) => {
   try {
     const { data, error } = await supabase
       .from('requests')
-      .select('*')
+      .select(`
+        id, company_id, vehicle_id, service_type,
+        service_type_label, description, estimated_cost,
+        status, admin_id, meta_data,
+        created_at, updated_at
+      `)
       .eq('admin_id', adminId)
       .order('created_at', { ascending: false });
 

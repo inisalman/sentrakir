@@ -1,3 +1,6 @@
+import { Capacitor } from '@capacitor/core'
+import { useEffect } from 'react'
+import './styles/fleet-native.css'
 import Navbar from './components/Navbar.jsx'
 import Hero from './components/Hero.jsx'
 import About from './components/About.jsx'
@@ -17,6 +20,25 @@ import FleetPortal from './components/Fleet/FleetPortal.jsx'
 
 export default function App() {
   const pathname = window.location.pathname
+
+  // Add capacitor-native class to body when running on native platform
+  useEffect(() => {
+    if (Capacitor.isNativePlatform()) {
+      document.body.classList.add('capacitor-native')
+    }
+    return () => {
+      document.body.classList.remove('capacitor-native')
+    }
+  }, [])
+
+  // Di Android APK, langsung masuk Fleet Portal (admin login)
+  if (Capacitor.isNativePlatform()) {
+    // Set initial path ke admin login jika belum authenticated
+    if (pathname === '/' || pathname === '/index.html') {
+      window.history.replaceState(null, '', '/fleet/admin/login')
+    }
+    return <FleetPortal />
+  }
 
   // Fleet routes (/fleet or /fleet/*)
   if (pathname === '/fleet' || pathname.startsWith('/fleet/')) {

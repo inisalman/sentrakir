@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { processUserMessage } from '../../utils/aiChat';
 import { createChatMessage, getChatHistory } from '../../utils/supabaseChat';
+import { createNotification } from '../../utils/supabaseNotifications';
+import { supabase } from '../../utils/supabaseClient';
 
 const ChatWidget = ({ companyId, clientName = 'Client' }) => {
   const [messages, setMessages] = useState([]);
@@ -52,6 +54,25 @@ const ChatWidget = ({ companyId, clientName = 'Client' }) => {
 
       if (userMsg) {
         setMessages(prev => [...prev, userMsg]);
+
+        // Notify admin about new chat message
+        const { data: comp } = await supabase
+          .from('companies')
+          .select('admin_id, name')
+          .eq('id', companyId)
+          .single();
+        if (comp?.admin_id) {
+          createNotification({
+            adminId: comp.admin_id,
+            type: 'ai_chat',
+            title: 'Chat Baru',
+            message: `${comp.name || clientName}: ${userMessage.slice(0, 80)}`,
+            priority: 'normal',
+            referenceId: companyId,
+            referenceType: 'chat',
+            metaData: { companyName: comp.name, preview: userMessage.slice(0, 100) },
+          });
+        }
       }
 
       // Get AI response

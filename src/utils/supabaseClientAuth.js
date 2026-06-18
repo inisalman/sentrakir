@@ -1,11 +1,45 @@
 import { supabase } from './supabaseClient';
 
-// Get company by email
+// Get company by auth_user_id — excludes password field
+export const getCompanyByAuthUserId = async (authUserId) => {
+  try {
+    const { data, error } = await supabase
+      .from('companies')
+      .select(`
+        id, name, pic_name, pic_phone, email, address,
+        membership_tier, membership_price,
+        subscription_status, status,
+        admin_id, payment_proof_path,
+        last_active, created_at
+      `)
+      .eq('auth_user_id', authUserId)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') return null;
+      console.error('Error fetching company by auth_user_id:', error.message);
+      return null;
+    }
+
+    return data;
+  } catch (err) {
+    console.error('Unexpected error:', err);
+    return null;
+  }
+};
+
+// Get company by email — excludes password field from response
 export const getCompanyByEmail = async (email) => {
   try {
     const { data, error } = await supabase
       .from('companies')
-      .select('*')
+      .select(`
+        id, name, pic_name, pic_phone, email, address,
+        membership_tier, membership_price,
+        subscription_status, status,
+        admin_id, payment_proof_path,
+        last_active, created_at
+      `)
       .ilike('email', email)
       .single();
 
@@ -22,12 +56,15 @@ export const getCompanyByEmail = async (email) => {
   }
 };
 
+
 // Create new company — returns the created company object directly (or null on error)
 export const createCompany = async (companyData) => {
   try {
-    // Biarkan Supabase generate UUID lewat default gen_random_uuid()
-    // jangan kirim field id sama sekali
-    const { id: _ignored, ...payload } = companyData;
+    // Jika id dikirim, pakai itu (misal dari google auth), jika tidak hapus id agar auto-generate
+    const payload = { ...companyData };
+    if (!payload.id) {
+      delete payload.id;
+    }
 
     const { data, error } = await supabase
       .from('companies')
@@ -47,12 +84,76 @@ export const createCompany = async (companyData) => {
   }
 };
 
-// Get all companies
+// Update company fields by ID
+export const updateCompany = async (companyId, fields) => {
+  try {
+    const { data, error } = await supabase
+      .from('companies')
+      .update(fields)
+      .eq('id', companyId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error updating company:', error.message);
+      return null;
+    }
+
+    return data;
+  } catch (err) {
+    console.error('Unexpected error:', err);
+    return null;
+  }
+};
+
+// Upload payment proof to Supabase Storage
+export const uploadPaymentProof = async (file, companyEmail) => {
+  try {
+    const ext = file.name.split('.').pop();
+    const fileName = `${companyEmail.replace(/[^a-z0-9]/gi, '_')}_${Date.now()}.${ext}`;
+    const filePath = `${fileName}`;
+
+    const { data, error } = await supabase.storage
+      .from('Payment Prove')
+      .upload(filePath, file, {
+        cacheControl: '3600',
+        upsert: false,
+        contentType: file.type,
+      });
+
+    if (error) {
+      console.error('Error uploading payment proof:', error.message);
+      return null;
+    }
+
+    return filePath;
+  } catch (err) {
+    console.error('Unexpected error uploading file:', err);
+    return null;
+  }
+};
+
+// Get public URL for a payment proof file
+export const getPaymentProofUrl = (filePath) => {
+  if (!filePath) return null;
+  const { data } = supabase.storage
+    .from('Payment Prove')
+    .getPublicUrl(filePath);
+  return data?.publicUrl || null;
+};
+
+// Get all companies (includes last_active for online status) — no password
 export const getAllCompanies = async () => {
   try {
     const { data, error } = await supabase
       .from('companies')
-      .select('*')
+      .select(`
+        id, name, pic_name, pic_phone, email, address,
+        membership_tier, membership_price,
+        subscription_status, status,
+        admin_id, payment_proof_path,
+        last_active, created_at
+      `)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -64,5 +165,120 @@ export const getAllCompanies = async () => {
   } catch (err) {
     console.error('Unexpected error:', err);
     return [];
+  }
+};
+
+// Get companies with pending payment (butuh konfirmasi pembayaran admin) — no password
+export const getPendingRegistrations = async (adminId) => {
+  try {
+    const { data, error } = await supabase
+      .from('companies')
+      .select(`
+        id, name, pic_name, pic_phone, email, address,
+        membership_tier, membership_price,
+        subscription_status, status,
+        admin_id, payment_proof_path,
+        last_active, created_at
+      `)
+      .eq('admin_id', adminId)
+      .like('subscription_status', 'pending_payment:%')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching pending registrations:', error.message);
+      return [];
+    }
+
+    return data;
+  } catch (err) {
+    console.error('Unexpected error:', err);
+    return [];
+  }
+};
+
+// Get ALL registrations untuk admin (semua status) — no password
+export const getAllRegistrationsForAdmin = async (adminId) => {
+  try {
+    const { data, error } = await supabase
+      .from('companies')
+      .select(`
+        id, name, pic_name, pic_phone, email, address,
+        membership_tier, membership_price,
+        subscription_status, status,
+        admin_id, payment_proof_path,
+        last_active, created_at
+      `)
+      .eq('admin_id', adminId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching registrations:', error.message);
+      return [];
+    }
+
+    return data;
+  } catch (err) {
+    console.error('Unexpected error:', err);
+    return [];
+  }
+};
+
+// Get pending payment registrations untuk admin — no password
+export const getPendingPayments = async (adminId) => {
+  try {
+    const { data, error } = await supabase
+      .from('companies')
+      .select(`
+        id, name, pic_name, pic_phone, email, address,
+        membership_tier, membership_price,
+        subscription_status, status,
+        admin_id, payment_proof_path,
+        last_active, created_at
+      `)
+      .eq('admin_id', adminId)
+      .like('subscription_status', 'pending_payment:%')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching pending payments:', error.message);
+      return [];
+    }
+
+    return data;
+  } catch (err) {
+    console.error('Unexpected error:', err);
+    return [];
+  }
+};
+
+// Admin konfirmasi pembayaran — upgrade tier, set subscription_status active
+export const confirmPayment = async (companyId, targetTier) => {
+  return updateCompany(companyId, {
+    subscription_status: 'active',
+    membership_tier: targetTier,
+  });
+};
+
+// Admin tolak pembayaran — set subscription_status rejected
+export const rejectPayment = async (companyId) => {
+  return updateCompany(companyId, {
+    subscription_status: 'payment_rejected',
+    membership_tier: 'free',
+  });
+};
+
+// Update client last_active timestamp — called on client activity
+export const updateClientLastActive = async (companyId) => {
+  try {
+    const { error } = await supabase
+      .from('companies')
+      .update({ last_active: new Date().toISOString() })
+      .eq('id', companyId);
+
+    if (error) {
+      console.error('Error updating last_active:', error.message);
+    }
+  } catch (err) {
+    console.error('Unexpected error updating last_active:', err);
   }
 };

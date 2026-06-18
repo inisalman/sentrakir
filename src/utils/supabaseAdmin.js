@@ -10,7 +10,7 @@ export const getAdminByEmail = async (email) => {
       .single();
 
     if (error) {
-      if (error.code === 'PGRST116') return null; // No rows found
+      if (error.code === 'PGRST116') return null;
       console.error('Error fetching admin by email:', error.message);
       return null;
     }
@@ -32,7 +32,7 @@ export const getAdminByCode = async (code) => {
       .single();
 
     if (error) {
-      if (error.code === 'PGRST116') return null; // No rows found
+      if (error.code === 'PGRST116') return null;
       console.error('Error fetching admin by code:', error.message);
       return null;
     }
@@ -54,7 +54,7 @@ export const getAdminById = async (adminId) => {
       .single();
 
     if (error) {
-      if (error.code === 'PGRST116') return null; // No rows found
+      if (error.code === 'PGRST116') return null;
       console.error('Error fetching admin by id:', error.message);
       return null;
     }
@@ -77,4 +77,46 @@ export const canAdminHandleService = async (adminId, serviceType) => {
   const admin = await getAdminById(adminId);
   if (!admin || !admin.allowed_services) return false;
   return admin.allowed_services.includes(serviceType);
+};
+
+// Get all admins
+export const getAllAdmins = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('admins')
+      .select('*')
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching all admins:', error.message);
+      return [];
+    }
+
+    return data;
+  } catch (err) {
+    console.error('Unexpected error:', err);
+    return [];
+  }
+};
+
+// Update admin by ID
+export const updateAdmin = async (adminId, fields) => {
+  try {
+    const { data, error } = await supabase
+      .from('admins')
+      .update(fields)
+      .eq('id', adminId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error updating admin:', error.message);
+      return null;
+    }
+
+    return data;
+  } catch (err) {
+    console.error('Unexpected error updating admin:', err);
+    return null;
+  }
 };

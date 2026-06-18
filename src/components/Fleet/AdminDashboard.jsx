@@ -1,47 +1,20 @@
 import React, { useState, useEffect } from "react";
-import {
-  getFleetDatabase,
-  getDaysRemaining,
-  getDocStatus,
-  updateRequestStatus,
-  verifyDocument,
-  CURRENT_DATE_STR,
-  getAdminById,
-  getRequestsForAdmin,
-  getClientsForAdminView,
-  submitServiceQuote,
-  ADMINS,
-  getMembershipRequestsForAdmin,
-  resolveMembershipRequest,
-  setCompanyMembership,
-  getTierConfig,
-  MEMBERSHIP_TIERS,
-} from "../../utils/fleetMockData.js";
-import { getRequestsByAdminId, updateRequestStatusSupabase } from "../../utils/supabaseRequests.js";
 import { getAllCompanies } from "../../utils/supabaseClientAuth.js";
-import AdminChatPanel from "../../components/Chat/AdminChatPanel";
+import { getRequestsByAdminId } from "../../utils/supabaseRequests.js";
+import { getAllVehicles } from "../../utils/supabaseVehicles.js";
+import AdminChatPanel from "../Chat/AdminChatPanel";
 
-
-const getCompanyName = (db, companyId) => {
-  const comp = db?.companies?.find(c => c.id === companyId);
-  return comp ? comp.name : "Unknown Company";
-};
-
-const getPlateNumber = (db, vehicleId) => {
-  const veh = db?.vehicles?.find(v => v.id === vehicleId);
-  return veh ? veh.plateNumber : "-";
-};
-
-const formatDate = (dateStr) => {
-  if (!dateStr) return "-";
-  try {
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return "-";
-    return d.toLocaleDateString("id-ID", { year: "numeric", month: "long", day: "numeric" });
-  } catch {
-    return "-";
-  }
-};
+import BusinessDashboardView from "./AdminDashboard/BusinessDashboardView";
+import ClientsView from "./AdminDashboard/ClientsView";
+import NationalVehiclesView from "./AdminDashboard/NationalVehiclesView";
+import OrderTrackerView from "./AdminDashboard/OrderTrackerView";
+import VerificationsView from "./AdminDashboard/VerificationsView";
+import AdminVehiclesView from "./AdminDashboard/AdminVehiclesView";
+import PendingPaymentsView from "./AdminDashboard/PendingPaymentsView";
+import MembershipRequestsView from "./AdminDashboard/MembershipRequestsView";
+import { useSystemFlags } from "../../utils/SystemFlagsContext";
+import { NotificationsProvider } from "./NotificationsContext";
+import NotificationBell from "./NotificationBell";
 
 export default function AdminDashboard({
   user,
@@ -49,7 +22,13 @@ export default function AdminDashboard({
   currentPath,
   navigate,
 }) {
-  const [db, setDb] = useState(() => getFleetDatabase());
+  const { flags } = useSystemFlags();
+  const [db, setDb] = useState({
+    companies: [],
+    vehicles: [],
+    requests: [],
+    documents: [],
+  });
   const [activeTab, setActiveTab] = useState("dashboard");
 
   // Sync active tab with currentPath
@@ -64,66 +43,89 @@ export default function AdminDashboard({
         "verifications",
         "membership",
         "chat",
+        "admin-vehicles",
       ].includes(subPath)
     ) {
       setActiveTab(subPath);
     } else {
-      // default redirection
       navigate("/fleet/admin/dashboard");
     }
   }, [currentPath]);
 
-  // Refresh local state when DB changes
+  // Refresh local state — all data from Supabase
   const refreshData = async () => {
-    const mockDb = getFleetDatabase();
     try {
       const supabaseCompanies = await getAllCompanies();
-      // Replace mock companies with supabase companies & map snake_case to camelCase
-      mockDb.companies = supabaseCompanies.map(c => ({
-        ...c,
-        adminId: c.admin_id,
-        picName: c.pic_name,
-        picPhone: c.pic_phone,
-        membershipTier: c.membership_tier,
-        membershipPrice: c.membership_price,
-        subscriptionStatus: c.subscription_status
-      }));
-
-      // 2. Fetch requests assigned to this admin from Supabase
       const supabaseRequests = await getRequestsByAdminId(user.adminId);
+      const supabaseVehicles = await getAllVehicles();
 
-      const nonAdminMockRequests = mockDb.requests.filter(r => r.adminId !== user.adminId);
-
-      const realRequests = supabaseRequests.map(r => ({
-        ...r,
-        ...(r.meta_data || {}),
-        companyId: r.company_id,
-        vehicleId: r.vehicle_id,
-        serviceType: r.service_type,
-        adminId: r.admin_id
-      }));
-
-      mockDb.requests = [...nonAdminMockRequests, ...realRequests];
-
-      // Update local storage so that other functions like getClientsForAdminView
-      // that read from getFleetDatabase() directly get the updated data
-      localStorage.setItem("sentra_fleet_database", JSON.stringify(mockDb));
+      setDb({
+        companies: supabaseCompanies.map((c) => ({
+          ...c,
+          adminId: c.admin_id,
+          picName: c.pic_name,
+          picPhone: c.pic_phone,
+          membershipTier: c.membership_tier,
+          membershipPrice: c.membership_price,
+          subscriptionStatus: c.subscription_status,
+        })),
+        vehicles: supabaseVehicles.map((v) => ({
+          ...v,
+          ...(v.meta_data || {}),
+          companyId: v.company_id,
+          plateNumber: v.plate_number,
+          vehicleType: v.jenis_kendaraan,
+        })),
+        requests: supabaseRequests.map((r) => ({
+          ...r,
+          ...(r.meta_data || {}),
+          companyId: r.company_id,
+          vehicleId: r.vehicle_id,
+          serviceType: r.service_type,
+          adminId: r.admin_id,
+        })),
+        documents: [],
+      });
     } catch (e) {
-      console.error("Failed to load companies from Supabase", e);
+      console.error("Failed to load data from Supabase", e);
     }
-    setDb({ ...mockDb });
   };
 
   useEffect(() => {
     refreshData();
-  }, []);
+  }, [user.adminId]);
 
+  // Cek apakah admin ini Sentra
+  const isSentra =
+    user.adminId === "584a2442-41eb-40ab-8854-3433cf7a2818" ||
+    (user.companyName || "").toLowerCase().includes("sentra");
 
-
-  // Cek apakah admin ini Sentra (ID 584a2442...) atau Padajaya
-  const isSentra = user.adminId === "584a2442-41eb-40ab-8854-3433cf7a2818" || (user.companyName || "").toLowerCase().includes("sentra");
+  // If this admin's access is globally disabled by Super Admin, block them
+  if (
+    (isSentra && !flags.armada_sentra_enabled) ||
+    (!isSentra && !flags.armada_padajaya_enabled)
+  ) {
+    return (
+      <div className="fleet-portal-wrapper" style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh" }}>
+        <div className="fleet-card" style={{ textAlign: "center", maxWidth: "400px" }}>
+          <h2 style={{ color: "#dc2626", marginBottom: "16px" }}>Akses Ditangguhkan</h2>
+          <p style={{ color: "#64748b", marginBottom: "24px" }}>
+            Akses sistem untuk wilayah Administrator Anda saat ini sedang dinonaktifkan oleh Super Admin (Maintenance).
+          </p>
+          <button className="fleet-btn-secondary" onClick={onLogout}>Keluar</button>
+        </div>
+      </div>
+    );
+  }
 
   const sidebarNavItems = [
+    ...((isSentra && flags.armada_sentra_enabled) || (!isSentra && flags.armada_padajaya_enabled) ? [
+      {
+        id: "admin-vehicles",
+        label: "Armada Khusus Admin",
+        path: "/fleet/admin/admin-vehicles",
+      }
+    ] : []),
     {
       id: "dashboard",
       label: "Dasbor Bisnis",
@@ -149,12 +151,11 @@ export default function AdminDashboard({
       label: "Verifikasi Dokumen",
       path: "/fleet/admin/verifications",
     },
-    {
+    ...(flags.ai_chat_enabled ? [{
       id: "chat",
       label: "Chat Support AI",
       path: "/fleet/admin/chat",
-    },
-    // Membership management is exclusive to Admin Sentra
+    }] : []),
     ...(isSentra
       ? [
           {
@@ -167,6 +168,7 @@ export default function AdminDashboard({
   ];
 
   return (
+    <NotificationsProvider adminId={user.adminId}>
     <div className="fleet-portal-wrapper">
       <div className="fleet-layout">
         {/* Sidebar */}
@@ -213,8 +215,7 @@ export default function AdminDashboard({
                 {activeTab === "requests" && "Tracker Order Dokumen KIR/STNK"}
                 {activeTab === "verifications" &&
                   "Antrean Verifikasi Dokumen Klien"}
-                {activeTab === "chat" &&
-                  "Manajemen Chat Support AI"}
+                {activeTab === "chat" && "Manajemen Chat Support AI"}
                 {activeTab === "membership" &&
                   "Request Membership & Langganan"}
               </h1>
@@ -235,10 +236,13 @@ export default function AdminDashboard({
                   "Tinjau dan setujui permintaan perubahan paket membership dari klien (hanya Admin Sentra)."}
               </p>
             </div>
-            <div className="user-profile-widget">
+            <div className="user-profile-widget" style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <NotificationBell />
               <div className="user-avatar">{isSentra ? "S" : "P"}</div>
               <div className="user-info">
-                <p className="user-name">{isSentra ? "Admin Sentra KIR" : "Admin Padajaya"}</p>
+                <p className="user-name">
+                  {isSentra ? "Admin Sentra KIR" : "Admin Padajaya"}
+                </p>
                 <p className="user-role">Administrator</p>
               </div>
             </div>
@@ -277,1568 +281,27 @@ export default function AdminDashboard({
             />
           )}
           {activeTab === "membership" && (
-            <MembershipRequestsView
-              db={db}
-              adminId={user.adminId}
-              onUpdate={refreshData}
-            />
+            <div>
+              <PendingPaymentsView
+                adminId={user.adminId}
+                onUpdate={refreshData}
+              />
+              <MembershipRequestsView
+                db={db}
+                adminId={user.adminId}
+                onUpdate={refreshData}
+              />
+            </div>
           )}
-          {activeTab === "chat" && (
+          {activeTab === "admin-vehicles" && (isSentra ? flags.armada_sentra_enabled : flags.armada_padajaya_enabled) && (
+            <AdminVehiclesView adminId={user.adminId} />
+          )}
+          {activeTab === "chat" && flags.ai_chat_enabled && (
             <AdminChatPanel adminId={user.adminId} />
           )}
         </main>
       </div>
     </div>
-  );
-}
-
-// ====================================================
-// SUB-VIEW 1: BUSINESS DASHBOARD (ADMIN)
-// ====================================================
-function BusinessDashboardView({ db, adminId, navigate }) {
-  const filteredCompanies = db.companies.filter(c => c.adminId === adminId && c.ownerType !== 'admin');
-  const companyIds = filteredCompanies.map((c) => c.id);
-  const filteredVehicles = db.vehicles.filter((v) =>
-    companyIds.includes(v.companyId),
-  );
-
-  const totalCompanies = filteredCompanies.length;
-  const totalVehicles = filteredVehicles.length;
-
-  // Documents falling due within 30 days
-  let kir30 = 0;
-  let stnk30 = 0;
-  let pajak30 = 0;
-
-  // Revenue Opportunity calculations
-  let kirOpportunities = 0;
-  let stnkPajakOpportunities = 0;
-
-  filteredVehicles.forEach((v) => {
-    const kirDays = getDaysRemaining(v.kirExpiry);
-    const stnkDays = getDaysRemaining(v.stnkExpiry);
-    const pajakDays = getDaysRemaining(v.pajakExpiry);
-
-    // Expiring in 30 days (including expired ones ≤ 30 days ago, or H-30 to expired)
-    if (kirDays <= 30) {
-      kir30++;
-      kirOpportunities++;
-    }
-    if (stnkDays <= 30) {
-      stnk30++;
-      stnkPajakOpportunities++;
-    }
-    if (pajakDays <= 30) {
-      pajak30++;
-      stnkPajakOpportunities++;
-    }
-  });
-
-  const estimatedPricePerDoc = 350000; // Standard agency fee
-  const potentialRevenue =
-    (kirOpportunities + stnkPajakOpportunities) * estimatedPricePerDoc;
-
-  return (
-    <div>
-      {/* Statistics */}
-      <div className="fleet-stats-grid">
-        <div className="fleet-stat-card info">
-          <div>
-            <div className="stat-val">{totalCompanies}</div>
-            <div className="stat-lbl">Total Perusahaan Klien</div>
-          </div>
-          <div className="stat-icon info">🏢</div>
-        </div>
-        <div className="fleet-stat-card info">
-          <div>
-            <div className="stat-val">{totalVehicles}</div>
-            <div className="stat-lbl">Total Armada Nasional</div>
-          </div>
-          <div className="stat-icon info">🚚</div>
-        </div>
-        <div className="fleet-stat-card warning">
-          <div>
-            <div className="stat-val">{kir30}</div>
-            <div className="stat-lbl">KIR Kadaluwarsa (≤ 30 hari)</div>
-          </div>
-          <div className="stat-icon warning">📜</div>
-        </div>
-        <div className="fleet-stat-card danger">
-          <div>
-            <div className="stat-val">{stnk30 + pajak30}</div>
-            <div className="stat-lbl">STNK/Pajak Expired (≤ 30 hari)</div>
-          </div>
-          <div className="stat-icon danger">🚨</div>
-        </div>
-      </div>
-
-      {/* Revenue Opportunities Card */}
-      <div className="business-opportunities-card">
-        <div className="opportunity-header">
-          <h2 className="opportunity-title">
-            Analisis Peluang Bisnis (Revenue Opportunities)
-          </h2>
-          <p className="opportunity-subtitle">
-            Estimasi potensi pendapatan jasa pengurusan KIR & STNK dari seluruh
-            dokumen jatuh tempo (Kuning & Merah) klien.
-          </p>
-        </div>
-        <div className="opportunity-stats-row">
-          <div className="opportunity-stat">
-            <div className="opportunity-stat-val">{kirOpportunities}</div>
-            <div className="opportunity-stat-lbl">Peluang Perpanjangan KIR</div>
-          </div>
-          <div className="opportunity-stat">
-            <div className="opportunity-stat-val">{stnkPajakOpportunities}</div>
-            <div className="opportunity-stat-lbl">Peluang STNK / Pajak</div>
-          </div>
-          <div
-            className="opportunity-stat"
-            style={{ background: "rgba(255,255,255,0.2)" }}
-          >
-            <div className="opportunity-stat-val" style={{ color: "#fef08a" }}>
-              Rp {potentialRevenue.toLocaleString("id-ID")}
-            </div>
-            <div
-              className="opportunity-stat-lbl"
-              style={{ color: "#fef9c3", fontWeight: "bold" }}
-            >
-              Total Estimasi Potensi Omset
-            </div>
-          </div>
-        </div>
-        <div
-          style={{
-            marginTop: "20px",
-            display: "flex",
-            justifyContent: "flex-end",
-          }}
-        >
-          <button
-            className="fleet-btn fleet-btn-secondary fleet-btn-sm"
-            style={{ background: "white", color: "#1e3a8a", border: "none" }}
-            onClick={() => navigate("/fleet/admin/clients")}
-          >
-            Lakukan Follow-up Klien →
-          </button>
-        </div>
-      </div>
-
-      {/* Bottom info section */}
-      <div
-        style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "24px" }}
-      >
-        {/* Pending Requests summary */}
-        <div className="fleet-card" style={{ marginBottom: 0 }}>
-          <h3
-            style={{
-              fontSize: "15px",
-              fontWeight: "800",
-              margin: "0 0 16px 0",
-              color: "#1C3967",
-            }}
-          >
-            Antrean Permintaan Jasa Terbaru
-          </h3>
-          <div className="fleet-table-container">
-            <table className="fleet-table" style={{ fontSize: "13px" }}>
-              <thead>
-                <tr>
-                  <th>Klien</th>
-                  <th>Plat Nomor</th>
-                  <th>Layanan</th>
-                  <th>Estimasi Biaya</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {db.requests.filter(r => r.adminId === adminId)
-                  .filter((r) => r.status === "pending")
-                  .slice(0, 5).length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan="5"
-                      style={{
-                        textAlign: "center",
-                        padding: "20px",
-                        color: "#6b7a96",
-                      }}
-                    >
-                      Tidak ada antrean request pending.
-                    </td>
-                  </tr>
-                ) : (
-                  db.requests.filter(r => r.adminId === adminId)
-                    .filter((r) => r.status === "pending")
-                    .slice(0, 5)
-                    .map((r) => (
-                      <tr key={r.id}>
-                        <td style={{ fontWeight: "600" }}>{r.companyName || getCompanyName(db, r.companyId)}</td>
-                        <td>{r.plateNumber || getPlateNumber(db, r.vehicleId)}</td>
-                        <td>{r.serviceTypeLabel}</td>
-                        <td>Rp {r.estimatedCost?.toLocaleString("id-ID")}</td>
-                        <td>
-                          <span
-                            className="badge-status warning"
-                            style={{ padding: "2px 8px", fontSize: "11px" }}
-                          >
-                            Pending
-                          </span>
-                        </td>
-                      </tr>
-                    ))
-                )}
-              </tbody>
-            </table>
-          </div>
-          <div style={{ marginTop: "14px", textAlign: "right" }}>
-            <button
-              className="fleet-btn fleet-btn-secondary fleet-btn-sm"
-              onClick={() => navigate("/fleet/admin/requests")}
-            >
-              Lihat Semua Order →
-            </button>
-          </div>
-        </div>
-
-        {/* Quick Help Admin */}
-        <div
-          className="fleet-card"
-          style={{ marginBottom: 0, background: "#f8fafc" }}
-        >
-          <h3
-            style={{
-              fontSize: "15px",
-              fontWeight: "800",
-              margin: "0 0 12px 0",
-              color: "#1C3967",
-            }}
-          >
-            Panduan Admin
-          </h3>
-          <ul
-            style={{
-              paddingLeft: "20px",
-              margin: 0,
-              fontSize: "13px",
-              color: "#475569",
-              display: "flex",
-              flexDirection: "column",
-              gap: "12px",
-              lineHeight: "1.5",
-            }}
-          >
-            <li>
-              Lakukan verifikasi dokumen unggahan klien pada tab{" "}
-              <strong>Verifikasi</strong>. Dokumen yang tidak valid/buram harus
-              segera di-Reject dengan alasan jelas.
-            </li>
-            <li>
-              Saat request perpanjangan selesai dikerjakan, ubah status order
-              menjadi <strong>Selesai (Completed)</strong> di tab{" "}
-              <strong>Tracker Order</strong>. Tanggal berlaku dokumen armada
-              klien akan otomatis terperpanjang secara dinamis.
-            </li>
-            <li>
-              Gunakan tombol <strong>WhatsApp Follow-up</strong> di database
-              klien untuk mengirimkan template pesan pengingat jatuh tempo
-              secara cepat.
-            </li>
-          </ul>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ====================================================
-// SUB-VIEW 2: CLIENTS DATABASE
-// ====================================================
-function ClientsView({ db, adminId, onUpdate }) {
-  const [search, setSearch] = useState("");
-
-  const adminCompanies = db.companies.filter(c => c.adminId === adminId && c.ownerType !== 'admin');
-
-  const filteredCompanies = adminCompanies.filter(
-    (c) =>
-      c.name.toLowerCase().includes(search.toLowerCase()) ||
-      c.picName.toLowerCase().includes(search.toLowerCase()),
-  );
-
-  const getWhatsAppLink = (c) => {
-    // Check which vehicles are warning/expired for this company
-    const compVehicles = db.vehicles.filter((v) => v.companyId === c.id);
-    const warningOrExpired = [];
-
-    compVehicles.forEach((v) => {
-      const kirDays = getDaysRemaining(v.kirExpiry);
-      const stnkDays = getDaysRemaining(v.stnkExpiry);
-      const pajakDays = getDaysRemaining(v.pajakExpiry);
-      const minDays = Math.min(kirDays, stnkDays, pajakDays);
-
-      if (minDays <= 90) {
-        warningOrExpired.push(`${v.plateNumber} (KIR/STNK)`);
-      }
-    });
-
-    let message = `Halo Bapak/Ibu ${c.picName} dari ${c.name}. Kami dari Sentra KIR ingin mengingatkan masa berlaku dokumen armada Anda. `;
-    if (warningOrExpired.length > 0) {
-      message += `Terdapat kendaraan yang mendekati jatuh tempo: ${warningOrExpired.slice(0, 2).join(", ")}. `;
-    }
-    message += `Apakah ingin kami bantu untuk proses perpanjangannya? Anda dapat meninjau detailnya di portal Sentra Fleet. Terima kasih.`;
-
-    return `https://wa.me/${c.picPhone}?text=${encodeURIComponent(message)}`;
-  };
-
-  return (
-    <div className="fleet-card">
-      <div className="table-controls">
-        <input
-          type="text"
-          className="fleet-input table-search"
-          placeholder="Cari perusahaan atau nama PIC..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-      </div>
-
-      <div className="fleet-table-container">
-        <table className="fleet-table">
-          <thead>
-            <tr>
-              <th>Nama Perusahaan</th>
-              <th>Nama PIC</th>
-              <th>No. WhatsApp PIC</th>
-              <th>Email B2B</th>
-              <th>Membership Tier</th>
-              <th>Administrator</th>
-              <th>Jumlah Armada</th>
-              <th>Status</th>
-              <th style={{ textAlign: "center" }}>WhatsApp Remind</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredCompanies.length === 0 ? (
-              <tr>
-                <td
-                  colSpan="9"
-                  style={{
-                    textAlign: "center",
-                    padding: "30px",
-                    color: "#6b7a96",
-                  }}
-                >
-                  Tidak ada perusahaan klien terdaftar.
-                </td>
-              </tr>
-            ) : (
-              filteredCompanies.map((c) => {
-                const count = db.vehicles.filter(
-                  (v) => v.companyId === c.id,
-                ).length;
-                const clientAdmin = getAdminById(c.adminId) || {
-                  name: "Sentra",
-                };
-                return (
-                  <tr key={c.id}>
-                    <td style={{ fontWeight: "700", color: "#1C3967" }}>
-                      {c.name}
-                    </td>
-                    <td>{c.picName}</td>
-                    <td style={{ fontFamily: "monospace" }}>+{c.picPhone}</td>
-                    <td>{c.email}</td>
-                    <td>
-                      <span
-                        className="badge-status neutral"
-                        style={{
-                          fontWeight: "700",
-                          textTransform: "capitalize",
-                        }}
-                      >
-                        {c.membershipTier}
-                      </span>
-                    </td>
-                    <td>
-                      <span
-                        className="badge-status info"
-                        style={{
-                          fontWeight: "700",
-                          background: "#eff6ff",
-                          color: "#1e40af",
-                          border: "1px solid #bfdbfe",
-                        }}
-                      >
-                        {clientAdmin.name}
-                      </span>
-                    </td>
-                    <td style={{ fontWeight: "700", paddingLeft: "30px" }}>
-                      {count}
-                    </td>
-                    <td>
-                      <span
-                        className={`badge-status ${c.status === "active" ? "success" : "danger"}`}
-                      >
-                        {c.status === "active" ? "Aktif" : "Nonaktif"}
-                      </span>
-                    </td>
-                    <td style={{ textAlign: "center" }}>
-                      <a
-                        href={getWhatsAppLink(c)}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="fleet-btn fleet-btn-success fleet-btn-sm"
-                        style={{
-                          display: "inline-flex",
-                          textDecoration: "none",
-                        }}
-                      >
-                        💬 Hubungi PIC
-                      </a>
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
-// ====================================================
-// SUB-VIEW 3: NATIONAL VEHICLES
-// ====================================================
-function NationalVehiclesView({ db, adminId }) {
-  const [search, setSearch] = useState("");
-  const [filterCompany, setFilterCompany] = useState("all");
-
-  const adminCompanies = db.companies.filter(c => c.adminId === adminId && c.ownerType !== 'admin');
-  const companyIds = adminCompanies.map((c) => c.id);
-
-  const filteredVehicles = db.vehicles.filter((v) => {
-    // Ensure vehicle belongs to admin's clients
-    if (!companyIds.includes(v.companyId)) return false;
-
-    const company = db.companies.find((c) => c.id === v.companyId) || {};
-    const matchesSearch =
-      v.plateNumber.toLowerCase().includes(search.toLowerCase()) ||
-      v.vehicleType.toLowerCase().includes(search.toLowerCase()) ||
-      (company.name &&
-        company.name.toLowerCase().includes(search.toLowerCase()));
-
-    const matchesCompany =
-      filterCompany === "all" || v.companyId === filterCompany;
-
-    return matchesSearch && matchesCompany;
-  });
-
-  return (
-    <div className="fleet-card">
-      <div className="table-controls">
-        <input
-          type="text"
-          className="fleet-input table-search"
-          placeholder="Cari plat, jenis, atau perusahaan..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-        <select
-          className="fleet-input"
-          style={{ maxWidth: "240px", background: "white" }}
-          value={filterCompany}
-          onChange={(e) => setFilterCompany(e.target.value)}
-        >
-          <option value="all">Semua Perusahaan Klien</option>
-          {adminCompanies.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div className="fleet-table-container">
-        <table className="fleet-table">
-          <thead>
-            <tr>
-              <th>Plat Nomor</th>
-              <th>Pemilik Perusahaan</th>
-              <th>Tipe Armada</th>
-              <th>Kadaluwarsa KIR</th>
-              <th>Kadaluwarsa STNK</th>
-              <th>Kadaluwarsa Pajak</th>
-              <th>Status KIR</th>
-              <th>Status STNK</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredVehicles.length === 0 ? (
-              <tr>
-                <td
-                  colSpan="8"
-                  style={{
-                    textAlign: "center",
-                    padding: "30px",
-                    color: "#6b7a96",
-                  }}
-                >
-                  Tidak ada armada kendaraan terdaftar.
-                </td>
-              </tr>
-            ) : (
-              filteredVehicles.map((v) => {
-                const owner =
-                  db.companies.find((c) => c.id === v.companyId) || {};
-                const kirDays = getDaysRemaining(v.kirExpiry);
-                const stnkDays = getDaysRemaining(v.stnkExpiry);
-
-                return (
-                  <tr key={v.id}>
-                    <td style={{ fontWeight: "700" }}>{v.plateNumber}</td>
-                    <td style={{ fontWeight: "600", color: "#1C3967" }}>
-                      {owner.name || "Unknown"}
-                    </td>
-                    <td>{v.vehicleType}</td>
-                    <td>{v.kirExpiry}</td>
-                    <td>{v.stnkExpiry}</td>
-                    <td>{v.pajakExpiry}</td>
-                    <td>
-                      <span
-                        className={`badge-status ${getDocStatus(v.kirExpiry).code}`}
-                      >
-                        {getDocStatus(v.kirExpiry).label}
-                      </span>
-                    </td>
-                    <td>
-                      <span
-                        className={`badge-status ${getDocStatus(v.stnkExpiry).code}`}
-                      >
-                        {getDocStatus(v.stnkExpiry).label}
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
-// ====================================================
-// SUB-VIEW 4: ORDER TRACKER (ADMIN)
-// ====================================================
-function OrderTrackerView({ db, adminId, onUpdate }) {
-  const [selectedRequest, setSelectedRequest] = useState(null);
-
-  // Quote form states
-  const [serviceFee, setServiceFee] = useState("");
-  const [estimatedTime, setEstimatedTime] = useState("");
-  const [terms, setTerms] = useState("");
-  const [docRequirements, setDocRequirements] = useState({}); // { "KTP Pemilik": { asli: true, fotocopy: false }, ... }
-  const [customDocs, setCustomDocs] = useState([]); // [{ name: "...", asli: false, fotocopy: false }]
-
-  // Daftar dokumen standar yang sering dibutuhin admin
-  const STANDARD_DOC_LIST = [
-    "KTP Pemilik",
-    "BPKB",
-    "STNK",
-    "Buku KIR",
-    "Sertifikat KIR",
-    "SIM Pemilik",
-    "Surat Keterangan Cabut Berkas",
-    "Surat Kuasa PT",
-    "Surat Kuasa Perorangan",
-  ];
-
-  // Populate form when request is selected
-  useEffect(() => {
-    if (selectedRequest) {
-      setServiceFee(selectedRequest.serviceQuote?.serviceFee || selectedRequest.estimatedCost || "");
-      setEstimatedTime(selectedRequest.serviceQuote?.estimatedTime || "");
-      setTerms(selectedRequest.serviceQuote?.terms || "");
-      setDocRequirements(selectedRequest.serviceQuote?.docRequirements || {});
-      setCustomDocs(selectedRequest.serviceQuote?.customDocs || []);
-    }
-  }, [selectedRequest]);
-
-  const handleStatusChange = async (reqId, newStatus) => {
-    // Determine if we're dealing with a Supabase request (id format "req-123...") or legacy mock
-    if (reqId.startsWith('req-')) {
-      const result = await updateRequestStatusSupabase(reqId, newStatus);
-      if (!result.success) {
-        alert("Gagal update status: " + result.error);
-        return;
-      }
-    } else {
-      updateRequestStatus(reqId, newStatus);
-    }
-
-    onUpdate();
-    alert(`Status pengerjaan berhasil diubah menjadi ${newStatus.toUpperCase()}.`);
-  };
-
-  const handleSendQuote = async (e) => {
-    e.preventDefault();
-    if (!serviceFee || !estimatedTime) {
-      alert("Harap lengkapi rincian biaya dan estimasi waktu!");
-      return;
-    }
-
-    // Bangun list dokumen yang dibutuhin dari checklist
-    const requiredDocsList = [];
-    Object.entries(docRequirements).forEach(([docName, types]) => {
-      const formats = [];
-      if (types.asli) formats.push("Asli");
-      if (types.fotocopy) formats.push("Fotocopy");
-      if (formats.length > 0) {
-        requiredDocsList.push(`${docName} (${formats.join(" & ")})`);
-      }
-    });
-
-    customDocs.forEach(doc => {
-      const formats = [];
-      if (doc.asli) formats.push("Asli");
-      if (doc.fotocopy) formats.push("Fotocopy");
-      if (doc.name && formats.length > 0) {
-        requiredDocsList.push(`${doc.name} (${formats.join(" & ")})`);
-      }
-    });
-
-    if (requiredDocsList.length === 0 && !terms.trim()) {
-      alert("Harap centang minimal satu dokumen syarat atau isi catatan tambahan!");
-      return;
-    }
-
-    // Gabungkan jadi text terms
-    let finalTerms = "";
-    if (requiredDocsList.length > 0) {
-      finalTerms = "Dokumen yang harus disiapkan:\n" + requiredDocsList.map((d, i) => `${i + 1}. ${d}`).join("\n");
-    }
-    if (terms.trim()) {
-      finalTerms += (finalTerms ? "\n\nCatatan Tambahan:\n" : "") + terms.trim();
-    }
-
-    const quoteData = {
-      serviceQuote: {
-        serviceFee: Number(serviceFee),
-        estimatedTime,
-        terms: finalTerms,
-        docRequirements,
-        customDocs,
-        quotedAt: new Date().toISOString()
-      }
-    };
-
-    if (selectedRequest.id.startsWith('req-')) {
-      const result = await updateRequestStatusSupabase(selectedRequest.id, "waiting_approval", quoteData);
-      if (!result.success) {
-        alert("Gagal mengirim rincian: " + result.error);
-        return;
-      }
-    } else {
-      submitServiceQuote(selectedRequest.id, {
-        serviceFee: Number(serviceFee),
-        estimatedTime,
-        terms: finalTerms
-      });
-    }
-
-    alert("Rincian penawaran & syarat berhasil dikirimkan ke klien!");
-    setSelectedRequest(null);
-    onUpdate();
-  };
-
-  const toggleDocType = (docName, type) => {
-    setDocRequirements(prev => {
-      const existing = prev[docName] || { asli: false, fotocopy: false };
-      return {
-        ...prev,
-        [docName]: { ...existing, [type]: !existing[type] }
-      };
-    });
-  };
-
-  const addCustomDoc = () => {
-    setCustomDocs(prev => [...prev, { name: "", asli: false, fotocopy: false }]);
-  };
-
-  const updateCustomDoc = (idx, field, value) => {
-    setCustomDocs(prev => prev.map((d, i) => i === idx ? { ...d, [field]: value } : d));
-  };
-
-  const removeCustomDoc = (idx) => {
-    setCustomDocs(prev => prev.filter((_, i) => i !== idx));
-  };
-
-  const adminRequests = db.requests.filter(r => r.adminId === adminId);
-
-  const getStatusBadgeClass = (status) => {
-    if (status === "pending") return "warning";
-    if (status === "quoted") return "warning";
-    if (status === "waiting_approval") return "warning";
-    if (status === "approved") return "success";
-    if (status === "in_progress") return "neutral";
-    if (status === "completed") return "success";
-    if (status === "cancelled") return "danger";
-    return "neutral";
-  };
-
-  const getStatusLabel = (status) => {
-    const map = {
-      pending: "Perlu Penawaran",
-      quoted: "Penawaran Terkirim",
-      waiting_approval: "Menunggu ACC Klien",
-      approved: "Disetujui Klien",
-      in_progress: "Sedang Dikerjakan",
-      completed: "Selesai",
-      cancelled: "Dibatalkan Klien",
-    };
-    return map[status] || status;
-  };
-
-  return (
-    <div className="fleet-card">
-      <h2
-        style={{
-          fontSize: "16px",
-          fontWeight: "800",
-          margin: "0 0 20px 0",
-          color: "#1C3967",
-        }}
-      >
-        Daftar Permintaan Layanan Dokumen
-      </h2>
-
-      <div className="fleet-table-container">
-        <table className="fleet-table">
-          <thead>
-            <tr>
-              <th>ID Request</th>
-              <th>Nama Perusahaan</th>
-              <th>Plat Nomor</th>
-              <th>Jenis Jasa</th>
-              <th>Deskripsi Pengajuan</th>
-              <th>Biaya Jasa Resmi</th>
-              <th>Tanggal Masuk</th>
-              <th>Status Progres</th>
-              <th style={{ textAlign: "center" }}>Aksi</th>
-            </tr>
-          </thead>
-          <tbody>
-            {adminRequests.length === 0 ? (
-              <tr>
-                <td
-                  colSpan="9"
-                  style={{
-                    textAlign: "center",
-                    padding: "30px",
-                    color: "#6b7a96",
-                  }}
-                >
-                  Tidak ada data request pengurusan masuk.
-                </td>
-              </tr>
-            ) : (
-              [...adminRequests].reverse().map((r) => {
-                const isCrossAdmin = r.originatingAdminId !== r.assignedAdminId;
-                const finalFee = r.serviceQuote?.serviceFee || r.estimatedCost;
-
-                return (
-                  <tr
-                    key={r.id}
-                    style={isCrossAdmin ? { background: "#fffbeb" } : {}}
-                  >
-                    <td style={{ fontFamily: "monospace", fontSize: "12px" }}>
-                      {r.id}
-                    </td>
-                    <td style={{ fontWeight: "600" }}>
-                      {r.companyName || getCompanyName(db, r.companyId)}
-                      {isCrossAdmin && (
-                        <span
-                          style={{
-                            display: "block",
-                            fontSize: "10px",
-                            color: "#b45309",
-                            background: "#fef3c7",
-                            border: "1px solid #fde68a",
-                            padding: "2px 6px",
-                            borderRadius: "4px",
-                            marginTop: "4px",
-                            fontWeight: "bold",
-                            textAlign: "center",
-                          }}
-                        >
-                          🔀 Routed dari Admin Sentra
-                        </span>
-                      )}
-                    </td>
-                    <td style={{ fontWeight: "700" }}>{r.plateNumber || getPlateNumber(db, r.vehicleId)}</td>
-                    <td>{r.serviceTypeLabel}</td>
-                    <td
-                      style={{
-                        fontSize: "13px",
-                        maxWidth: "240px",
-                        whiteSpace: "normal",
-                        wordBreak: "break-word",
-                      }}
-                    >
-                      <div>{r.description.length > 50 ? `${r.description.slice(0, 50)}...` : r.description}</div>
-                      {isCrossAdmin && r.clientPic && (
-                        <div
-                          style={{
-                            marginTop: "10px",
-                            borderTop: "1px dashed #fcd34d",
-                            paddingTop: "6px",
-                            fontSize: "11.5px",
-                            color: "#92400e",
-                            lineHeight: "1.4",
-                          }}
-                        >
-                          <strong>📞 Kontak Klien:</strong> {r.clientPic.picName} (
-                          <a
-                            href={`https://wa.me/${r.clientPic.picPhone}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            style={{ color: "#2563eb", fontWeight: "bold" }}
-                          >
-                            +{r.clientPic.picPhone}
-                          </a>)
-                        </div>
-                      )}
-                    </td>
-                    <td style={{ fontWeight: "600", color: "#1e3a8a" }}>
-                      {finalFee ? `Rp ${finalFee.toLocaleString("id-ID")}` : "Menunggu Quote"}
-                    </td>
-                    <td>
-                      {formatDate(r.created_at || r.createdAt)}
-                    </td>
-                    <td>
-                      <span className={`badge-status ${getStatusBadgeClass(r.status)}`}>
-                        {getStatusLabel(r.status)}
-                      </span>
-                    </td>
-                    <td style={{ textAlign: "center" }}>
-                      <button
-                        className="fleet-btn fleet-btn-secondary fleet-btn-sm"
-                        onClick={() => setSelectedRequest(r)}
-                        style={{ padding: "4px 10px", fontSize: "11px" }}
-                      >
-                        ✏️ Kelola Order
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {/* MODAL: KELOLA DETAIL & PENAWARAN ORDER */}
-      {selectedRequest && (
-        <div className="fleet-modal-overlay">
-          <div className="fleet-modal" style={{ maxWidth: "550px" }}>
-            <div className="fleet-modal-header">
-              <h3>⚙️ Kelola Order — {selectedRequest.plateNumber}</h3>
-              <span
-                className="btn-close-modal"
-                onClick={() => setSelectedRequest(null)}
-              >
-                ×
-              </span>
-            </div>
-            <div className="fleet-modal-body">
-              <div
-                style={{
-                  background: "#f8fafc",
-                  border: "1px solid #cbd5e1",
-                  borderRadius: "8px",
-                  padding: "14px",
-                  marginBottom: "20px",
-                }}
-              >
-                <h4 style={{ margin: "0 0 10px 0", fontSize: "13.5px", color: "#1C3967" }}>Info Pengajuan Klien:</h4>
-                <p style={{ margin: "0 0 6px 0", fontSize: "13px" }}>PT/Klien: <strong>{selectedRequest.companyName || getCompanyName(db, selectedRequest.companyId)}</strong></p>
-                <p style={{ margin: "0 0 6px 0", fontSize: "13px" }}>Jenis Jasa: <strong>{selectedRequest.serviceTypeLabel}</strong></p>
-                <p style={{ margin: "0 0 6px 0", fontSize: "13px" }}>Deskripsi: <span style={{ color: "#475569" }}>{selectedRequest.description}</span></p>
-              </div>
-
-              {/* FORM BERI PENAWARAN JIKA STATUS PENDING */}
-              {selectedRequest.status === "pending" ? (
-                <form onSubmit={handleSendQuote}>
-                  <h4 style={{ fontSize: "14px", fontWeight: "800", color: "#1C3967", margin: "0 0 14px 0", borderBottom: "1px solid #cbd5e1", paddingBottom: "6px" }}>
-                    ✍️ Kirim Rincian Biaya & Syarat Dokumen
-                  </h4>
-
-                  <div className="fleet-form-group">
-                    <label className="fleet-label">Harga Jasa Resmi (Rp) *</label>
-                    <input
-                      type="number"
-                      className="fleet-input"
-                      placeholder="Masukkan harga jasa..."
-                      value={serviceFee}
-                      onChange={(e) => setServiceFee(e.target.value)}
-                      required
-                    />
-                  </div>
-
-                  <div className="fleet-form-group">
-                    <label className="fleet-label">Estimasi Waktu Pengerjaan *</label>
-                    <input
-                      type="text"
-                      className="fleet-input"
-                      placeholder="Contoh: 3 Hari Kerja"
-                      value={estimatedTime}
-                      onChange={(e) => setEstimatedTime(e.target.value)}
-                      required
-                    />
-                  </div>
-
-                  <div className="fleet-form-group">
-                    <label className="fleet-label">Syarat-syarat Dokumen</label>
-                    <p style={{ fontSize: "11.5px", color: "#64748b", margin: "0 0 10px 0" }}>
-                      Centang dokumen yang harus disiapkan klien beserta formatnya:
-                    </p>
-
-                    <div style={{
-                      border: "1px solid #cbd5e1",
-                      borderRadius: "8px",
-                      padding: "10px",
-                      background: "#f8fafc",
-                      maxHeight: "300px",
-                      overflowY: "auto"
-                    }}>
-                      {STANDARD_DOC_LIST.map(docName => {
-                        const types = docRequirements[docName] || { asli: false, fotocopy: false };
-                        return (
-                          <div key={docName} style={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "space-between",
-                            padding: "6px 8px",
-                            borderRadius: "6px",
-                            marginBottom: "4px",
-                            background: (types.asli || types.fotocopy) ? "#eff6ff" : "transparent",
-                            border: (types.asli || types.fotocopy) ? "1px solid #bfdbfe" : "1px solid transparent",
-                          }}>
-                            <span style={{ fontSize: "13px", fontWeight: "600", color: "#1e3a8a", flex: 1 }}>{docName}</span>
-                            <div style={{ display: "flex", gap: "10px" }}>
-                              <label style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "12px", cursor: "pointer", userSelect: "none" }}>
-                                <input
-                                  type="checkbox"
-                                  checked={types.asli}
-                                  onChange={() => toggleDocType(docName, "asli")}
-                                />
-                                Asli
-                              </label>
-                              <label style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "12px", cursor: "pointer", userSelect: "none" }}>
-                                <input
-                                  type="checkbox"
-                                  checked={types.fotocopy}
-                                  onChange={() => toggleDocType(docName, "fotocopy")}
-                                />
-                                Fotocopy
-                              </label>
-                            </div>
-                          </div>
-                        );
-                      })}
-
-                      {/* Dokumen custom (tambahan) */}
-                      {customDocs.map((doc, idx) => (
-                        <div key={`custom-${idx}`} style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "8px",
-                          padding: "6px 8px",
-                          borderRadius: "6px",
-                          marginBottom: "4px",
-                          background: (doc.asli || doc.fotocopy) ? "#fef3c7" : "#f1f5f9",
-                          border: (doc.asli || doc.fotocopy) ? "1px solid #fde68a" : "1px dashed #cbd5e1",
-                        }}>
-                          <input
-                            type="text"
-                            placeholder="Nama dokumen custom..."
-                            value={doc.name}
-                            onChange={(e) => updateCustomDoc(idx, "name", e.target.value)}
-                            style={{
-                              flex: 1,
-                              fontSize: "13px",
-                              fontWeight: "600",
-                              padding: "4px 6px",
-                              border: "1px solid #cbd5e1",
-                              borderRadius: "4px",
-                              background: "white"
-                            }}
-                          />
-                          <label style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "12px", cursor: "pointer", userSelect: "none" }}>
-                            <input
-                              type="checkbox"
-                              checked={doc.asli}
-                              onChange={(e) => updateCustomDoc(idx, "asli", e.target.checked)}
-                            />
-                            Asli
-                          </label>
-                          <label style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "12px", cursor: "pointer", userSelect: "none" }}>
-                            <input
-                              type="checkbox"
-                              checked={doc.fotocopy}
-                              onChange={(e) => updateCustomDoc(idx, "fotocopy", e.target.checked)}
-                            />
-                            Fotocopy
-                          </label>
-                          <button
-                            type="button"
-                            onClick={() => removeCustomDoc(idx)}
-                            style={{
-                              background: "#fee2e2",
-                              color: "#b91c1c",
-                              border: "none",
-                              borderRadius: "4px",
-                              padding: "2px 8px",
-                              cursor: "pointer",
-                              fontSize: "12px"
-                            }}
-                          >
-                            ×
-                          </button>
-                        </div>
-                      ))}
-
-                      <button
-                        type="button"
-                        onClick={addCustomDoc}
-                        style={{
-                          marginTop: "8px",
-                          padding: "6px 12px",
-                          fontSize: "12px",
-                          background: "#dbeafe",
-                          color: "#1e3a8a",
-                          border: "1px dashed #60a5fa",
-                          borderRadius: "6px",
-                          cursor: "pointer",
-                          fontWeight: "600"
-                        }}
-                      >
-                        + Tambah Dokumen Custom
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="fleet-form-group">
-                    <label className="fleet-label">Catatan Tambahan (opsional)</label>
-                    <textarea
-                      className="fleet-input"
-                      rows="2"
-                      placeholder="Contoh: Berkas dijemput di kantor klien atau ada syarat khusus lainnya..."
-                      value={terms}
-                      onChange={(e) => setTerms(e.target.value)}
-                      style={{ resize: "vertical", fontFamily: "inherit" }}
-                    />
-                  </div>
-
-                  <div className="fleet-modal-footer" style={{ padding: "14px 0 0 0", borderTop: "1px solid #cbd5e1", marginTop: "20px" }}>
-                    <button
-                      type="button"
-                      className="fleet-btn fleet-btn-secondary"
-                      onClick={() => setSelectedRequest(null)}
-                    >
-                      Batal
-                    </button>
-                    <button type="submit" className="fleet-btn fleet-btn-primary">
-                      🚀 Kirim Penawaran ke Klien
-                    </button>
-                  </div>
-                </form>
-              ) : (
-                /* RINCIAN READ-ONLY JIKA BUKAN PENDING */
-                <div>
-                  <h4 style={{ fontSize: "14px", fontWeight: "800", color: "#1C3967", margin: "0 0 14px 0", borderBottom: "1px solid #cbd5e1", paddingBottom: "6px" }}>
-                    📋 Rincian Penawaran yang Dikirimkan
-                  </h4>
-
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px", marginBottom: "14px" }}>
-                    <div>
-                      <p style={{ margin: "0 0 4px 0", fontSize: "11px", color: "#64748b", fontWeight: "600" }}>Biaya Jasa Resmi</p>
-                      <p style={{ margin: 0, fontSize: "14px", fontWeight: "700", color: "#1C3967" }}>
-                        Rp {selectedRequest.serviceQuote?.serviceFee?.toLocaleString("id-ID") || selectedRequest.estimatedCost?.toLocaleString("id-ID")}
-                      </p>
-                    </div>
-                    <div>
-                      <p style={{ margin: "0 0 4px 0", fontSize: "11px", color: "#64748b", fontWeight: "600" }}>Estimasi Waktu</p>
-                      <p style={{ margin: 0, fontSize: "14px", fontWeight: "700", color: "#1C3967" }}>
-                        {selectedRequest.serviceQuote?.estimatedTime || "-"}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div style={{ marginBottom: "20px" }}>
-                    <p style={{ margin: "0 0 4px 0", fontSize: "11px", color: "#64748b", fontWeight: "600" }}>Syarat-syarat Pengurusan</p>
-                    <div
-                      style={{
-                        background: "#f8fafc",
-                        border: "1px solid #cbd5e1",
-                        padding: "10px 12px",
-                        borderRadius: "6px",
-                        fontSize: "12.5px",
-                        color: "#334155",
-                        whiteSpace: "pre-wrap",
-                        lineHeight: "1.5",
-                      }}
-                    >
-                      {selectedRequest.serviceQuote?.terms || "Tidak ada persyaratan khusus."}
-                    </div>
-                  </div>
-
-                  {/* KONTROL EDIT STATUS PENGERJAAN HANYA AKTIF JIKA SUDAH ACC (APPROVED ATAU IN PROGRESS) */}
-                  {(selectedRequest.status === "approved" || selectedRequest.status === "in_progress") ? (
-                    <div style={{ borderTop: "1px solid #cbd5e1", paddingTop: "16px", marginTop: "16px" }}>
-                      <label className="fleet-label" style={{ fontWeight: "bold", marginBottom: "8px" }}>⚙️ Ubah Status Progres Pengerjaan</label>
-                      <div style={{ display: "flex", gap: "10px" }}>
-                        <select
-                          className="fleet-input"
-                          style={{ background: "white", fontWeight: "700" }}
-                          value={selectedRequest.status}
-                          onChange={(e) => handleStatusChange(selectedRequest.id, e.target.value)}
-                        >
-                          <option value="approved">⏳ Menunggu Diproses (Disetujui Klien)</option>
-                          <option value="in_progress">⚙️ Diproses</option>
-                          <option value="completed">✅ Selesai (Completed)</option>
-                          <option value="cancelled">❌ Batalkan Order</option>
-                        </select>
-                        <button
-                          type="button"
-                          className="fleet-btn fleet-btn-primary"
-                          onClick={() => setSelectedRequest(null)}
-                        >
-                          Tutup
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div
-                      style={{
-                        background: (selectedRequest.status === "quoted" || selectedRequest.status === "waiting_approval") ? "#fffbeb" : selectedRequest.status === "completed" ? "#f0fdf4" : "#fef2f2",
-                        border: `1px solid ${(selectedRequest.status === "quoted" || selectedRequest.status === "waiting_approval") ? "#fde68a" : selectedRequest.status === "completed" ? "#bbf7d0" : "#fca5a5"}`,
-                        borderRadius: "8px",
-                        padding: "12px",
-                        textAlign: "center",
-                        fontSize: "13px",
-                        fontWeight: "600",
-                        color: (selectedRequest.status === "quoted" || selectedRequest.status === "waiting_approval") ? "#b45309" : selectedRequest.status === "completed" ? "#15803d" : "#b91c1c",
-                      }}
-                    >
-                      {(selectedRequest.status === "quoted" || selectedRequest.status === "waiting_approval") && "⏳ Menunggu Persetujuan Klien untuk Melanjutkan (ACC)"}
-                      {selectedRequest.status === "completed" && "✅ Order ini telah selesai dikerjakan!"}
-                      {selectedRequest.status === "cancelled" && "❌ Order ini telah dibatalkan klien."}
-                    </div>
-                  )}
-
-                  {!(selectedRequest.status === "approved" || selectedRequest.status === "in_progress") && (
-                    <div className="fleet-modal-footer" style={{ padding: "14px 0 0 0", marginTop: "20px" }}>
-                      <button
-                        type="button"
-                        className="fleet-btn fleet-btn-secondary"
-                        onClick={() => setSelectedRequest(null)}
-                      >
-                        Tutup
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ====================================================
-// SUB-VIEW 5: DOCUMENT VERIFICATION
-// ====================================================
-function VerificationsView({ db, adminId, onUpdate }) {
-  const adminCompanies = db.companies.filter(c => c.adminId === adminId && c.ownerType !== 'admin');
-  const companyIds = adminCompanies.map((c) => c.id);
-
-  const pendingDocs = db.documents.filter((d) => {
-    if (d.verificationStatus !== "pending") return false;
-    const vehicle = db.vehicles.find((v) => v.id === d.vehicleId);
-    return vehicle && companyIds.includes(vehicle.companyId);
-  });
-
-  const handleVerify = (docId) => {
-    verifyDocument(docId, "verified");
-    onUpdate();
-    alert("Dokumen berhasil dikonfirmasi (Verified).");
-  };
-
-  const handleReject = (docId) => {
-    const reason = prompt("Masukkan alasan penolakan berkas:");
-    if (reason === null) return; // cancel
-    if (!reason.trim()) {
-      alert("Alasan penolakan harus diisi.");
-      return;
-    }
-    verifyDocument(docId, "rejected", reason);
-    onUpdate();
-    alert("Dokumen telah ditolak (Rejected).");
-  };
-
-  return (
-    <div className="fleet-card">
-      <h2
-        style={{
-          fontSize: "16px",
-          fontWeight: "800",
-          margin: "0 0 20px 0",
-          color: "#1C3967",
-        }}
-      >
-        Antrean Verifikasi Berkas Scan Klien
-      </h2>
-
-      {pendingDocs.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "40px", color: "#6b7a96" }}>
-          <span
-            style={{ fontSize: "36px", display: "block", marginBottom: "10px" }}
-          >
-            📦
-          </span>
-          <p style={{ margin: 0, fontWeight: "600" }}>
-            Antrean bersih! Tidak ada dokumen baru yang membutuhkan verifikasi.
-          </p>
-        </div>
-      ) : (
-        <div className="verification-card-grid">
-          {pendingDocs.map((doc) => (
-            <div key={doc.id} className="verification-card">
-              <div className="verification-card-header">
-                <span
-                  className="badge-status neutral"
-                  style={{ fontWeight: "700", fontSize: "11px" }}
-                >
-                  {doc.docTypeLabel}
-                </span>
-                <span style={{ fontSize: "11px", color: "#6b7a96" }}>
-                  {new Date(doc.uploadedAt).toLocaleDateString("id-ID", {
-                    day: "numeric",
-                    month: "short",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
-                </span>
-              </div>
-              <div className="verification-card-body">
-                <p style={{ margin: "0 0 4px 0" }}>
-                  Perusahaan: <strong>{doc.companyName}</strong>
-                </p>
-                <p style={{ margin: "0 0 10px 0" }}>
-                  Kendaraan: <strong>{doc.plateNumber}</strong>
-                </p>
-                <a
-                  href="#"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    alert(`Membuka pindaian berkas: ${doc.fileName}`);
-                  }}
-                  className="verification-file-link"
-                >
-                  📄 {doc.fileName}
-                </a>
-              </div>
-              <div
-                style={{
-                  display: "flex",
-                  gap: "10px",
-                  justifyContent: "flex-end",
-                }}
-              >
-                <button
-                  className="fleet-btn fleet-btn-danger fleet-btn-sm"
-                  onClick={() => handleReject(doc.id)}
-                >
-                  Tolak Berkas
-                </button>
-                <button
-                  className="fleet-btn fleet-btn-success fleet-btn-sm"
-                  onClick={() => handleVerify(doc.id)}
-                >
-                  Verifikasi Berkas
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ----------------------------------------------------
-// MEMBERSHIP REQUESTS (Sentra-only review queue)
-// ----------------------------------------------------
-function MembershipRequestsView({ db, adminId, onUpdate }) {
-  const [filter, setFilter] = useState("pending"); // pending | all
-  const requests = getMembershipRequestsForAdmin(adminId);
-  const visible =
-    filter === "pending"
-      ? requests.filter((r) => r.status === "pending")
-      : requests;
-  const sorted = [...visible].sort(
-    (a, b) => new Date(b.createdAt) - new Date(a.createdAt),
-  );
-
-  const requestTypeLabel = (t) =>
-    t === "cancel"
-      ? "Berhenti Berlangganan"
-      : t === "upgrade"
-        ? "Upgrade"
-        : "Pindah Paket";
-
-  const handleResolve = (req, decision) => {
-    const verb = decision === "approve" ? "menyetujui" : "menolak";
-    let confirmMsg = `Yakin ${verb} permintaan ${requestTypeLabel(req.requestType).toLowerCase()} dari ${req.companyName}?`;
-    if (decision === "approve") {
-      if (req.requestType === "cancel") {
-        confirmMsg +=
-          "\n\nAkun klien akan turun ke paket Free (maks. 5 kendaraan) dan status langganan menjadi Dibatalkan.";
-      } else if (req.requestedTier) {
-        confirmMsg += `\n\nPaket klien akan diubah menjadi ${getTierConfig(req.requestedTier).name}.`;
-      }
-    }
-    if (!confirm(confirmMsg)) return;
-
-    let adminNote = "";
-    if (decision === "reject") {
-      const reason = prompt("Alasan penolakan (akan terlihat oleh klien):");
-      if (reason === null) return;
-      if (!reason.trim()) {
-        alert("Alasan penolakan harus diisi.");
-        return;
-      }
-      adminNote = reason.trim();
-    } else {
-      adminNote = "Disetujui oleh Admin Sentra.";
-    }
-
-    resolveMembershipRequest(req.id, decision, adminNote);
-    onUpdate();
-    alert(
-      decision === "approve"
-        ? "Permintaan disetujui dan paket klien telah diperbarui."
-        : "Permintaan telah ditolak.",
-    );
-  };
-
-  const pendingCount = requests.filter((r) => r.status === "pending").length;
-
-  return (
-    <div className="fleet-card">
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: "20px",
-          flexWrap: "wrap",
-          gap: "12px",
-        }}
-      >
-        <h2
-          style={{
-            fontSize: "16px",
-            fontWeight: "800",
-            margin: 0,
-            color: "#1C3967",
-          }}
-        >
-          Antrean Permintaan Membership
-          {pendingCount > 0 && (
-            <span
-              className="badge-status warning"
-              style={{ marginLeft: "10px", fontWeight: "700" }}
-            >
-              {pendingCount} pending
-            </span>
-          )}
-        </h2>
-        <div style={{ display: "flex", gap: "8px" }}>
-          <button
-            className={`fleet-btn fleet-btn-sm ${filter === "pending" ? "fleet-btn-primary" : "fleet-btn-secondary"}`}
-            onClick={() => setFilter("pending")}
-          >
-            Menunggu Tinjauan
-          </button>
-          <button
-            className={`fleet-btn fleet-btn-sm ${filter === "all" ? "fleet-btn-primary" : "fleet-btn-secondary"}`}
-            onClick={() => setFilter("all")}
-          >
-            Semua Riwayat
-          </button>
-        </div>
-      </div>
-
-      {sorted.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "40px", color: "#6b7a96" }}>
-          <span
-            style={{ fontSize: "36px", display: "block", marginBottom: "10px" }}
-          >
-            ✅
-          </span>
-          <p style={{ margin: 0, fontWeight: "600" }}>
-            {filter === "pending"
-              ? "Tidak ada permintaan membership yang menunggu tinjauan."
-              : "Belum ada riwayat permintaan membership."}
-          </p>
-        </div>
-      ) : (
-        <div className="fleet-table-container">
-          <table className="fleet-table">
-            <thead>
-              <tr>
-                <th>Perusahaan</th>
-                <th>PIC</th>
-                <th>Jenis</th>
-                <th>Paket Saat Ini</th>
-                <th>Paket Diminta</th>
-                <th>Asal</th>
-                <th>Tanggal</th>
-                <th>Status</th>
-                <th style={{ textAlign: "center" }}>Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sorted.map((r) => {
-                const fromAdmin = getAdminById(r.originatingAdminId) || {
-                  name: "Sentra",
-                };
-                return (
-                  <tr key={r.id}>
-                    <td style={{ fontWeight: "700", color: "#1C3967" }}>
-                      {r.companyName || getCompanyName(db, r.companyId)}
-                    </td>
-                    <td>
-                      {r.clientPic ? (
-                        <div style={{ fontSize: "12px" }}>
-                          <div>{r.clientPic.picName || "-"}</div>
-                          {r.clientPic.picPhone && (
-                            <div
-                              style={{
-                                fontFamily: "monospace",
-                                color: "#64748b",
-                              }}
-                            >
-                              +{r.clientPic.picPhone}
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        "-"
-                      )}
-                    </td>
-                    <td>
-                      <span
-                        className={`badge-status ${r.requestType === "cancel" ? "danger" : r.requestType === "upgrade" ? "success" : "neutral"}`}
-                        style={{ fontWeight: "700" }}
-                      >
-                        {requestTypeLabel(r.requestType)}
-                      </span>
-                    </td>
-                    <td style={{ textTransform: "capitalize" }}>
-                      {getTierConfig(r.currentTier).name}
-                    </td>
-                    <td style={{ textTransform: "capitalize" }}>
-                      {r.requestedTier
-                        ? getTierConfig(r.requestedTier).name
-                        : "— (Free)"}
-                    </td>
-                    <td>
-                      {r.routedToSentra ? (
-                        <span
-                          className="badge-status info"
-                          style={{
-                            fontSize: "11px",
-                            background: "#eff6ff",
-                            color: "#1e40af",
-                            border: "1px solid #bfdbfe",
-                          }}
-                          title={`Dialihkan dari Admin ${fromAdmin.name}`}
-                        >
-                          ↪ {fromAdmin.name}
-                        </span>
-                      ) : (
-                        <span style={{ fontSize: "12px", color: "#64748b" }}>
-                          Langsung
-                        </span>
-                      )}
-                    </td>
-                    <td style={{ fontSize: "12px", color: "#64748b" }}>
-                      {formatDate(r.created_at || r.createdAt)}
-                    </td>
-                    <td>
-                      <span
-                        className={`badge-status ${r.status === "approved" ? "success" : r.status === "rejected" ? "danger" : "warning"}`}
-                      >
-                        {r.status === "approved"
-                          ? "Disetujui"
-                          : r.status === "rejected"
-                            ? "Ditolak"
-                            : "Pending"}
-                      </span>
-                      {r.status !== "pending" && r.adminNote && (
-                        <div
-                          style={{
-                            fontSize: "11px",
-                            color: "#64748b",
-                            marginTop: "4px",
-                            maxWidth: "180px",
-                          }}
-                        >
-                          {r.adminNote}
-                        </div>
-                      )}
-                    </td>
-                    <td style={{ textAlign: "center" }}>
-                      {r.status === "pending" ? (
-                        <div
-                          style={{
-                            display: "flex",
-                            gap: "6px",
-                            justifyContent: "center",
-                          }}
-                        >
-                          <button
-                            className="fleet-btn fleet-btn-success fleet-btn-sm"
-                            onClick={() => handleResolve(r, "approve")}
-                          >
-                            Setujui
-                          </button>
-                          <button
-                            className="fleet-btn fleet-btn-danger fleet-btn-sm"
-                            onClick={() => handleResolve(r, "reject")}
-                          >
-                            Tolak
-                          </button>
-                        </div>
-                      ) : (
-                        <span style={{ color: "#94a3b8", fontSize: "12px" }}>
-                          Selesai
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
+    </NotificationsProvider>
   );
 }

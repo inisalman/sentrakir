@@ -61,14 +61,39 @@ export const createVehicle = async (vehicleData) => {
 export const updateVehicleSupabase = async (vehicleId, updateData) => {
   try {
     const dbPayload = {};
-    if (updateData.plateNumber) dbPayload.plate_number = updateData.plateNumber;
-    if (updateData.jenisKendaraan || updateData.vehicleType) dbPayload.jenis_kendaraan = updateData.jenisKendaraan || updateData.vehicleType;
-    if (updateData.merk || updateData.brand) dbPayload.merk = updateData.merk || updateData.brand;
-    if (updateData.tipe || updateData.model) dbPayload.tipe = updateData.tipe || updateData.model;
-    if (updateData.tahun || updateData.yearManufactured) dbPayload.tahun = updateData.tahun || updateData.yearManufactured;
-    
-    // Update meta_data with the new data
-    dbPayload.meta_data = updateData;
+
+    // Top-level column mapping (camelCase → snake_case)
+    if (updateData.plate_number) dbPayload.plate_number = updateData.plate_number;
+    if (updateData.jenis_kendaraan) dbPayload.jenis_kendaraan = updateData.jenis_kendaraan;
+
+    // If meta_data is explicitly passed, use it; otherwise nest updateData under meta_data
+    if (updateData.meta_data) {
+      dbPayload.meta_data = updateData.meta_data;
+    } else {
+      // Only set meta_data if updateData has fields that belong in it
+      const metaKeys = [
+        'kirExpiry', 'stnkExpiry', 'pajakExpiry', 'simDriverExpiry',
+        'ownerName', 'ownerAddress', 'frameNumber', 'engineNumber',
+        'brand', 'model', 'yearManufactured', 'notes',
+        'testNumber',
+        'kkOwnerName', 'kkOwnerAddress', 'kkPlateNumber', 'kkFrameNumber',
+        'kkEngineNumber', 'kkTestNumber',
+        'kirOwnerName', 'kirPlateNumber', 'kirTestNumber',
+        'kirVehicleType', 'kirBrand',
+        'stnkOwnerName', 'stnkPlateNumber', 'stnkOwnerAddress',
+        'stnkBrand', 'stnkVehicleType', 'stnkVehicleJenis',
+        'stnkModel', 'stnkYearManufactured', 'stnkFrameNumber', 'stnkEngineNumber',
+        'noJktBelumAda',
+        'kartuKirHilang', 'kartuKirMobilBaru', 'kartuKirBelumAda',
+        'sertifikatKirHilang', 'sertifikatKirMobilBaru', 'sertifikatKirBelumAda',
+        'stnkHilang', 'stnkBelumAda',
+        'kartuKirFileName', 'sertifikatKirFileName', 'stnkFileName',
+      ];
+      const hasMetaFields = metaKeys.some((k) => k in updateData);
+      if (hasMetaFields) {
+        dbPayload.meta_data = updateData;
+      }
+    }
 
     const { data, error } = await supabase
       .from('vehicles')

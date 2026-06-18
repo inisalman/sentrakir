@@ -57,18 +57,18 @@ export const ADMINS = [
 // ----------------------------------------------------
 // MEMBERSHIP TIER CONFIG (Sentra controls membership)
 // ----------------------------------------------------
-// vehicleLimit: null = unlimited. Free tier is capped at 5 vehicles.
+// vehicleLimit: null = unlimited. Starter tier is capped at 3 vehicles.
 export const MEMBERSHIP_TIERS = {
   free: {
     id: 'free',
-    name: 'Sentra Fleet Free',
+    name: 'Starter',
     price: 0,
     priceLabel: 'Gratis',
     period: '',
-    quota: '1 - 5 Kendaraan',
-    vehicleLimit: 5,
+    quota: 'Maks 3 Kendaraan',
+    vehicleLimit: 3,
     features: [
-      'Hingga 5 data armada kendaraan',
+      'Hingga 3 data armada kendaraan',
       'Notifikasi jatuh tempo dasar (H-30 & H-7)',
       'Pantau status KIR / STNK / Pajak',
       'Ajukan 1 order pengurusan aktif dalam satu waktu',
@@ -76,6 +76,7 @@ export const MEMBERSHIP_TIERS = {
     ],
     // Capability flags used to differentiate tiers across the UI
     canUploadDocs: false,
+    canUseChat: false,
     maxActiveRequests: 1,
     canUrusSekarang: true,
     prioritySupport: false,
@@ -92,10 +93,12 @@ export const MEMBERSHIP_TIERS = {
       'Hingga 30 data armada kendaraan',
       'Notifikasi warning jatuh tempo H-90 s/d H-7',
       'Upload pindaian & dokumen berkas (KIR / STNK / PDF)',
+      'Akses AI Chat Support Khusus',
       'Tombol Urus Sekarang tanpa batas antrean',
       'CS support WhatsApp bisnis standard',
     ],
     canUploadDocs: true,
+    canUseChat: true,
     maxActiveRequests: null,
     canUrusSekarang: true,
     prioritySupport: false,
@@ -117,6 +120,7 @@ export const MEMBERSHIP_TIERS = {
       'Laporan ekspor data armada (CSV)',
     ],
     canUploadDocs: true,
+    canUseChat: true,
     maxActiveRequests: null,
     canUrusSekarang: true,
     prioritySupport: true,
@@ -138,6 +142,7 @@ export const MEMBERSHIP_TIERS = {
       'Account Manager khusus & SLA prioritas tertinggi',
     ],
     canUploadDocs: true,
+    canUseChat: true,
     maxActiveRequests: null,
     canUrusSekarang: true,
     prioritySupport: true,
