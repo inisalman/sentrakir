@@ -463,8 +463,8 @@ function LoginPage({ onLogin, navigate }) {
           </button>
         </form>
 
-        {/* Google Login — hidden on native APK */}
-        {flags.google_oauth_enabled && !Capacitor.isNativePlatform() && (
+        {/* Google Login */}
+        {flags.google_oauth_enabled && (
           <div style={{ marginTop: "20px", textAlign: "center" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px" }}>
               <div style={{ flex: 1, borderTop: "1px solid #e2e8f0" }}></div>
@@ -489,17 +489,27 @@ function LoginPage({ onLogin, navigate }) {
               onClick={async (e) => {
                 e.preventDefault();
                 try {
-                  const { error } = await supabase.auth.signInWithOAuth({
+                  const { data, error } = await supabase.auth.signInWithOAuth({
                     provider: "google",
                     options: {
                       redirectTo: window.location.origin + "/fleet/login",
                       queryParams: {
                         access_type: 'offline',
                         prompt: 'consent',
-                      }
+                      },
+                      skipBrowserRedirect: Capacitor.isNativePlatform(),
                     },
                   });
+
                   if (error) throw error;
+
+                  // For native platform, Supabase auth returns the provider URL to be opened manually
+                  if (Capacitor.isNativePlatform() && data?.provider) {
+                    const { Browser } = await import('@capacitor/browser');
+                    await Browser.open({ url: data.url });
+
+                    // The App.addListener('appUrlOpen') in Supabase provider will handle the deeplink response
+                  }
                 } catch (err) {
                   console.error("Auth error:", err);
                   setError("Login Google gagal: " + err.message);
@@ -1508,7 +1518,7 @@ function RegisterPage({ onLogin, navigate }) {
               Daftar dengan Email
             </button>
 
-            {flags.google_oauth_enabled && !Capacitor.isNativePlatform() && (
+            {flags.google_oauth_enabled && (
               <>
                 <div style={{ display: "flex", alignItems: "center", gap: "12px", margin: "16px 0" }}>
                   <div style={{ flex: 1, borderTop: "1px solid #e2e8f0" }} />
@@ -1533,17 +1543,23 @@ function RegisterPage({ onLogin, navigate }) {
                     onClick={async (e) => {
                       e.preventDefault();
                       try {
-                        const { error } = await supabase.auth.signInWithOAuth({
+                        const { data, error } = await supabase.auth.signInWithOAuth({
                           provider: "google",
                           options: {
                             redirectTo: window.location.origin + "/fleet/register",
                             queryParams: {
                               access_type: 'offline',
                               prompt: 'consent',
-                            }
+                            },
+                            skipBrowserRedirect: Capacitor.isNativePlatform(),
                           },
                         });
                         if (error) throw error;
+
+                        if (Capacitor.isNativePlatform() && data?.provider) {
+                          const { Browser } = await import('@capacitor/browser');
+                          await Browser.open({ url: data.url });
+                        }
                       } catch (err) {
                         console.error("Auth error:", err);
                         setError("Daftar dengan Google gagal: " + err.message);
