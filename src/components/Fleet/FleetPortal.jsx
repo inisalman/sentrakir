@@ -492,24 +492,11 @@ function LoginPage({ onLogin, navigate }) {
                   const { data, error } = await supabase.auth.signInWithOAuth({
                     provider: "google",
                     options: {
-                      redirectTo: window.location.origin + "/fleet/login",
-                      queryParams: {
-                        access_type: 'offline',
-                        prompt: 'consent',
-                      },
-                      skipBrowserRedirect: Capacitor.isNativePlatform(),
+                      redirectTo: "https://sentrakir.com/fleet/login",
+                      skipBrowserRedirect: false,
                     },
                   });
-
                   if (error) throw error;
-
-                  // For native platform, Supabase auth returns the provider URL to be opened manually
-                  if (Capacitor.isNativePlatform() && data?.provider) {
-                    const { Browser } = await import('@capacitor/browser');
-                    await Browser.open({ url: data.url });
-
-                    // The App.addListener('appUrlOpen') in Supabase provider will handle the deeplink response
-                  }
                 } catch (err) {
                   console.error("Auth error:", err);
                   setError("Login Google gagal: " + err.message);
@@ -1546,12 +1533,8 @@ function RegisterPage({ onLogin, navigate }) {
                         const { data, error } = await supabase.auth.signInWithOAuth({
                           provider: "google",
                           options: {
-                            redirectTo: window.location.origin + "/fleet/register",
-                            queryParams: {
-                              access_type: 'offline',
-                              prompt: 'consent',
-                            },
-                            skipBrowserRedirect: Capacitor.isNativePlatform(),
+                            redirectTo: "https://sentrakir.com/fleet/register",
+                            skipBrowserRedirect: false,
                           },
                         });
                         if (error) throw error;

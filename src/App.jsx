@@ -19,6 +19,21 @@ import PadajayaProcess from './components/padajaya/PadajayaProcess.jsx'
 const Dashboard = lazy(() => import('./components/Dashboard/Dashboard.jsx'));
 const FleetPortal = lazy(() => import('./components/Fleet/FleetPortal.jsx'));
 
+// Android APK OAuth Bridge: When user lands on sentrakir.com after Google OAuth
+// from the APK, redirect them to the custom scheme so the APK can handle the token.
+if (!Capacitor.isNativePlatform()) {
+  const isOAuthCallback = window.location.search.includes('code=') ||
+    window.location.hash.includes('access_token=') ||
+    window.location.search.includes('type=recovery');
+
+  if (isOAuthCallback && window.location.pathname.startsWith('/fleet/')) {
+    window.location.href = 'com.sentrakir.fleet://' +
+      window.location.pathname +
+      window.location.search +
+      window.location.hash;
+  }
+}
+
 export default function App() {
   const pathname = window.location.pathname
 
@@ -32,12 +47,20 @@ export default function App() {
     }
   }, [])
 
-  // Di Android APK, langsung masuk Fleet Portal (admin login)
+  // Native Platform Routing (Android APK)
   if (Capacitor.isNativePlatform()) {
-    // Set initial path ke admin login jika belum authenticated
+    // Cek apakah VITE_APP_MODE diset jadi admin atau client (default client jika kosong)
+    const mode = import.meta.env.VITE_APP_MODE || 'client';
+
+    // Set initial path sesuai mode jika belum ter-routing
     if (pathname === '/' || pathname === '/index.html') {
-      window.history.replaceState(null, '', '/fleet/admin/login')
+      if (mode === 'admin') {
+        window.history.replaceState(null, '', '/fleet/admin/login')
+      } else {
+        window.history.replaceState(null, '', '/fleet/login')
+      }
     }
+
     return (
       <Suspense fallback={<div className="dashboard-loading-spinner"></div>}>
         <FleetPortal />
