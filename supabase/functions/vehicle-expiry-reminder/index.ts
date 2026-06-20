@@ -2,6 +2,7 @@ import { createClient } from 'jsr:@supabase/supabase-js@^2';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+const FONNTE_TOKEN = Deno.env.get('FONNTE_TOKEN') ?? '';
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
 const ALLOWED_ORIGINS = ['https://sentrakir.com', 'http://localhost:5173', 'capacitor://localhost', 'http://localhost'];
@@ -15,6 +16,30 @@ function getCorsHeaders(req: Request): Record<string, string> {
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
   };
 }
+
+const sendWA = async (phone: string, message: string): Promise<boolean> => {
+  if (!phone || !FONNTE_TOKEN) return false;
+  const normalized = phone.startsWith('0') ? '62' + phone.slice(1) : phone;
+  try {
+    const res = await fetch('https://api.fonnte.com/send', {
+      method: 'POST',
+      headers: {
+        'Authorization': FONNTE_TOKEN,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        target: normalized,
+        message,
+        countryCode: '62',
+      }),
+    });
+    const data = await res.json();
+    return data.status;
+  } catch (err) {
+    console.error('Error sending WA:', err);
+    return false;
+  }
+};
 
 // Reminder thresholds in days
 const THRESHOLDS = [30, 15, 7, 3, 1, 0];
@@ -49,14 +74,22 @@ Deno.serve(async (req) => {
 
     if (vErr) throw vErr;
 
-    // Fetch all companies to get admin_id and name
+    // Fetch all companies to get admin_id, name, pic_phone
     const { data: companies, error: cErr } = await supabase
       .from('companies')
-      .select('id, name, admin_id');
+      .select('id, name, pic_phone, admin_id');
 
     if (cErr) throw cErr;
 
+    // Fetch all admins to get phone
+    const { data: admins, error: aErr } = await supabase
+      .from('admins')
+      .select('id, name, phone');
+
+    if (aErr) throw aErr;
+
     const companyMap = new Map(companies.map((c: any) => [c.id, c]));
+    const adminMap = new Map(admins.map((a: any) => [a.id, a]));
 
     const notifications: any[] = [];
     const docTypes = [
@@ -120,6 +153,22 @@ Deno.serve(async (req) => {
 
       await supabase.from('admin_notifications').insert([notif]);
       inserted++;
+
+      // Send WhatsApp notifications
+      const meta = notif.meta_data;
+      const company = companyMap.get(notif.admin_id) || Array.from(companyMap.values()).find(c => c.name === meta.companyName);
+      const admin = adminMap.get(notif.admin_id);
+
+      const labelWaktu = meta.daysLeft === 0 ? "HARI INI" : `dalam ${meta.daysLeft} hari`;
+      const waMessage = `⚠️ *PENGINGAT JATUH TEMPO*\n\nKendaraan dengan plat *${meta.plateNumber}* dari perusahaan *${meta.companyName}* masa berlaku *${meta.docType.replace('Expiry', '').toUpperCase()}* nya akan habis ${labelWaktu} (${meta.expiryDate}).\n\nMohon segera diproses.`;
+
+      if (company?.pic_phone) {
+        await sendWA(company.pic_phone, waMessage);
+      }
+
+      if (admin?.phone) {
+        await sendWA(admin.phone, waMessage);
+      }
     }
 
     return new Response(JSON.stringify({
