@@ -22,11 +22,12 @@ import {
 import { logActivity } from "../../utils/supabaseLog.js";
 import { notifClientDaftarFree, notifClientDaftarPaid } from "../../utils/notificationWA.js";
 import { sendEmail, verifyToken } from "../../utils/supabaseEmail.js";
-import ClientDashboard from "./ClientDashboard.jsx";
-import AdminDashboard from "./AdminDashboard.jsx";
-import SuperAdminDashboard from "./SuperAdminDashboard.jsx";
 import TermsModal from "./TermsModal.jsx";
 import { SystemFlagsProvider, useSystemFlags } from "../../utils/SystemFlagsContext.jsx";
+
+const ClientDashboard = React.lazy(() => import('./ClientDashboard.jsx'));
+const AdminDashboard = React.lazy(() => import('./AdminDashboard.jsx'));
+const SuperAdminDashboard = React.lazy(() => import('./SuperAdminDashboard.jsx'));
 
 // Custom router hook/logic
 const useFleetPath = () => {
@@ -70,31 +71,6 @@ function FleetPortalInner() {
     initFleetData();
 
     const restoreSession = async (session) => {
-      // 1. Cek Admin/Super Admin via localStorage (fallback for custom admin login)
-      const isLoggedIn = localStorage.getItem("fleet_logged_in") === "true";
-      const userRole = localStorage.getItem("fleet_user_role");
-
-      if (isLoggedIn && (userRole === "admin" || userRole === "super_admin")) {
-        const adminEmail = localStorage.getItem("fleet_user_email");
-        const adminId = localStorage.getItem("fleet_admin_id");
-        const companyName = localStorage.getItem("fleet_company_name") || (userRole === "super_admin" ? "Super Admin" : "Admin");
-
-        setUser({
-          role: userRole,
-          clientId: null,
-          adminId: adminId,
-          email: adminEmail,
-          companyName: companyName,
-        });
-
-        const currentPath = window.location.pathname;
-        if (currentPath === "/" || currentPath === "/fleet/admin/login" || currentPath === "/fleet/superadmin/login") {
-          navigate(userRole === "super_admin" ? "/fleet/superadmin/dashboard" : "/fleet/admin/dashboard");
-        }
-        setLoading(false);
-        return;
-      }
-
       if (!session?.user) {
         setLoading(false);
         return;
@@ -192,14 +168,8 @@ function FleetPortalInner() {
       metadata: { role, method: role === 'client' ? 'supabase_auth' : 'custom_rpc' }
     });
 
-    // Admin dan Super Admin masih pakai localStorage (custom auth)
+    // Admin/Super Admin — session is from Supabase Auth JWT, no localStorage fallback
     if (role === "admin" || role === "super_admin") {
-      localStorage.setItem("fleet_logged_in", "true");
-      localStorage.setItem("fleet_user_role", role);
-      localStorage.setItem("fleet_user_email", email);
-      localStorage.setItem("fleet_admin_id", id);
-      localStorage.removeItem("fleet_client_id");
-      if (companyName) localStorage.setItem("fleet_company_name", companyName);
       setUser({ role: role, clientId: null, adminId: id, email, companyName });
       toast.show(`Login berhasil! Selamat datang, ${companyName || email}`, "success");
 
@@ -319,32 +289,50 @@ function FleetPortalInner() {
   if (user.role === "super_admin") {
     // Super Admin subpages
     return (
-      <SuperAdminDashboard
-        user={user}
-        onLogout={handleLogout}
-        currentPath={path}
-        navigate={navigate}
-      />
+      <React.Suspense fallback={
+        <div className="fleet-portal-wrapper" style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh" }}>
+          <div className="dashboard-loading-spinner"></div>
+        </div>
+      }>
+        <SuperAdminDashboard
+          user={user}
+          onLogout={handleLogout}
+          currentPath={path}
+          navigate={navigate}
+        />
+      </React.Suspense>
     );
   } else if (user.role === "admin") {
     // Admin subpages
     return (
-      <AdminDashboard
-        user={user}
-        onLogout={handleLogout}
-        currentPath={path}
-        navigate={navigate}
-      />
+      <React.Suspense fallback={
+        <div className="fleet-portal-wrapper" style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh" }}>
+          <div className="dashboard-loading-spinner"></div>
+        </div>
+      }>
+        <AdminDashboard
+          user={user}
+          onLogout={handleLogout}
+          currentPath={path}
+          navigate={navigate}
+        />
+      </React.Suspense>
     );
   } else {
     // Client subpages
     return (
-      <ClientDashboard
-        user={user}
-        onLogout={handleLogout}
-        currentPath={path}
-        navigate={navigate}
-      />
+      <React.Suspense fallback={
+        <div className="fleet-portal-wrapper" style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh" }}>
+          <div className="dashboard-loading-spinner"></div>
+        </div>
+      }>
+        <ClientDashboard
+          user={user}
+          onLogout={handleLogout}
+          currentPath={path}
+          navigate={navigate}
+        />
+      </React.Suspense>
     );
   }
 }
@@ -594,20 +582,33 @@ function AdminLoginPage({ onLogin, navigate }) {
     }
 
     try {
-      // Admin login: langsung cek via RPC (bypass RLS).
-      // Admin accounts TIDAK ada di Supabase Auth.auth.users, jadi
-      // signInWithPassword akan selalu gagal dan bisa corrupt auth state.
-      const { data: rpcAdmin, error: rpcError } = await supabase
-        .rpc('check_admin_password', { p_email: email.trim(), p_password: password.trim() });
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email: email.trim().toLowerCase(),
+        password,
+      });
 
-      if (!rpcError && rpcAdmin) {
-        console.log("Admin login via RPC.");
-        onLogin("admin", rpcAdmin.id, email, `${rpcAdmin.name} Admin`);
+      if (authError) {
+        console.error("Auth Error:", authError.message);
+        setError("Kredensial Administrator tidak valid. (" + authError.message + ")");
+        setIsLoading(false);
         return;
       }
 
-      setError("Kredensial Administrator tidak valid.");
-      setIsLoading(false);
+      const { data: admin, error: adminError } = await supabase
+        .from('admins')
+        .select('*')
+        .eq('email', authData.user.email)
+        .single();
+
+      if (adminError || !admin) {
+        setError("Akun admin tidak ditemukan.");
+        await supabase.auth.signOut();
+        setIsLoading(false);
+        return;
+      }
+
+      console.log("Admin login via Supabase Auth.");
+      onLogin("admin", admin.id, email, `${admin.name} Admin`);
     } catch (err) {
       setError("Terjadi kesalahan sistem. Silakan coba lagi.");
     } finally {
@@ -708,18 +709,40 @@ function SuperAdminLoginPage({ onLogin, navigate }) {
     }
 
     try {
-      const { data, error: funcError } = await supabase.functions.invoke('super-admin-login', {
-        body: { email: email.trim(), password: password.trim() }
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email: email.trim().toLowerCase(),
+        password,
       });
 
-      if (funcError || !data?.admin) {
-        setError(data?.error || "Kredensial Super Administrator tidak valid.");
+      if (authError) {
+        console.error("Auth Error:", authError.message);
+        setError("Kredensial Super Administrator tidak valid. (" + authError.message + ")");
         setIsLoading(false);
         return;
       }
 
-      console.log("Super Admin login via Edge Function.");
-      onLogin("super_admin", data.admin.id, email, `${data.admin.name} Super Admin`);
+      const { data: admin, error: adminError } = await supabase
+        .from('admins')
+        .select('*')
+        .eq('email', authData.user.email)
+        .single();
+
+      if (adminError || !admin) {
+        setError("Akun Super Admin tidak ditemukan.");
+        await supabase.auth.signOut();
+        setIsLoading(false);
+        return;
+      }
+
+      if (!admin.is_super) {
+        setError("Akses Super Admin ditolak.");
+        await supabase.auth.signOut();
+        setIsLoading(false);
+        return;
+      }
+
+      console.log("Super Admin login via Supabase Auth.");
+      onLogin("super_admin", admin.id, email, `${admin.name} Super Admin`);
     } catch (err) {
       setError("Terjadi kesalahan sistem. Silakan coba lagi.");
     } finally {
@@ -1004,9 +1027,13 @@ function RegisterPage({ onLogin, navigate }) {
 
     // Upload bukti bayar jika paid
     if (isPaid && paymentFile) {
-      filePath = await uploadPaymentProof(paymentFile, emailToUse);
-      if (filePath) {
+      try {
+        filePath = await uploadPaymentProof(paymentFile, emailToUse);
         await updateCompany(result.id, { payment_proof_path: filePath });
+      } catch (err) {
+        setError(err.message);
+        setLoading(false);
+        return;
       }
     }
 
@@ -1016,6 +1043,20 @@ function RegisterPage({ onLogin, navigate }) {
         notifClientDaftarPaid(formData.picPhone, result.name, formData.membershipTier, formData.adminChoice);
       } else {
         notifClientDaftarFree(formData.picPhone, result.name);
+      }
+    }
+
+    // Kirim email verifikasi registrasi
+    if (authMethod === "email") {
+      try {
+        await sendEmail({
+          type: "register",
+          email: emailToUse,
+          companyName: result.name,
+          companyId: result.id
+        });
+      } catch (err) {
+        console.error("Gagal mengirim email verifikasi:", err);
       }
     }
 

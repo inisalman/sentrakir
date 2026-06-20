@@ -5,20 +5,27 @@ const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-};
+const ALLOWED_ORIGINS = ['https://sentrakir.com', 'http://localhost:5173', 'capacitor://localhost', 'http://localhost'];
+
+function getCorsHeaders(req: Request): Record<string, string> {
+  const origin = req.headers.get('origin') || '';
+  const allowed = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+  return {
+    'Access-Control-Allow-Origin': allowed,
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  };
+}
 
 // One-time migration: create auth.users entry for companies with email+password,
 // then link auth_user_id. Idempotent — skips companies that already have auth_user_id.
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response('ok', { headers: getCorsHeaders(req) });
   }
 
   try {
+    const h = getCorsHeaders(req);
     // 1. Fetch all companies that have a password and no auth_user_id
     const { data: companies, error: fetchError } = await supabase
       .from('companies')
@@ -28,9 +35,9 @@ Deno.serve(async (req) => {
 
     if (fetchError) {
       console.error('Error fetching companies:', fetchError.message);
-      return new Response(JSON.stringify({ error: fetchError.message }), {
+      return new Response(JSON.stringify({ error: 'Failed to fetch companies' }), {
         status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { ...h, 'Content-Type': 'application/json' },
       });
     }
 
@@ -40,7 +47,7 @@ Deno.serve(async (req) => {
         message: 'No companies need migration.',
         migrated: 0,
       }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { ...h, 'Content-Type': 'application/json' },
       });
     }
 
@@ -120,14 +127,14 @@ Deno.serve(async (req) => {
       skipped,
       errors: errors.length > 0 ? errors : undefined,
     }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: { ...h, 'Content-Type': 'application/json' },
     });
 
   } catch (err) {
     console.error('Migration fatal error:', err);
-    return new Response(JSON.stringify({ error: String(err) }), {
+    return new Response(JSON.stringify({ error: 'Internal server error' }), {
       status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: { ...h, 'Content-Type': 'application/json' },
     });
   }
 });

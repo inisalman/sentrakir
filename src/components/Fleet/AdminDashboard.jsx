@@ -30,6 +30,7 @@ export default function AdminDashboard({
     documents: [],
   });
   const [activeTab, setActiveTab] = useState("dashboard");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Sync active tab with currentPath
   useEffect(() => {
@@ -124,37 +125,44 @@ export default function AdminDashboard({
         id: "admin-vehicles",
         label: "Armada Khusus Admin",
         path: "/fleet/admin/admin-vehicles",
+        icon: "🚛",
       }
     ] : []),
     {
       id: "dashboard",
       label: "Dasbor Bisnis",
       path: "/fleet/admin/dashboard",
+      icon: "📊",
     },
     {
       id: "clients",
       label: "Database Klien",
       path: "/fleet/admin/clients",
+      icon: "👥",
     },
     {
       id: "vehicles",
       label: "Armada Nasional",
       path: "/fleet/admin/vehicles",
+      icon: "🚗",
     },
     {
       id: "requests",
-      label: "Tracker Order Dokumen",
+      label: "Tracker Order",
       path: "/fleet/admin/requests",
+      icon: "📋",
     },
     {
       id: "verifications",
       label: "Verifikasi Dokumen",
       path: "/fleet/admin/verifications",
+      icon: "✅",
     },
     ...(flags.ai_chat_enabled ? [{
       id: "chat",
       label: "Chat Support AI",
       path: "/fleet/admin/chat",
+      icon: "💬",
     }] : []),
     ...(isSentra
       ? [
@@ -162,15 +170,68 @@ export default function AdminDashboard({
             id: "membership",
             label: "Request Membership",
             path: "/fleet/admin/membership",
+            icon: "⭐",
           },
         ]
       : []),
   ];
 
+  const handleMobileNavClick = (path) => {
+    navigate(path);
+    setMobileMenuOpen(false);
+  };
+
   return (
     <NotificationsProvider adminId={user.adminId}>
     <div className="fleet-portal-wrapper">
       <div className="fleet-layout">
+        {/* Mobile Drawer Overlay */}
+        <div
+          className={`mobile-drawer-overlay ${mobileMenuOpen ? 'open' : ''}`}
+          onClick={() => setMobileMenuOpen(false)}
+        />
+
+        {/* Mobile Drawer */}
+        <aside className={`mobile-drawer ${mobileMenuOpen ? 'open' : ''}`}>
+          <div className="mobile-drawer-logo">
+            <img
+              src="/logo-sentra-kir.png"
+              alt="Sentra KIR Logo"
+              onClick={() => {
+                navigate("/");
+                setMobileMenuOpen(false);
+              }}
+            />
+            <div style={{ marginTop: "12px", textAlign: "center", color: "rgba(255,255,255,0.9)", fontSize: "14px", fontWeight: "600" }}>
+              {isSentra ? "Admin Sentra KIR" : "Admin Padajaya"}
+            </div>
+          </div>
+          <nav className="mobile-drawer-nav">
+            {sidebarNavItems.map((item) => (
+              <button
+                key={item.id}
+                className={`mobile-drawer-link ${activeTab === item.id ? "active" : ""}`}
+                onClick={() => handleMobileNavClick(item.path)}
+              >
+                <span>{item.icon}</span>
+                <span>{item.label}</span>
+              </button>
+            ))}
+          </nav>
+          <div className="mobile-drawer-footer">
+            <button
+              className="mobile-drawer-link logout"
+              onClick={() => {
+                setMobileMenuOpen(false);
+                onLogout();
+              }}
+            >
+              <span>🚪</span>
+              <span>Keluar</span>
+            </button>
+          </div>
+        </aside>
+
         {/* Sidebar */}
         <aside className="fleet-sidebar">
           <div className="sidebar-logo">
@@ -207,6 +268,16 @@ export default function AdminDashboard({
         <main className="fleet-main">
           {/* Header */}
           <header className="fleet-page-header">
+            {/* Mobile Hamburger Button */}
+            <button
+              className={`mobile-menu-btn ${mobileMenuOpen ? 'open' : ''}`}
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              aria-label="Menu"
+            >
+              <span></span>
+              <span></span>
+              <span></span>
+            </button>
             <div className="fleet-page-title">
               <h1>
                 {activeTab === "dashboard" && "Dasbor Bisnis Admin"}

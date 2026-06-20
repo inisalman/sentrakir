@@ -4,11 +4,17 @@ const FONNTE_TOKEN = Deno.env.get('FONNTE_TOKEN') ?? '';
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-};
+const ALLOWED_ORIGINS = ['https://sentrakir.com', 'http://localhost:5173', 'capacitor://localhost', 'http://localhost'];
+
+function getCorsHeaders(req: Request): Record<string, string> {
+  const origin = req.headers.get('origin') || '';
+  const allowed = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+  return {
+    'Access-Control-Allow-Origin': allowed,
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  };
+}
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
@@ -49,16 +55,24 @@ const normalizePhone = (phone: string): string => {
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response('ok', { headers: getCorsHeaders(req) });
   }
 
   try {
+    const h = getCorsHeaders(req);
     const { type, picPhone, adminPhone, companyName, tier, picName, adminChoice } = await req.json();
 
     if (!type || !picPhone) {
       return new Response(JSON.stringify({ error: 'Missing required fields' }), {
         status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { ...h, 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (picPhone.length > 20) {
+      return new Response(JSON.stringify({ error: 'Phone number terlalu panjang' }), {
+        status: 400,
+        headers: { ...h, 'Content-Type': 'application/json' },
       });
     }
 
@@ -73,7 +87,7 @@ serve(async (req) => {
       case 'client_daftar_free': {
         const msg = `Halo! 👋 Pendaftaran *${companyName}* di *Sentra Fleet* berhasil.\n\nAkun Anda sudah aktif dengan paket *Starter*. Silakan login di https://sentrakir.com/fleet/login\n\n_Sentra Fleet - B2B Compliance Portal_`;
         const ok = await sendWA(picPhone, msg);
-        return new Response(JSON.stringify({ success: ok }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        return new Response(JSON.stringify({ success: ok }), { headers: { ...h, 'Content-Type': 'application/json' } });
       }
 
       case 'client_daftar_paid': {
@@ -84,38 +98,38 @@ serve(async (req) => {
           const adminMsg = `📋 *Pendaftaran Baru - Sentra Fleet*\n\nPerusahaan: *${companyName}*\nPIC: ${picName}\nPaket: *${tier}*\n\nSilakan konfirmasi pembayaran di dashboard admin.\nhttps://sentrakir.com/fleet/admin/membership`;
           await sendWA(adminData.phone, adminMsg);
         }
-        return new Response(JSON.stringify({ success: ok }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        return new Response(JSON.stringify({ success: ok }), { headers: { ...h, 'Content-Type': 'application/json' } });
       }
 
       case 'client_payment_confirmed': {
         const msg = `✅ *Pembayaran Dikonfirmasi!*\n\nHalo *${companyName}*! Pembayaran paket *${tier}* Anda telah dikonfirmasi oleh admin.\n\nAkun Anda sudah diupgrade. Silakan login kembali.\n\n_Sentra Fleet - B2B Compliance Portal_`;
         const ok = await sendWA(picPhone, msg);
-        return new Response(JSON.stringify({ success: ok }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        return new Response(JSON.stringify({ success: ok }), { headers: { ...h, 'Content-Type': 'application/json' } });
       }
 
       case 'client_payment_rejected': {
         const msg = `❌ *Pembayaran Ditolak*\n\nHalo *${companyName}*, maaf pembayaran Anda tidak dapat dikonfirmasi.\n\nSilakan hubungi admin atau upload ulang bukti pembayaran.\n\n_Sentra Fleet - B2B Compliance Portal_`;
         const ok = await sendWA(picPhone, msg);
-        return new Response(JSON.stringify({ success: ok }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        return new Response(JSON.stringify({ success: ok }), { headers: { ...h, 'Content-Type': 'application/json' } });
       }
 
       case 'client_upgrade_confirmed': {
         const msg = `🎉 *Upgrade Berhasil!*\n\nHalo *${companyName}*! Paket Anda berhasil diupgrade ke *${tier}*.\n\nSelamat menikmati fitur premium Sentra Fleet!\n\n_Sentra Fleet - B2B Compliance Portal_`;
         const ok = await sendWA(picPhone, msg);
-        return new Response(JSON.stringify({ success: ok }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        return new Response(JSON.stringify({ success: ok }), { headers: { ...h, 'Content-Type': 'application/json' } });
       }
 
       default:
         return new Response(JSON.stringify({ error: 'Unknown notification type' }), {
           status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          headers: { ...h, 'Content-Type': 'application/json' },
         });
     }
   } catch (err) {
     console.error('send-wa-notif error:', err);
     return new Response(JSON.stringify({ error: 'Internal server error' }), {
       status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: { ...h, 'Content-Type': 'application/json' },
     });
   }
 });

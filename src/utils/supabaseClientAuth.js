@@ -107,9 +107,35 @@ export const updateCompany = async (companyId, fields) => {
 };
 
 // Upload payment proof to Supabase Storage
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const ALLOWED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'doc', 'docx', 'pdf', 'heic'];
+const ALLOWED_MIME_TYPES = [
+  'image/jpeg',
+  'image/png',
+  'image/heic',
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+];
+
 export const uploadPaymentProof = async (file, companyEmail) => {
+  // Validate file size
+  if (file.size > MAX_FILE_SIZE) {
+    throw new Error('Ukuran file maksimal 5MB');
+  }
+
+  // Validate file extension
+  const ext = file.name.split('.').pop().toLowerCase();
+  if (!ALLOWED_EXTENSIONS.includes(ext)) {
+    throw new Error('Format file tidak didukung');
+  }
+
+  // Validate mime type
+  if (!ALLOWED_MIME_TYPES.includes(file.type)) {
+    throw new Error('Format file tidak didukung');
+  }
+
   try {
-    const ext = file.name.split('.').pop();
     const fileName = `${companyEmail.replace(/[^a-z0-9]/gi, '_')}_${Date.now()}.${ext}`;
     const filePath = `${fileName}`;
 
@@ -123,13 +149,17 @@ export const uploadPaymentProof = async (file, companyEmail) => {
 
     if (error) {
       console.error('Error uploading payment proof:', error.message);
-      return null;
+      throw new Error('Gagal mengunggah bukti bayar. Silakan coba lagi.');
     }
 
     return filePath;
   } catch (err) {
     console.error('Unexpected error uploading file:', err);
-    return null;
+    // Re-throw validation errors from above; wrap unexpected ones
+    if (err.message === 'Ukuran file maksimal 5MB' || err.message === 'Format file tidak didukung' || err.message === 'Gagal mengunggah bukti bayar. Silakan coba lagi.') {
+      throw err;
+    }
+    throw new Error('Gagal mengunggah bukti bayar. Silakan coba lagi.');
   }
 };
 

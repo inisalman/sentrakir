@@ -9,7 +9,7 @@ export const getRequestsByCompanyId = async (companyId) => {
       .from('requests')
       .select(`
         id, company_id, vehicle_id, service_type,
-        service_type_label, description, estimated_cost,
+        description, estimated_cost,
         status, admin_id, meta_data,
         created_at, updated_at
       `)
@@ -35,7 +35,7 @@ export const getRequestsByAdminId = async (adminId) => {
       .from('requests')
       .select(`
         id, company_id, vehicle_id, service_type,
-        service_type_label, description, estimated_cost,
+        description, estimated_cost,
         status, admin_id, meta_data,
         created_at, updated_at
       `)

@@ -3,25 +3,39 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
+const ALLOWED_ORIGINS = ['https://sentrakir.com', 'http://localhost:5173', 'capacitor://localhost', 'http://localhost'];
+
+function getCorsHeaders(req: Request): Record<string, string> {
+  const origin = req.headers.get('origin') || '';
+  const allowed = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+  return {
+    'Access-Control-Allow-Origin': allowed,
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  };
+}
 
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return new Response("ok", { headers: getCorsHeaders(req) });
   }
 
   try {
+    const h = getCorsHeaders(req);
     const { userMessage, chatHistory, activePrices } = await req.json();
 
     if (!userMessage) {
       return new Response(
         JSON.stringify({ error: "userMessage is required" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 400, headers: { ...h, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (userMessage.length > 500) {
+      return new Response(
+        JSON.stringify({ error: "Message too long" }),
+        { status: 400, headers: { ...h, "Content-Type": "application/json" } }
       );
     }
 
@@ -141,7 +155,7 @@ Area operasi: Jakarta dan sekitarnya.`;
 
     return new Response(
       JSON.stringify({ success: true, answer }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { headers: { ...h, "Content-Type": "application/json" } }
     );
 
   } catch (err) {
@@ -150,9 +164,9 @@ Area operasi: Jakarta dan sekitarnya.`;
       JSON.stringify({
         success: false,
         answer: "Terjadi kesalahan teknis. Mohon maaf, pertanyaan akan diarahkan ke admin langsung.",
-        error: err.message,
+        error: "Internal server error",
       }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 500, headers: { ...h, "Content-Type": "application/json" } }
     );
   }
 });

@@ -2,11 +2,17 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "jsr:@supabase/supabase-js@^2";
 import nodemailer from "npm:nodemailer@^6.9.0";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
+const ALLOWED_ORIGINS = ['https://sentrakir.com', 'http://localhost:5173', 'capacitor://localhost', 'http://localhost'];
+
+function getCorsHeaders(req: Request): Record<string, string> {
+  const origin = req.headers.get('origin') || '';
+  const allowed = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+  return {
+    'Access-Control-Allow-Origin': allowed,
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  };
+}
 
 // Environment variables
 const SMTP_HOST = Deno.env.get("SMTP_HOST") || "smtp.gmail.com";
@@ -151,23 +157,24 @@ function getRegisterConfirmEmailHtml(token: string, companyName: string, adminNa
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return new Response("ok", { headers: getCorsHeaders(req) });
   }
 
   try {
+    const h = getCorsHeaders(req);
     const { type, email, companyName, companyId } = await req.json();
 
     if (!email || !type) {
       return new Response(JSON.stringify({ error: "Email and type are required" }), {
         status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...h, "Content-Type": "application/json" },
       });
     }
 
     if (!SMTP_USER || !SMTP_PASS) {
       return new Response(JSON.stringify({ error: "SMTP not configured" }), {
         status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...h, "Content-Type": "application/json" },
       });
     }
 
@@ -184,7 +191,7 @@ serve(async (req) => {
       if (companyError || !company) {
         return new Response(JSON.stringify({ error: "Email tidak ditemukan di sistem kami." }), {
           status: 404,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: { ...h, "Content-Type": "application/json" },
         });
       }
 
@@ -193,7 +200,7 @@ serve(async (req) => {
           error: "Akun ini terdaftar menggunakan Google Sign-In. Silakan login dengan tombol \"Masuk dengan Google\" untuk mengakses akun Anda."
         }), {
           status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: { ...h, "Content-Type": "application/json" },
         });
       }
     }
@@ -226,7 +233,7 @@ serve(async (req) => {
       console.error("DB error:", dbError);
       return new Response(JSON.stringify({ error: "Failed to create reset token" }), {
         status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...h, "Content-Type": "application/json" },
       });
     }
 
@@ -252,13 +259,13 @@ serve(async (req) => {
     });
 
     return new Response(JSON.stringify({ success: true }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...h, "Content-Type": "application/json" },
     });
   } catch (err) {
     console.error("send-email error:", err);
     return new Response(JSON.stringify({ error: "Internal server error" }), {
       status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...h, "Content-Type": "application/json" },
     });
   }
 });

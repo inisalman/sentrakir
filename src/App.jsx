@@ -1,5 +1,5 @@
 import { Capacitor } from '@capacitor/core'
-import { useEffect } from 'react'
+import React, { useEffect, Suspense, lazy } from 'react'
 import './styles/fleet-native.css'
 import Navbar from './components/Navbar.jsx'
 import Hero from './components/Hero.jsx'
@@ -15,8 +15,9 @@ import PadajayaHero from './components/padajaya/PadajayaHero.jsx'
 import PadajayaAbout from './components/padajaya/PadajayaAbout.jsx'
 import PadajayaWhyUs from './components/padajaya/PadajayaWhyUs.jsx'
 import PadajayaProcess from './components/padajaya/PadajayaProcess.jsx'
-import Dashboard from './components/Dashboard/Dashboard.jsx'
-import FleetPortal from './components/Fleet/FleetPortal.jsx'
+
+const Dashboard = lazy(() => import('./components/Dashboard/Dashboard.jsx'));
+const FleetPortal = lazy(() => import('./components/Fleet/FleetPortal.jsx'));
 
 export default function App() {
   const pathname = window.location.pathname
@@ -37,17 +38,29 @@ export default function App() {
     if (pathname === '/' || pathname === '/index.html') {
       window.history.replaceState(null, '', '/fleet/admin/login')
     }
-    return <FleetPortal />
+    return (
+      <Suspense fallback={<div className="dashboard-loading-spinner"></div>}>
+        <FleetPortal />
+      </Suspense>
+    )
   }
 
   // Fleet routes (/fleet or /fleet/*)
   if (pathname === '/fleet' || pathname.startsWith('/fleet/')) {
-    return <FleetPortal />
+    return (
+      <Suspense fallback={<div className="dashboard-loading-spinner"></div>}>
+        <FleetPortal />
+      </Suspense>
+    )
   }
 
   // Dashboard routes (/dashboard or /admin)
   if (pathname === '/dashboard' || pathname === '/admin') {
-    return <Dashboard />
+    return (
+      <Suspense fallback={<div className="dashboard-loading-spinner"></div>}>
+        <Dashboard />
+      </Suspense>
+    )
   }
 
   const isPadajayaPage = pathname === '/padajaya'

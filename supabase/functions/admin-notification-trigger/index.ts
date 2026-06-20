@@ -4,25 +4,33 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-};
+const ALLOWED_ORIGINS = ['https://sentrakir.com', 'http://localhost:5173', 'capacitor://localhost', 'http://localhost'];
+
+function getCorsHeaders(req: Request): Record<string, string> {
+  const origin = req.headers.get('origin') || '';
+  const allowed = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+  return {
+    'Access-Control-Allow-Origin': allowed,
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  };
+}
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    const h = getCorsHeaders(req);
+    return new Response('ok', { headers: h });
   }
 
   try {
+    const h = getCorsHeaders(req);
     const body = await req.json();
     const { type, adminId, companyName, serviceType, fromTier, toTier, referenceId } = body;
 
     if (!type || !adminId) {
       return new Response(JSON.stringify({ error: 'type and adminId required' }), {
         status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { ...h, 'Content-Type': 'application/json' },
       });
     }
 
@@ -74,20 +82,20 @@ Deno.serve(async (req) => {
       .single();
 
     if (error) {
-      return new Response(JSON.stringify({ success: false, error: error.message }), {
+      return new Response(JSON.stringify({ success: false, error: 'Failed to create notification' }), {
         status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { ...h, 'Content-Type': 'application/json' },
       });
     }
 
     return new Response(JSON.stringify({ success: true, notification: data }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: { ...h, 'Content-Type': 'application/json' },
     });
 
   } catch (err) {
-    return new Response(JSON.stringify({ success: false, error: err.message }), {
+    return new Response(JSON.stringify({ success: false, error: 'Internal server error' }), {
       status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: { ...h, 'Content-Type': 'application/json' },
     });
   }
 });

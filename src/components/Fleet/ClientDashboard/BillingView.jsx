@@ -63,25 +63,25 @@ export default function BillingView({ company, vehiclesCount, onUpdate }) {
     }
     setUploading(true);
     setUploadError("");
-    const filePath = await uploadPaymentProof(paymentFile, company.email);
-    if (!filePath) {
-      setUploadError("Gagal upload bukti bayar. Coba lagi.");
-      setUploading(false);
-      return;
-    }
+    try {
+      const filePath = await uploadPaymentProof(paymentFile, company.email);
 
-    await updateCompanySupabase(company.id, {
-      subscription_status: `pending_payment:${upgradeModal.tierId}`,
-      payment_proof_path: filePath,
-    });
-    // Notif WA ke client
-    if (company.picPhone) {
-      notifClientUpgradeDikonfirmasi(company.picPhone, company.name, upgradeModal.tierName);
+      await updateCompanySupabase(company.id, {
+        subscription_status: `pending_payment:${upgradeModal.tierId}`,
+        payment_proof_path: filePath,
+      });
+      // Notif WA ke client
+      if (company.picPhone) {
+        notifClientUpgradeDikonfirmasi(company.picPhone, company.name, upgradeModal.tierName);
+      }
+      setUploading(false);
+      setUpgradeModal(null);
+      alert("Permintaan upgrade berhasil dikirim. Menunggu konfirmasi admin.");
+      onUpdate && onUpdate();
+    } catch (err) {
+      setUploadError(err.message);
+      setUploading(false);
     }
-    setUploading(false);
-    setUpgradeModal(null);
-    alert("Permintaan upgrade berhasil dikirim. Menunggu konfirmasi admin.");
-    onUpdate && onUpdate();
   };
 
   return (

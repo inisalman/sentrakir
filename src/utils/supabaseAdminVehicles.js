@@ -2,6 +2,7 @@ import { supabase } from './supabaseClient';
 
 // Get all admin vehicles untuk admin tertentu
 export const getAdminVehicles = async (adminId) => {
+  if (!adminId) return [];
   try {
     const { data, error } = await supabase
       .from('admin_vehicles')
