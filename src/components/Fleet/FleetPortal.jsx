@@ -489,14 +489,26 @@ function LoginPage({ onLogin, navigate }) {
               onClick={async (e) => {
                 e.preventDefault();
                 try {
-                  const { data, error } = await supabase.auth.signInWithOAuth({
-                    provider: "google",
-                    options: {
-                      redirectTo: "https://sentrakir.com/fleet/login",
-                      skipBrowserRedirect: false,
-                    },
-                  });
-                  if (error) throw error;
+                  // Native: pakai Google account picker langsung
+                  if (Capacitor.isNativePlatform()) {
+                    const { GoogleAuth } = await import('@codetrix-studio/capacitor-google-auth');
+                    const user = await GoogleAuth.signIn();
+                    const { error } = await supabase.auth.signInWithIdToken({
+                      provider: 'google',
+                      token: user.authentication.idToken,
+                    });
+                    if (error) throw error;
+                  } else {
+                    // Web: pakai browser OAuth
+                    const { data, error } = await supabase.auth.signInWithOAuth({
+                      provider: "google",
+                      options: {
+                        redirectTo: "https://sentrakir.com/fleet/login",
+                        skipBrowserRedirect: false,
+                      },
+                    });
+                    if (error) throw error;
+                  }
                 } catch (err) {
                   console.error("Auth error:", err);
                   setError("Login Google gagal: " + err.message);
@@ -1530,18 +1542,25 @@ function RegisterPage({ onLogin, navigate }) {
                     onClick={async (e) => {
                       e.preventDefault();
                       try {
-                        const { data, error } = await supabase.auth.signInWithOAuth({
-                          provider: "google",
-                          options: {
-                            redirectTo: "https://sentrakir.com/fleet/register",
-                            skipBrowserRedirect: false,
-                          },
-                        });
-                        if (error) throw error;
-
-                        if (Capacitor.isNativePlatform() && data?.provider) {
-                          const { Browser } = await import('@capacitor/browser');
-                          await Browser.open({ url: data.url });
+                        // Native: pakai Google account picker langsung
+                        if (Capacitor.isNativePlatform()) {
+                          const { GoogleAuth } = await import('@codetrix-studio/capacitor-google-auth');
+                          const user = await GoogleAuth.signIn();
+                          const { error } = await supabase.auth.signInWithIdToken({
+                            provider: 'google',
+                            token: user.authentication.idToken,
+                          });
+                          if (error) throw error;
+                        } else {
+                          // Web: pakai browser OAuth
+                          const { data, error } = await supabase.auth.signInWithOAuth({
+                            provider: "google",
+                            options: {
+                              redirectTo: "https://sentrakir.com/fleet/register",
+                              skipBrowserRedirect: false,
+                            },
+                          });
+                          if (error) throw error;
                         }
                       } catch (err) {
                         console.error("Auth error:", err);
