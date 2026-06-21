@@ -1,6 +1,8 @@
 import { Capacitor } from '@capacitor/core'
+import { SplashScreen } from '@capacitor/splash-screen'
 import React, { useEffect, Suspense, lazy } from 'react'
 import './styles/fleet-native.css'
+import NativeSplashScreen from './components/NativeSplashScreen.jsx'
 import Navbar from './components/Navbar.jsx'
 import Hero from './components/Hero.jsx'
 import About from './components/About.jsx'
@@ -19,20 +21,32 @@ import PadajayaProcess from './components/padajaya/PadajayaProcess.jsx'
 const Dashboard = lazy(() => import('./components/Dashboard/Dashboard.jsx'));
 const FleetPortal = lazy(() => import('./components/Fleet/FleetPortal.jsx'));
 
-// Android APK OAuth Bridge: When user lands on sentrakir.com after Google OAuth
-// from the APK, redirect them to the custom scheme so the APK can handle the token.
-if (!Capacitor.isNativePlatform()) {
-  const isOAuthCallback = window.location.search.includes('code=') ||
-    window.location.hash.includes('access_token=') ||
-    window.location.search.includes('type=recovery');
+// Android APK OAuth Bridge: Disabled — native now uses GoogleAuth.signIn() directly
+// which returns token without opening a browser, so no bridge redirect is needed.
 
-  if (isOAuthCallback && window.location.pathname.startsWith('/fleet/')) {
-    window.location.href = 'com.sentrakir.fleet://' +
-      window.location.pathname +
-      window.location.search +
-      window.location.hash;
+// OAuth Callback Router: Kalau Supabase redirect ke root (/) dengan access_token,
+// redirect ke /fleet/login SEBELUM React render supaya tidak ada flash landing page.
+const IS_OAUTH_CALLBACK = (() => {
+  const hash = window.location.hash || '';
+  const hasOAuthToken = hash.includes('access_token=') || hash.includes('error=') || hash.includes('error_description=');
+
+  // Untuk native platform, handle OAuth callback dari deep link
+  if (Capacitor.isNativePlatform() && hasOAuthToken) {
+    console.log('[OAuth Callback] Native platform detected with token');
+    // Redirect ke fleet login untuk handle token
+    window.history.replaceState(null, '', '/fleet/login' + hash);
+    return true;
   }
-}
+
+  // Untuk web platform
+  if (!Capacitor.isNativePlatform() && hasOAuthToken && !window.location.pathname.startsWith('/fleet/')) {
+    // Use replaceState + reload to redirect synchronously without rendering
+    window.history.replaceState(null, '', '/fleet/login' + hash);
+    return true;
+  }
+
+  return false;
+})();
 
 export default function App() {
   const pathname = window.location.pathname
@@ -41,6 +55,10 @@ export default function App() {
   useEffect(() => {
     if (Capacitor.isNativePlatform()) {
       document.body.classList.add('capacitor-native')
+      // Hide splash screen after app is ready
+      setTimeout(() => {
+        SplashScreen.hide()
+      }, 100)
     }
     return () => {
       document.body.classList.remove('capacitor-native')
@@ -62,9 +80,11 @@ export default function App() {
     }
 
     return (
-      <Suspense fallback={<div className="dashboard-loading-spinner"></div>}>
-        <FleetPortal />
-      </Suspense>
+      <NativeSplashScreen>
+        <Suspense fallback={<div className="dashboard-loading-spinner"></div>}>
+          <FleetPortal />
+        </Suspense>
+      </NativeSplashScreen>
     )
   }
 

@@ -1,12 +1,18 @@
 {
   "name": "sentrakir",
   "private": true,
-  "version": "0.1.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "android:build": "npm run build && npx cap sync android",
+    "android:open": "npx cap open android",
+    "android:run": "npm run android:build && npx cap run android",
+    "android:release": "npm run build && npx cap sync android && cd android && ./gradlew assembleRelease",
+    "android:apk": "cd android && ./gradlew assembleDebug",
+    "android:clean": "cd android && ./gradlew clean"
   },
   "dependencies": {
     "@capacitor/android": "^8.4.0",

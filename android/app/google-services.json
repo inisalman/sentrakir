@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "105550504783",
+    "project_id": "sentra-fleet-b51a3",
+    "storage_bucket": "sentra-fleet-b51a3.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:105550504783:android:282f6693576c40016bdb3a",
+        "android_client_info": {
+          "package_name": "com.sentrakir.fleet"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "105550504783-cs30cn75c5mkcbeoht1m65pt6a4rob38.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.sentrakir.fleet",
+            "certificate_hash": "fc7a73f74565e2457207125ccd4c4de635802b7e"
+          }
+        },
+        {
+          "client_id": "105550504783-39924gg3a754dh8u6re7858id2qg0es8.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBQP1LY6pHLvvRtEElSUBoI-I37i8Ud9xg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "105550504783-39924gg3a754dh8u6re7858id2qg0es8.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

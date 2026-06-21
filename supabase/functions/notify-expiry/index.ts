@@ -112,18 +112,20 @@ Deno.serve(async () => {
       }
     }
 
-    // Proses client vehicles
+    // Proses client vehicles (expiry dates stored in meta_data JSONB)
     for (const v of vehicles ?? []) {
       const company = companies?.find(c => c.id === v.company_id);
       if (!company) continue;
 
       const admin = admins?.find(a => a.id === company.admin_id);
+      const meta = v.meta_data || {};
+      const plate = v.plate_number || meta.plateNumber || 'N/A';
 
       const docs = [
-        { type: 'KIR', expiry: v.kir_expiry },
-        { type: 'STNK 5 Tahunan', expiry: v.stnk_expiry },
-        { type: 'Pajak Tahunan', expiry: v.pajak_expiry },
-        { type: 'SIM', expiry: v.sim_expiry },
+        { type: 'KIR', expiry: meta.kirExpiry },
+        { type: 'STNK 5 Tahunan', expiry: meta.stnkExpiry },
+        { type: 'Pajak Tahunan', expiry: meta.pajakExpiry },
+        { type: 'SIM', expiry: meta.simDriverExpiry },
       ];
 
       for (const doc of docs) {
@@ -131,7 +133,7 @@ Deno.serve(async () => {
         const days = daysUntil(doc.expiry);
         if (!REMINDER_DAYS.includes(days)) continue;
 
-        const msg = buildMessage(v.plate_number, doc.type, days, company.name);
+        const msg = buildMessage(plate, doc.type, days, company.name);
         if (company.pic_phone) { await sendWA(company.pic_phone, msg); notifCount++; }
         if (admin?.phone) { await sendWA(admin.phone, `[ADMIN] ` + msg); notifCount++; }
       }

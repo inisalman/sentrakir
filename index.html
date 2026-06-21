@@ -9,6 +9,48 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
     <title>Sentrakir — Biro Jasa Terpercaya untuk Urusan Dokumen Anda</title>
+
+    <!-- Eruda: Mobile Debug Console (langsung di HP) -->
+    <script>
+      // Load Eruda hanya di localhost, file://, atau kalau ada ?debug di URL
+      (function() {
+        const isDebug =
+          location.hostname === 'localhost' ||
+          location.hostname === '127.0.0.1' ||
+          location.protocol === 'file:' ||
+          location.search.includes('debug');
+
+        if (isDebug) {
+          const script = document.createElement('script');
+          script.src = 'https://cdn.jsdelivr.net/npm/eruda';
+          script.onload = function() {
+            eruda.init({
+              tool: ['console', 'network', 'storage', 'elements', 'info'],
+              autoScale: true,
+              useShadowDom: true
+            });
+
+            // Floating button di pojok kanan bawah untuk show/hide
+            const btn = document.createElement('div');
+            btn.innerText = '🐛';
+            btn.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:999999;width:50px;height:50px;background:#1e293b;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px;box-shadow:0 4px 12px rgba(0,0,0,0.3);cursor:pointer;';
+            let visible = false;
+            btn.onclick = function() {
+              if (visible) {
+                eruda.hide();
+                btn.style.background = '#1e293b';
+              } else {
+                eruda.show();
+                btn.style.background = '#3b82f6';
+              }
+              visible = !visible;
+            };
+            document.body.appendChild(btn);
+          };
+          document.head.appendChild(script);
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

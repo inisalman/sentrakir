@@ -1,11 +1,10 @@
--- pg_cron job: vehicle expiry reminder — runs daily at 08:00 WIB (01:00 UTC)
--- Requires pg_net extension for HTTP calls and pg_cron extension
+-- Fix pg_cron job: change from vehicle-expiry-reminder to notify-expiry
+-- Run this in Supabase SQL Editor
 
--- Enable extensions if not yet enabled
-CREATE EXTENSION IF NOT EXISTS pg_cron;
-CREATE EXTENSION IF NOT EXISTS pg_net;
+-- Step 1: Unschedule old job
+SELECT cron.unschedule('vehicle-expiry-daily-reminder');
 
--- Schedule daily check using notify-expiry function (queries admin_vehicles table)
+-- Step 2: Schedule new job with correct function
 SELECT cron.schedule(
   'vehicle-expiry-daily-reminder',
   '0 1 * * *',  -- 01:00 UTC = 08:00 WIB
@@ -20,3 +19,8 @@ SELECT cron.schedule(
   );
   $$
 );
+
+-- Step 3: Verify job is scheduled
+SELECT jobid, jobname, schedule, command
+FROM cron.job
+WHERE jobname = 'vehicle-expiry-daily-reminder';

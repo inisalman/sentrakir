@@ -7,16 +7,16 @@ const config: CapacitorConfig = {
   bundledWebRuntime: false,
   plugins: {
     SplashScreen: {
-      launchShowDuration: 2000,
-      launchAutoHide: true,
+      launchShowDuration: 0,
+      launchAutoHide: false,
       backgroundColor: "#1e293b",
       androidSplashResourceName: "splash",
       androidScaleType: "CENTER_CROP",
     },
     GoogleAuth: {
       scopes: ['profile', 'email'],
-      serverClientId: '999281507849-gcjc6ag2cu2ktpj2dph2cr26qgrvhhpc.apps.googleusercontent.com',
-      forceCodeForRefreshToken: true,
+      serverClientId: '105550504783-39924gg3a754dh8u6re7858id2qg0es8.apps.googleusercontent.com',
+      forceCodeForRefreshToken: false,
     }
   }
 };

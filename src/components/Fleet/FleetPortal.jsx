@@ -71,16 +71,20 @@ function FleetPortalInner() {
     initFleetData();
 
     const restoreSession = async (session) => {
+      console.log("[Auth] restoreSession called, session:", session ? "YES" : "NO");
       if (!session?.user) {
+        console.log("[Auth] No user in session, stopping");
         setLoading(false);
         return;
       }
 
       // User login via Supabase Auth (Google / email) — auth.uid() now valid
       const authUser = session.user;
+      console.log("[Auth] User found:", authUser.email, "ID:", authUser.id);
 
       // 1. Cek apakah ini Admin
       const adminData = await getAdminByEmail(authUser.email);
+      console.log("[Auth] Admin check:", adminData ? "IS ADMIN" : "NOT ADMIN");
       if (adminData) {
         setUser({
           role: "admin",
@@ -90,8 +94,9 @@ function FleetPortalInner() {
           companyName: `${adminData.name} Admin`,
         });
 
+        // Selalu navigate ke admin dashboard kalau belum di dashboard
         const currentPath = window.location.pathname;
-        if (currentPath === "/" || currentPath === "/fleet/admin/login") {
+        if (!currentPath.includes('/dashboard')) {
           navigate("/fleet/admin/dashboard");
         }
         setLoading(false);
@@ -114,8 +119,9 @@ function FleetPortalInner() {
           companyName: company.name,
         });
 
+        // Selalu navigate ke client dashboard kalau belum di dashboard
         const currentPath = window.location.pathname;
-        if (currentPath === "/" || currentPath === "/fleet/login" || currentPath === "/fleet/register") {
+        if (!currentPath.includes('/dashboard')) {
           navigate("/fleet/client/dashboard");
         }
       } else {
@@ -138,15 +144,21 @@ function FleetPortalInner() {
     };
 
     // Cek session aktif saat ini
+    console.log("[Auth] Initial pathname:", window.location.pathname, "hash:", window.location.hash);
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log("[Auth] getSession result:", session ? "HAS SESSION" : "NO SESSION");
       // Jika url mengandung hash access_token (dari Google), biarkan onAuthStateChange yang handle
       // untuk mencegah double restoreSession yang bikin kedip / masuk landing page.
-      if (window.location.hash.includes("access_token")) return;
+      if (window.location.hash.includes("access_token")) {
+        console.log("[Auth] Skipping getSession — access_token in hash, letting onAuthStateChange handle it");
+        return;
+      }
       restoreSession(session);
     });
 
     // Listen perubahan auth state (login/logout/callback Google)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      console.log("[Auth] onAuthStateChange event:", _event, "session:", session ? "YES" : "NO");
       if (_event === "SIGNED_IN" || _event === "INITIAL_SESSION") {
         restoreSession(session);
       } else if (_event === "SIGNED_OUT") {
@@ -155,7 +167,62 @@ function FleetPortalInner() {
       }
     });
 
-    return () => subscription.unsubscribe();
+    // Handle deep link dari OAuth callback (native platform only)
+    const handleDeepLink = async (url) => {
+      console.log('[DeepLink] Received URL:', url);
+
+      // Extract hash fragment (contains access_token, refresh_token, etc)
+      // Format: com.sentrakir.fleet://#access_token=...&refresh_token=...
+      const hashIndex = url.indexOf('#');
+      if (hashIndex === -1) {
+        console.log('[DeepLink] No hash fragment found');
+        return;
+      }
+
+      const hashFragment = url.substring(hashIndex + 1);
+      const params = new URLSearchParams(hashFragment);
+
+      const accessToken = params.get('access_token');
+      const refreshToken = params.get('refresh_token');
+
+      if (!accessToken || !refreshToken) {
+        console.log('[DeepLink] Missing tokens in URL');
+        return;
+      }
+
+      console.log('[DeepLink] Setting session with tokens from deep link');
+
+      // Set session dengan tokens dari deep link
+      const { data, error } = await supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken,
+      });
+
+      if (error) {
+        console.error('[DeepLink] Failed to set session:', error);
+      } else {
+        console.log('[DeepLink] Session set successfully, user:', data.user?.email);
+      }
+    };
+
+    // Listen untuk app URL open events (deep links)
+    let deepLinkListener;
+    if (Capacitor.isNativePlatform()) {
+      import('@capacitor/app').then(({ App }) => {
+        App.addListener('appUrlOpen', (data) => {
+          handleDeepLink(data.url);
+        }).then((listener) => {
+          deepLinkListener = listener;
+        });
+      });
+    }
+
+    return () => {
+      subscription.unsubscribe();
+      if (deepLinkListener) {
+        deepLinkListener.remove();
+      }
+    };
   }, []);
 
   const handleLogin = async (role, id, email, companyName) => {
@@ -489,28 +556,52 @@ function LoginPage({ onLogin, navigate }) {
               onClick={async (e) => {
                 e.preventDefault();
                 try {
-                  // Native: pakai Google account picker langsung
+                  console.log("[Google Auth] Start login...");
+                  console.log("[Google Auth] isNative:", Capacitor.isNativePlatform());
+
                   if (Capacitor.isNativePlatform()) {
-                    const { GoogleAuth } = await import('@codetrix-studio/capacitor-google-auth');
-                    const user = await GoogleAuth.signIn();
-                    const { error } = await supabase.auth.signInWithIdToken({
-                      provider: 'google',
-                      token: user.authentication.idToken,
-                    });
-                    if (error) throw error;
-                  } else {
-                    // Web: pakai browser OAuth
+                    // Native: buka Google OAuth di in-app browser (Capacitor Browser)
+                    console.log("[Google Auth] Native OAuth via Capacitor Browser...");
+                    const { Browser } = await import('@capacitor/browser');
+
+                    // Buat redirect URL dengan deep link scheme untuk ditangkap oleh app
+                    const redirectUrl = "com.sentrakir.fleet://auth-callback";
+
+                    // Get OAuth URL dari Supabase tanpa auto-redirect
                     const { data, error } = await supabase.auth.signInWithOAuth({
                       provider: "google",
                       options: {
-                        redirectTo: "https://sentrakir.com/fleet/login",
+                        redirectTo: redirectUrl,
+                        skipBrowserRedirect: true, // Jangan auto-open browser
+                      },
+                    });
+                    if (error) throw error;
+
+                    if (data?.url) {
+                      console.log("[Google Auth] Opening in-app browser:", data.url);
+                      // Buka di in-app browser (bukan external browser)
+                      await Browser.open({
+                        url: data.url,
+                        presentationStyle: 'fullscreen',
+                        toolbarColor: '#1e293b',
+                      });
+                    }
+                  } else {
+                    // Web: pakai browser OAuth biasa
+                    console.log("[Google Auth] Web OAuth flow...");
+                    const { data, error } = await supabase.auth.signInWithOAuth({
+                      provider: "google",
+                      options: {
+                        redirectTo: "https://www.setrakirsim.web.id/fleet/login",
                         skipBrowserRedirect: false,
                       },
                     });
                     if (error) throw error;
                   }
                 } catch (err) {
-                  console.error("Auth error:", err);
+                  console.error("[Google Auth] ERROR:", err);
+                  console.error("[Google Auth] Error message:", err.message);
+                  console.error("[Google Auth] Error stack:", err.stack);
                   setError("Login Google gagal: " + err.message);
                 }
               }}
@@ -1556,7 +1647,7 @@ function RegisterPage({ onLogin, navigate }) {
                           const { data, error } = await supabase.auth.signInWithOAuth({
                             provider: "google",
                             options: {
-                              redirectTo: "https://sentrakir.com/fleet/register",
+                              redirectTo: "https://www.setrakirsim.web.id/fleet/register",
                               skipBrowserRedirect: false,
                             },
                           });
