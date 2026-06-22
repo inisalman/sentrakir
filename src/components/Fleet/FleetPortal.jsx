@@ -104,11 +104,15 @@ function FleetPortalInner() {
       }
 
       // 2. Cek apakah ini Company/Client via auth_user_id link
-      const { data: company } = await supabase
+      const { data: company, error: companyError } = await supabase
         .from('companies')
         .select(`id, name, admin_id, membership_tier, membership_price, subscription_status, status`)
         .eq('auth_user_id', authUser.id)
-        .single();
+        .maybeSingle();
+
+      if (companyError) {
+        console.error("[Auth] Error fetching company:", companyError.message);
+      }
 
       if (company) {
         setUser({
@@ -411,15 +415,18 @@ function LoginPage({ onLogin, navigate }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const [showQuickLogin, setShowQuickLogin] = useState(false);
   const { flags } = useSystemFlags();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+    setIsLoading(true);
 
     if (!email || !password) {
       setError("Email dan password harus diisi.");
+      setIsLoading(false);
       return;
     }
 
@@ -431,28 +438,34 @@ function LoginPage({ onLogin, navigate }) {
 
     if (authError) {
       setError("Kredensial Perusahaan tidak valid.");
+      setIsLoading(false);
       return;
     }
 
     // Get company linked to this auth user
-    const { data: company } = await supabase
+    const { data: company, error: companyError } = await supabase
       .from('companies')
-      .select(`id, name, status`)
+      .select(`id, name, status, email`)
       .eq('auth_user_id', authData.user.id)
-      .single();
+      .maybeSingle();
 
-    if (!company) {
+    if (companyError || !company) {
       setError("Akun perusahaan tidak ditemukan. Silakan daftar ulang.");
       await supabase.auth.signOut();
+      setIsLoading(false);
       return;
     }
 
     if (company.status !== "active") {
       setError("Akun perusahaan Anda sedang tidak aktif.");
+      await supabase.auth.signOut();
+      setIsLoading(false);
       return;
     }
 
     onLogin("client", company.id, company.email || email, company.name);
+    // Note: We don't need to set isLoading(false) here because the component will unmount
+    // or the state will be managed by the parent's restoreSession logic.
   };
 
   const handleQuickLogin = (company) => {
@@ -525,8 +538,8 @@ function LoginPage({ onLogin, navigate }) {
             </div>
           )}
 
-          <button type="submit" className="fleet-btn-submit">
-            Masuk ke Portal
+          <button type="submit" className="fleet-btn-submit" disabled={isLoading} style={{ opacity: isLoading ? 0.7 : 1 }}>
+            {isLoading ? "Memeriksa..." : "Masuk ke Portal"}
           </button>
         </form>
 
@@ -589,10 +602,11 @@ function LoginPage({ onLogin, navigate }) {
                   } else {
                     // Web: pakai browser OAuth biasa
                     console.log("[Google Auth] Web OAuth flow...");
+                    const redirectUrl = `${window.location.origin}/fleet/login`;
                     const { data, error } = await supabase.auth.signInWithOAuth({
                       provider: "google",
                       options: {
-                        redirectTo: "https://www.setrakirsim.web.id/fleet/login",
+                        redirectTo: redirectUrl,
                         skipBrowserRedirect: false,
                       },
                     });
@@ -650,12 +664,6 @@ function LoginPage({ onLogin, navigate }) {
             Reset Password
           </span>
         </p>
-
-        <div style={{ marginTop: "16px", textAlign: "center" }}>
-          <a href="/" style={{ fontSize: "13px", color: "#6b7a96", textDecoration: "none" }}>
-            ← Kembali ke Landing Page
-          </a>
-        </div>
       </div>
     </div>
   );
@@ -698,7 +706,7 @@ function AdminLoginPage({ onLogin, navigate }) {
         .from('admins')
         .select('*')
         .eq('email', authData.user.email)
-        .single();
+        .maybeSingle();
 
       if (adminError || !admin) {
         setError("Akun admin tidak ditemukan.");
@@ -777,12 +785,6 @@ function AdminLoginPage({ onLogin, navigate }) {
             Masuk di sini
           </span>
         </p>
-
-        <div style={{ marginTop: "16px", textAlign: "center" }}>
-          <a href="/" style={{ fontSize: "13px", color: "#6b7a96", textDecoration: "none" }}>
-            ← Kembali ke Landing Page
-          </a>
-        </div>
       </div>
     </div>
   );
@@ -825,7 +827,7 @@ function SuperAdminLoginPage({ onLogin, navigate }) {
         .from('admins')
         .select('*')
         .eq('email', authData.user.email)
-        .single();
+        .maybeSingle();
 
       if (adminError || !admin) {
         setError("Akun Super Admin tidak ditemukan.");
@@ -911,9 +913,6 @@ function SuperAdminLoginPage({ onLogin, navigate }) {
     </div>
   );
 }
-
-// ----------------------------------------------------
-// REGISTER PAGE COMPONENT
 // ----------------------------------------------------
 function RegisterPage({ onLogin, navigate }) {
   const { flags } = useSystemFlags();
@@ -946,9 +945,9 @@ function RegisterPage({ onLogin, navigate }) {
 
   const PRICING = {
     free: 0,
-    kecil: 499000,
-    menengah: 999000,
-    besar: 0,
+    starter: 399000,
+    business: 499000,
+    enterprise: 0,
   };
 
   const isPaid = formData.membershipTier !== "free";
@@ -1080,10 +1079,7 @@ function RegisterPage({ onLogin, navigate }) {
           email: emailToUse,
           password: formData.password,
           address: formData.address,
-          membership_tier: isPaid ? "free" : formData.membershipTier,
-          membership_price: PRICING[formData.membershipTier] || 0,
-          subscription_status: isPaid ? `pending_payment:${formData.membershipTier}` : "active",
-          status: "active",
+          membership_tier: formData.membershipTier,
           admin_id: adminData.id,
         },
       });
@@ -1102,27 +1098,33 @@ function RegisterPage({ onLogin, navigate }) {
 
       result = data.company;
     } else {
-      // Google registration: insert company directly (no password)
-      const newCompany = {
-        name: formData.name,
-        pic_name: formData.picName,
-        pic_phone: formData.picPhone,
-        email: emailToUse,
-        address: formData.address,
-        membership_tier: isPaid ? "free" : formData.membershipTier,
-        membership_price: PRICING[formData.membershipTier] || 0,
-        subscription_status: isPaid ? `pending_payment:${formData.membershipTier}` : "active",
-        status: "active",
-        admin_id: adminData.id,
-        auth_user_id: googleData?.id || null,
-      };
+      // Google registration: create company via Edge Function (secure server-side validation)
+      const { data, error } = await supabase.functions.invoke('register-google-with-auth', {
+        body: {
+          name: formData.name,
+          pic_name: formData.picName,
+          pic_phone: formData.picPhone,
+          email: emailToUse,
+          address: formData.address,
+          membership_tier: formData.membershipTier,
+          admin_id: adminData.id,
+          auth_user_id: googleData?.id || null,
+        },
+      });
 
-      result = await createCompany(newCompany);
-      if (!result || !result.id) {
-        setError("Gagal mendaftarkan perusahaan. Silakan coba lagi.");
+      if (error || !data?.company) {
+        const msg = error?.message || data?.error || "Gagal mendaftarkan perusahaan.";
+        // Specific error for already-registered email
+        if (msg.toLowerCase().includes('already been registered') || msg.toLowerCase().includes('already registered')) {
+          setError("Email ini sudah terdaftar. Silakan gunakan email lain atau login.");
+        } else {
+          setError(msg);
+        }
         setLoading(false);
         return;
       }
+
+      result = data.company;
     }
 
     // Upload bukti bayar jika paid
@@ -1162,12 +1164,13 @@ function RegisterPage({ onLogin, navigate }) {
 
     setLoading(false);
 
-    // Email registration: tampilkan halaman "cek email" — belum auto login
-    if (authMethod === "email") {
+    // Redirect logic after successful registration:
+    // - Paid membership + Email → show email confirmation page
+    // - Free membership (any method) or Paid + Google → auto login to dashboard
+    if (isPaid && authMethod === "email") {
       setRegisteredEmail(emailToUse);
       setStep("email-sent");
     } else {
-      // Google: auto login langsung
       onLogin("client", result.id, emailToUse, result.name);
     }
   };
@@ -1215,7 +1218,7 @@ function RegisterPage({ onLogin, navigate }) {
 
         {/* STEP CONTENT */}
 
-        {/* EMAIL SENT: Registrasi via email — tampilkan halaman cek inbox */}
+        {/* EMAIL SENT: Registrasi paid via email — tampilkan halaman cek inbox + status pending */}
         {step === "email-sent" && (
           <div style={{ textAlign: "center", padding: "20px 0" }}>
             <div style={{ fontSize: "52px", marginBottom: "16px" }}>📧</div>
@@ -1230,17 +1233,30 @@ function RegisterPage({ onLogin, navigate }) {
             <p style={{ color: "#94a3b8", fontSize: "12px", margin: "0 0 24px 0" }}>
               Tidak menerima email? Cek folder Spam atau Promo.
             </p>
+
+            {/* Status pending payment info */}
+            <div style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: "10px", padding: "16px", marginBottom: "20px", textAlign: "left" }}>
+              <p style={{ fontSize: "13px", color: "#92400e", margin: "0 0 8px 0", fontWeight: "700" }}>
+                ⏳ Status Membership: Menunggu Konfirmasi
+              </p>
+              <p style={{ fontSize: "13px", color: "#92400e", margin: 0, lineHeight: "1.6" }}>
+                Akun Anda telah terdaftar dengan paket <strong>{formData.membershipTier}</strong>.
+                Saat ini Anda dapat masuk ke dashboard dengan akses Free. Membership akan aktif setelah pembayaran dikonfirmasi oleh Admin.
+              </p>
+            </div>
+
             <div style={{ background: "#f8fafc", borderRadius: "8px", padding: "16px", fontSize: "13px", color: "#64748b", textAlign: "left" }}>
               <strong style={{ color: "#1C3967" }}>Langkah selanjutnya:</strong>
               <ol style={{ margin: "8px 0 0 20px", padding: 0, lineHeight: "1.8" }}>
                 <li>Buka email dari <strong>Sentra Fleet</strong></li>
                 <li>Klik tombol <strong>"Konfirmasi Email Saya"</strong></li>
-                <li>Akun Anda akan aktif dan siap digunakan</li>
+                <li>Login dan gunakan dashboard dengan akses Free</li>
+                <li>Admin akan mengkonfirmasi pembayaran & mengaktifkan membership Anda</li>
               </ol>
             </div>
             <div style={{ marginTop: "24px" }}>
-              <a href="/fleet/login" style={{ fontSize: "13px", color: "#6b7a96", textDecoration: "none" }}>
-                ← Kembali ke Login
+              <a href="/fleet/login" style={{ fontSize: "13px", color: "#1C3967", fontWeight: "700", textDecoration: "none" }}>
+                Masuk ke Dashboard →
               </a>
             </div>
           </div>
@@ -1253,8 +1269,16 @@ function RegisterPage({ onLogin, navigate }) {
               Upload Bukti Pembayaran
             </h3>
             <p style={{ fontSize: "13px", color: "#6b7a96", marginBottom: "16px" }}>
-              Upload bukti transfer untuk paket <strong>{formData.membershipTier}</strong>. Akun Anda akan aktif setelah dikonfirmasi admin.
+              Upload bukti transfer untuk paket <strong>{formData.membershipTier}</strong>.
             </p>
+
+            {/* Info box: bisa login dulu dengan Free */}
+            <div style={{ background: "#f0f4ff", border: "1px solid #c7d9f5", borderRadius: "10px", padding: "14px", marginBottom: "20px" }}>
+              <p style={{ fontSize: "13px", color: "#1C3967", margin: 0, lineHeight: "1.6" }}>
+                💡 Setelah upload bukti bayar, Anda bisa langsung login dan menggunakan dashboard dengan akses <strong>Free</strong>.
+                Membership akan diaktifkan oleh Admin setelah pembayaran dikonfirmasi.
+              </p>
+            </div>
 
             {/* Info Pembayaran */}
             <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "10px", padding: "16px", marginBottom: "20px" }}>
@@ -1412,27 +1436,16 @@ function RegisterPage({ onLogin, navigate }) {
             {/* Pilih Admin */}
             <div className="fleet-form-group">
               <label className="fleet-label">Pilih Administrator *</label>
-              <div style={{ display: "flex", gap: "12px", marginTop: "6px" }}>
-                {[
-                  ...(flags.armada_sentra_enabled ? [{ value: "sentra", label: "Admin Sentra" }] : []),
-                  ...(flags.armada_padajaya_enabled ? [{ value: "padajaya", label: "Admin Padajaya" }] : []),
-                ].map((admin) => (
-                  <button
-                    key={admin.value}
-                    type="button"
-                    onClick={() => setFormData((prev) => ({ ...prev, adminChoice: admin.value }))}
-                    style={{
-                      flex: 1, padding: "10px", borderRadius: "8px", cursor: "pointer", fontWeight: "600",
-                      fontSize: "13px", border: "2px solid",
-                      borderColor: formData.adminChoice === admin.value ? "#1C3967" : "#e2e8f0",
-                      background: formData.adminChoice === admin.value ? "#f0f4ff" : "white",
-                      color: formData.adminChoice === admin.value ? "#1C3967" : "#6b7a96",
-                    }}
-                  >
-                    {admin.label}
-                  </button>
-                ))}
-              </div>
+              <select
+                name="adminChoice"
+                className="fleet-input"
+                value={formData.adminChoice}
+                onChange={handleChange}
+                style={{ marginTop: "6px" }}
+              >
+                {flags.armada_sentra_enabled && <option value="sentra">Admin Sentra</option>}
+                {flags.armada_padajaya_enabled && <option value="padajaya">Admin Padajaya</option>}
+              </select>
             </div>
 
             <div className="fleet-form-group">
@@ -1479,10 +1492,10 @@ function RegisterPage({ onLogin, navigate }) {
             </p>
 
             {[
-              { value: "free", label: "Starter", desc: "Maks. 3 Kendaraan", price: "Gratis", badge: null },
-              { value: "kecil", label: "Kecil", desc: "1–30 Kendaraan", price: "Rp 499.000/bln", badge: "Populer" },
-              { value: "menengah", label: "Menengah", desc: "31–100 Kendaraan", price: "Rp 999.000/bln", badge: null },
-              { value: "besar", label: "Besar", desc: "100+ Kendaraan", price: "Custom Pricing", badge: "Enterprise" },
+              { value: "free", label: "Free", desc: "1–10 Kendaraan", price: "Gratis", badge: null },
+              { value: "starter", label: "Starter", desc: "11–30 Kendaraan + AI Chat Pengurusan", price: "Rp 399.000/bln", badge: "Populer" },
+              { value: "business", label: "Business", desc: "31–50 Kendaraan + Semua fitur Starter", price: "Rp 499.000/bln", badge: null },
+              { value: "enterprise", label: "Enterprise", desc: "50–100 Kendaraan + Semua fitur Starter", price: "Custom Pricing", badge: "Enterprise" },
             ].map((tier) => (
               <button
                 key={tier.value}
@@ -1644,10 +1657,11 @@ function RegisterPage({ onLogin, navigate }) {
                           if (error) throw error;
                         } else {
                           // Web: pakai browser OAuth
+                          const redirectUrl = `${window.location.origin}/fleet/register`;
                           const { data, error } = await supabase.auth.signInWithOAuth({
                             provider: "google",
                             options: {
-                              redirectTo: "https://www.setrakirsim.web.id/fleet/register",
+                              redirectTo: redirectUrl,
                               skipBrowserRedirect: false,
                             },
                           });

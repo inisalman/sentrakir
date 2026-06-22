@@ -7,19 +7,19 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
 const ALLOWED_ORIGINS = ['https://sentrakir.com', 'http://localhost:5173', 'capacitor://localhost', 'http://localhost'];
 
-// Security: Server-side tier validation (prevent client-side manipulation)
+// Security: Whitelist valid tiers and pricing (server-side source of truth)
 const VALID_TIERS = ['free', 'starter', 'business', 'enterprise'] as const;
 const TIER_PRICING: Record<string, number> = {
-  free: 0,
-  starter: 399000,
-  business: 499000,
-  enterprise: 0, // custom pricing handled by admin
+  'free': 0,
+  'starter': 399000,
+  'business': 499000,
+  'enterprise': 0, // custom pricing
 };
 
-// Security: Determine subscription_status server-side based on tier
+type TierKey = typeof VALID_TIERS[number];
+
 function getSubscriptionStatus(tier: string): string {
-  if (tier === 'free') return 'active';
-  return `pending_payment:${tier}`; // paid tiers always start as pending
+  return tier === 'free' ? 'active' : `pending_payment:${tier}`;
 }
 
 function getCorsHeaders(req: Request): Record<string, string> {
@@ -39,41 +39,52 @@ Deno.serve(async (req) => {
 
   try {
     const h = getCorsHeaders(req);
+
+    // Security: Authenticate user via JWT token from Authorization header
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return new Response(JSON.stringify({ error: 'Unauthorized — login terlebih dahulu' }), {
+        status: 401,
+        headers: { ...h, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser(token);
+
+    if (authError || !authUser) {
+      return new Response(JSON.stringify({ error: 'Unauthorized — sesi tidak valid' }), {
+        status: 401,
+        headers: { ...h, 'Content-Type': 'application/json' },
+      });
+    }
+
     const {
-      name, pic_name, pic_phone, email, password, address,
-      membership_tier, membership_price, subscription_status, status,
-      admin_id, payment_proof_path,
+      name, pic_name, pic_phone, email, address,
+      membership_tier, admin_id,
     } = await req.json();
 
-    if (!email || !password) {
-      return new Response(JSON.stringify({ error: 'Email and password required' }), {
+    // Validate required fields
+    if (!name || !pic_name || !pic_phone) {
+      return new Response(JSON.stringify({ error: 'Nama perusahaan, nama PIC, dan nomor telepon wajib diisi.' }), {
         status: 400,
         headers: { ...h, 'Content-Type': 'application/json' },
       });
     }
 
-    if (!email.includes('@')) {
-      return new Response(JSON.stringify({ error: 'Email tidak valid' }), {
-        status: 400,
-        headers: { ...h, 'Content-Type': 'application/json' },
-      });
-    }
-
-    if (password.length < 8) {
-      return new Response(JSON.stringify({ error: 'Password minimal 8 karakter' }), {
+    // Security: Verify the email matches the authenticated Google user
+    const emailToUse = authUser.email || email;
+    if (authUser.email && email && authUser.email.toLowerCase() !== email.toLowerCase()) {
+      return new Response(JSON.stringify({ error: 'Email tidak cocok dengan akun Google yang login.' }), {
         status: 400,
         headers: { ...h, 'Content-Type': 'application/json' },
       });
     }
 
     // Security: Validate membership_tier (prevent client-side manipulation)
-    // Frontend sends the actual chosen tier (e.g. 'starter'), we handle the logic here
     const validatedTier = VALID_TIERS.includes(membership_tier as any) ? membership_tier : 'free';
     const validatedPrice = TIER_PRICING[validatedTier] ?? 0;
     const validatedSubscriptionStatus = getSubscriptionStatus(validatedTier);
-
-    // If it's a paid tier, we actually insert them as 'free' first, but set subscription status to pending
-    const initialTier = validatedTier === 'free' ? 'free' : 'free'; // They always start as free until approved
 
     // Security: Validate admin_id exists in database
     if (admin_id) {
@@ -91,53 +102,58 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 1. Create auth user (password stays server-side)
-    const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: false, // require email confirmation
-      user_metadata: { company_name: name },
-    });
+    // Security: Check if company already exists for this auth user
+    const { data: existingCompany } = await supabase
+      .from('companies')
+      .select('id')
+      .eq('auth_user_id', authUser.id)
+      .maybeSingle();
 
-    if (authError) {
-      return new Response(JSON.stringify({ error: 'Authentication failed' }), {
-        status: 400,
+    if (existingCompany) {
+      return new Response(JSON.stringify({ error: 'Akun perusahaan sudah terdaftar.' }), {
+        status: 409,
         headers: { ...h, 'Content-Type': 'application/json' },
       });
     }
 
-    if (!authUser.user) {
-      return new Response(JSON.stringify({ error: 'Failed to create user' }), {
-        status: 500,
+    // Security: Check if email is already used by another company
+    const { data: existingEmail } = await supabase
+      .from('companies')
+      .select('id')
+      .eq('email', emailToUse.toLowerCase())
+      .maybeSingle();
+
+    if (existingEmail) {
+      return new Response(JSON.stringify({ error: 'Email ini sudah terdaftar. Silakan gunakan email lain atau login.' }), {
+        status: 409,
         headers: { ...h, 'Content-Type': 'application/json' },
       });
     }
 
-    // 2. Insert company linked to auth user
+    // Insert company linked to authenticated user
     const { data: company, error: companyError } = await supabase
       .from('companies')
       .insert([{
         name: name || '',
         pic_name: pic_name || '',
         pic_phone: pic_phone || '',
-        email: email.toLowerCase(),
-        password: '', // cleared — now in auth.users
+        email: emailToUse.toLowerCase(),
+        password: '',
         address: address || '',
-        membership_tier: initialTier,
+        membership_tier: validatedTier,
         membership_price: validatedPrice,
         subscription_status: validatedSubscriptionStatus,
         status: 'active',
         admin_id: admin_id || null,
-        payment_proof_path: payment_proof_path || null,
-        auth_user_id: authUser.user.id,
+        payment_proof_path: null,
+        auth_user_id: authUser.id,
       }])
       .select()
       .single();
 
     if (companyError) {
-      // Rollback: delete the auth user
-      await supabase.auth.admin.deleteUser(authUser.user.id);
-      return new Response(JSON.stringify({ error: 'Failed to create company' }), {
+      console.error('register-google-with-auth company error:', companyError);
+      return new Response(JSON.stringify({ error: 'Gagal membuat akun perusahaan.' }), {
         status: 500,
         headers: { ...h, 'Content-Type': 'application/json' },
       });
@@ -146,13 +162,13 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({
       success: true,
       company,
-      user: { id: authUser.user.id, email: authUser.user.email },
+      user: { id: authUser.id, email: authUser.email },
     }), {
       headers: { ...h, 'Content-Type': 'application/json' },
     });
 
   } catch (err) {
-    console.error('register-with-auth error:', err);
+    console.error('register-google-with-auth error:', err);
     return new Response(JSON.stringify({ error: 'Internal server error' }), {
       status: 500,
       headers: { ...h, 'Content-Type': 'application/json' },

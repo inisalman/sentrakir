@@ -35,3 +35,39 @@ export const verifyToken = async ({ token, newPassword }) => {
     return { error: "Gagal memverifikasi. Silakan coba lagi." };
   }
 };
+
+// Send payment approval email
+export const sendPaymentApprovedEmail = async ({ email, companyName, tier }) => {
+  try {
+    const { data, error } = await supabase.functions.invoke('send-email', {
+      body: { type: 'payment_approved', email, companyName, tier },
+    });
+
+    if (error) {
+      console.error('[sendPaymentApprovedEmail] error:', error.message);
+      return { success: false, error: "Gagal mengirim email approval." };
+    }
+    return { success: true };
+  } catch (err) {
+    console.error("[sendPaymentApprovedEmail] network error:", err);
+    return { success: false, error: "Gagal mengirim email approval." };
+  }
+};
+
+// Send payment rejection email
+export const sendPaymentRejectedEmail = async ({ email, companyName, reason }) => {
+  try {
+    const { data, error } = await supabase.functions.invoke('send-email', {
+      body: { type: 'payment_rejected', email, companyName, reason },
+    });
+
+    if (error) {
+      console.error('[sendPaymentRejectedEmail] error:', error.message);
+      return { success: false, error: "Gagal mengirim email rejection." };
+    }
+    return { success: true };
+  } catch (err) {
+    console.error("[sendPaymentRejectedEmail] network error:", err);
+    return { success: false, error: "Gagal mengirim email rejection." };
+  }
+};

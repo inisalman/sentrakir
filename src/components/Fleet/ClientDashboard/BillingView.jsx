@@ -19,7 +19,7 @@ const formatDateLong = (dateStr) => {
 };
 
 export default function BillingView({ company, vehiclesCount, onUpdate }) {
-  const tierOrder = ["free", "kecil", "menengah", "besar"];
+  const tierOrder = ["free", "starter", "business", "enterprise"];
   const tiers = tierOrder.map((id) => getTierConfig(id));
   const currentTier = getTierConfig(company.membershipTier || "free");
   const currentLimit = currentTier.vehicleLimit;
@@ -27,6 +27,11 @@ export default function BillingView({ company, vehiclesCount, onUpdate }) {
   const myRequests = getMembershipRequestsForCompany(company.id);
   const pendingReq = myRequests.find((r) => r.status === "pending");
   const managingAdmin = getAdminById(company.adminId || "admin-1");
+
+  // Check pending payment status
+  const isPendingPayment = company.subscriptionStatus?.startsWith("pending_payment");
+  const requestedTierId = isPendingPayment ? company.subscriptionStatus.split(":")[1] : null;
+  const requestedTierName = requestedTierId ? getTierConfig(requestedTierId).name : null;
 
   // Upgrade modal state
   const [upgradeModal, setUpgradeModal] = useState(null); // { tierId, tierName, price }
@@ -169,6 +174,44 @@ export default function BillingView({ company, vehiclesCount, onUpdate }) {
           )}
         </div>
       </div>
+
+      {/* Pending Payment Banner */}
+      {isPendingPayment && (
+        <div
+          className="fleet-card"
+          style={{
+            background: "linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%)",
+            border: "2px solid #fb923c",
+            marginTop: "16px",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "flex-start", gap: "12px" }}>
+            <div style={{ fontSize: "32px", flexShrink: 0 }}>⏳</div>
+            <div style={{ flex: 1 }}>
+              <h3 style={{ margin: "0 0 8px 0", color: "#9a3412", fontSize: "16px", fontWeight: "700" }}>
+                Menunggu Konfirmasi Pembayaran
+              </h3>
+              <p style={{ margin: "0 0 12px 0", color: "#7c2d12", fontSize: "14px", lineHeight: "1.6" }}>
+                Anda telah memilih paket <strong>{requestedTierName}</strong>. Pembayaran Anda sedang menunggu konfirmasi dari Admin.
+              </p>
+              <div
+                style={{
+                  background: "rgba(251, 146, 60, 0.1)",
+                  border: "1px solid rgba(251, 146, 60, 0.3)",
+                  borderRadius: "8px",
+                  padding: "12px",
+                  marginTop: "12px",
+                }}
+              >
+                <p style={{ margin: 0, color: "#9a3412", fontSize: "13px", lineHeight: "1.6" }}>
+                  <strong>Status saat ini:</strong> Anda dapat menggunakan semua fitur dashboard dengan akses Free
+                  sampai pembayaran dikonfirmasi oleh Admin.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Pending request banner */}
       {pendingReq && (

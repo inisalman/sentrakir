@@ -330,6 +330,7 @@ export default function ClientDashboard({
             <DashboardView
               vehicles={companyVehicles}
               requests={companyRequests}
+              company={company}
               navigate={navigate}
             />
           )}

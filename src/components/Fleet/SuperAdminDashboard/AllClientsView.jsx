@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { getAllCompanies, updateCompany } from "../../../utils/supabaseClientAuth";
+import { getAllCompanies, updateCompanyByAdmin } from "../../../utils/supabaseClientAuth";
 import { getAllAdmins } from "../../../utils/supabaseAdmin";
 
 export default function AllClientsView() {
@@ -45,7 +45,7 @@ export default function AllClientsView() {
 
   const handleSaveEdit = async () => {
     setIsSaving(true);
-    const result = await updateCompany(selectedClient.id, {
+    const result = await updateCompanyByAdmin(selectedClient.id, {
       admin_id: editForm.admin_id,
       membership_tier: editForm.membership_tier,
       status: editForm.status

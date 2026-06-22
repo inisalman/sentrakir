@@ -155,6 +155,133 @@ function getRegisterConfirmEmailHtml(token: string, companyName: string, adminNa
 </html>`;
 }
 
+// HTML template for payment approval email
+function getPaymentApprovedEmailHtml(companyName: string, tier: string, loginUrl: string): string {
+  const tierDisplay = tier.charAt(0).toUpperCase() + tier.slice(1);
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: Arial, sans-serif; background: #f4f4f4; margin: 0; padding: 20px; }
+    .container { max-width: 560px; margin: 0 auto; background: #ffffff; border-radius: 12px; padding: 32px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    .header { text-align: center; margin-bottom: 28px; }
+    .logo { font-size: 24px; font-weight: bold; color: #1C3967; }
+    .title { font-size: 20px; color: #1C3967; margin: 0 0 8px 0; }
+    .subtitle { color: #64748b; font-size: 14px; margin: 0; }
+    .content { color: #334155; font-size: 15px; line-height: 1.6; }
+    .content p { margin: 0 0 16px 0; }
+    .success { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 16px; font-size: 14px; color: #15803d; margin: 16px 0; }
+    .tier-badge { display: inline-block; background: #1C3967; color: #ffffff; padding: 6px 16px; border-radius: 20px; font-weight: bold; font-size: 14px; margin: 8px 0; }
+    .btn { display: inline-block; background: #1C3967; color: #ffffff !important; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 15px; margin: 16px 0; }
+    .btn:hover { background: #162f57; }
+    .info { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 12px 16px; font-size: 13px; color: #1e40af; margin-top: 16px; }
+    .footer { text-align: center; color: #94a3b8; font-size: 12px; margin-top: 24px; padding-top: 16px; border-top: 1px solid #e2e8f0; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="logo">🚗 Sentra Fleet</div>
+    </div>
+    <div class="content">
+      <h2 class="title">Pembayaran Dikonfirmasi</h2>
+      <p class="subtitle">Membership Anda Telah Aktif</p>
+      <p>Halo <strong>${companyName}</strong>,</p>
+      <p>Kami senang memberitahu bahwa pembayaran Anda telah <strong>dikonfirmasi</strong> oleh tim admin kami.</p>
+      <div class="success">
+        🎉 Selamat! Akun Anda telah diupgrade ke paket:
+        <br><br>
+        <span class="tier-badge">${tierDisplay}</span>
+      </div>
+      <p>Dengan paket <strong>${tierDisplay}</strong>, Anda sekarang dapat menikmati:</p>
+      <ul style="margin: 0 0 16px 20px; padding: 0;">
+        <li>Fitur lengkap sesuai paket yang dipilih</li>
+        <li>Support prioritas dari tim kami</li>
+        <li>Akses penuh ke semua fitur dashboard</li>
+      </ul>
+      <p style="text-align: center;">
+        <a href="${loginUrl}" class="btn">Masuk ke Dashboard</a>
+      </p>
+      <div class="info">
+        ℹ️ Jika Anda memiliki pertanyaan atau membutuhkan bantuan, silakan hubungi tim support kami melalui WhatsApp atau email.
+      </div>
+    </div>
+    <div class="footer">
+      Sentra Fleet — B2B Compliance Portal<br>
+      Email ini dikirim otomatis, jangan dibalas.
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
+// HTML template for payment rejection email
+function getPaymentRejectedEmailHtml(companyName: string, reason: string, loginUrl: string): string {
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: Arial, sans-serif; background: #f4f4f4; margin: 0; padding: 20px; }
+    .container { max-width: 560px; margin: 0 auto; background: #ffffff; border-radius: 12px; padding: 32px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    .header { text-align: center; margin-bottom: 28px; }
+    .logo { font-size: 24px; font-weight: bold; color: #1C3967; }
+    .title { font-size: 20px; color: #1C3967; margin: 0 0 8px 0; }
+    .subtitle { color: #64748b; font-size: 14px; margin: 0; }
+    .content { color: #334155; font-size: 15px; line-height: 1.6; }
+    .content p { margin: 0 0 16px 0; }
+    .warning { background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 16px; font-size: 14px; color: #991b1b; margin: 16px 0; }
+    .reason-box { background: #f8fafc; border-left: 4px solid #f59e0b; padding: 12px 16px; margin: 16px 0; border-radius: 4px; }
+    .btn { display: inline-block; background: #1C3967; color: #ffffff !important; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 15px; margin: 16px 0; }
+    .btn:hover { background: #162f57; }
+    .info { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 12px 16px; font-size: 13px; color: #1e40af; margin-top: 16px; }
+    .footer { text-align: center; color: #94a3b8; font-size: 12px; margin-top: 24px; padding-top: 16px; border-top: 1px solid #e2e8f0; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="logo">🚗 Sentra Fleet</div>
+    </div>
+    <div class="content">
+      <h2 class="title">Pembayaran Ditolak</h2>
+      <p class="subtitle">Perlu Tindakan Lebih Lanjut</p>
+      <p>Halo <strong>${companyName}</strong>,</p>
+      <p>Mohon maaf, pembayaran yang Anda kirim <strong>tidak dapat kami konfirmasi</strong> saat ini.</p>
+      <div class="warning">
+        ⚠️ Pembayaran Anda telah ditolak oleh tim admin.
+      </div>
+      ${reason ? `
+      <div class="reason-box">
+        <strong>Alasan:</strong>
+        <br>${reason}
+      </div>
+      ` : ''}
+      <p>Untuk melanjutkan proses upgrade membership, silakan:</p>
+      <ol style="margin: 0 0 16px 20px; padding: 0;">
+        <li>Periksa kembali bukti pembayaran yang Anda kirim</li>
+        <li>Pastikan nominal transfer sesuai dengan paket yang dipilih</li>
+        <li>Upload ulang bukti pembayaran yang valid</li>
+      </ol>
+      <p style="text-align: center;">
+        <a href="${loginUrl}" class="btn">Masuk ke Dashboard</a>
+      </p>
+      <div class="info">
+        ℹ️ Jika Anda memiliki pertanyaan atau membutuhkan klarifikasi, silakan hubungi tim support kami melalui WhatsApp atau email.
+      </div>
+    </div>
+    <div class="footer">
+      Sentra Fleet — B2B Compliance Portal<br>
+      Email ini dikirim otomatis, jangan dibalas.
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: getCorsHeaders(req) });
@@ -162,11 +289,52 @@ serve(async (req) => {
 
   try {
     const h = getCorsHeaders(req);
-    const { type, email, companyName, companyId } = await req.json();
+    const { type, email, companyName, companyId, tier, reason } = await req.json();
 
     if (!email || !type) {
       return new Response(JSON.stringify({ error: "Email and type are required" }), {
         status: 400,
+        headers: { ...h, "Content-Type": "application/json" },
+      });
+    }
+
+    // Handle payment approval emails (no token needed)
+    if (type === "payment_approved" || type === "payment_rejected") {
+      if (!SMTP_USER || !SMTP_PASS) {
+        return new Response(JSON.stringify({ error: "SMTP not configured" }), {
+          status: 500,
+          headers: { ...h, "Content-Type": "application/json" },
+        });
+      }
+
+      const loginUrl = `${APP_URL}/fleet/login`;
+      const transporter = createTransporter();
+
+      let subject: string;
+      let html: string;
+
+      if (type === "payment_approved") {
+        if (!tier) {
+          return new Response(JSON.stringify({ error: "Tier is required for payment_approved" }), {
+            status: 400,
+            headers: { ...h, "Content-Type": "application/json" },
+          });
+        }
+        subject = `🎉 Pembayaran Dikonfirmasi - Selamat Datang di Paket ${tier}!`;
+        html = getPaymentApprovedEmailHtml(companyName || email, tier, loginUrl);
+      } else {
+        subject = "⚠️ Pembayaran Ditolak - Perlu Tindakan Lebih Lanjut";
+        html = getPaymentRejectedEmailHtml(companyName || email, reason || "", loginUrl);
+      }
+
+      await transporter.sendMail({
+        from: `"Sentra Fleet" <${SMTP_USER}>`,
+        to: email,
+        subject,
+        html,
+      });
+
+      return new Response(JSON.stringify({ success: true }), {
         headers: { ...h, "Content-Type": "application/json" },
       });
     }

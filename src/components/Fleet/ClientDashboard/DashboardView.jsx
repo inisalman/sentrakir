@@ -1,13 +1,17 @@
 import React from "react";
 import { getDaysRemaining } from "../../../utils/fleetMockData.js";
 
-export default function DashboardView({ vehicles, requests, navigate }) {
+export default function DashboardView({ vehicles, requests, company, navigate }) {
   // Compute compliance statistics
   let safeCount = 0;
   let warningCount = 0;
   let dangerCount = 0;
 
   const alerts = [];
+
+  // Check if membership is pending payment
+  const isPendingPayment = company?.subscriptionStatus?.startsWith("pending_payment");
+  const isCancelled = company?.subscriptionStatus === "cancelled";
 
   vehicles.forEach((v) => {
     const kirDays = getDaysRemaining(v.kirExpiry);
@@ -48,6 +52,78 @@ export default function DashboardView({ vehicles, requests, navigate }) {
 
   return (
     <div>
+      {/* Pending Payment Banner */}
+      {isPendingPayment && (
+        <div
+          style={{
+            background: "linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%)",
+            border: "2px solid #fb923c",
+            borderRadius: "12px",
+            padding: "20px",
+            marginBottom: "24px",
+            boxShadow: "0 2px 8px rgba(251, 146, 60, 0.15)",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <div style={{ fontSize: "32px" }}>⏳</div>
+            <div style={{ flex: 1 }}>
+              <h3 style={{ margin: "0 0 6px 0", color: "#9a3412", fontSize: "16px", fontWeight: "700" }}>
+                Membership Menunggu Konfirmasi
+              </h3>
+              <p style={{ margin: 0, color: "#7c2d12", fontSize: "14px", lineHeight: "1.5" }}>
+                Pembayaran membership Anda sedang menunggu konfirmasi dari Admin.
+                Saat ini Anda dapat menggunakan dashboard dengan akses <strong>Free</strong>.
+              </p>
+            </div>
+          </div>
+          <div style={{ marginTop: "12px", paddingTop: "12px", borderTop: "1px solid rgba(251, 146, 60, 0.3)" }}>
+            <button
+              onClick={() => navigate("/fleet/client/billing")}
+              style={{
+                background: "#ea580c",
+                color: "white",
+                border: "none",
+                borderRadius: "8px",
+                padding: "8px 16px",
+                fontSize: "13px",
+                fontWeight: "600",
+                cursor: "pointer",
+                transition: "background 0.2s",
+              }}
+              onMouseEnter={(e) => (e.target.style.background = "#c2410c")}
+              onMouseLeave={(e) => (e.target.style.background = "#ea580c")}
+            >
+              Lihat Detail Membership →
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Cancelled Subscription Banner */}
+      {isCancelled && (
+        <div
+          style={{
+            background: "#fef2f2",
+            border: "2px solid #ef4444",
+            borderRadius: "12px",
+            padding: "20px",
+            marginBottom: "24px",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <div style={{ fontSize: "32px" }}>⚠️</div>
+            <div style={{ flex: 1 }}>
+              <h3 style={{ margin: "0 0 6px 0", color: "#991b1b", fontSize: "16px", fontWeight: "700" }}>
+                Langganan Dibatalkan
+              </h3>
+              <p style={{ margin: 0, color: "#7f1d1d", fontSize: "14px", lineHeight: "1.5" }}>
+                Membership Anda telah dibatalkan. Silakan hubungi Admin untuk memperpanjang atau upgrade membership.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Stat Cards */}
       <div className="fleet-stats-grid">
         <div className="fleet-stat-card info">

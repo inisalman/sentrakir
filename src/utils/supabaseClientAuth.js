@@ -84,8 +84,55 @@ export const createCompany = async (companyData) => {
   }
 };
 
-// Update company fields by ID
+// Security: Whitelist fields yang boleh diupdate oleh client
+const CLIENT_UPDATABLE_FIELDS = [
+  'pic_name',
+  'pic_phone',
+  'address',
+  'payment_proof_path', // untuk upload bukti pembayaran
+  'name', // nama perusahaan
+];
+
+// Update company fields by ID (with security validation)
 export const updateCompany = async (companyId, fields) => {
+  try {
+    // Security: Filter hanya field yang aman untuk diupdate
+    const safeFields = {};
+    Object.keys(fields).forEach(key => {
+      if (CLIENT_UPDATABLE_FIELDS.includes(key)) {
+        safeFields[key] = fields[key];
+      } else {
+        console.warn(`[SECURITY] Blocked update to restricted field: ${key}`);
+      }
+    });
+
+    // Jangan update jika tidak ada field yang valid
+    if (Object.keys(safeFields).length === 0) {
+      console.warn('[SECURITY] No valid fields to update');
+      return null;
+    }
+
+    const { data, error } = await supabase
+      .from('companies')
+      .update(safeFields)
+      .eq('id', companyId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error updating company:', error.message);
+      return null;
+    }
+
+    return data;
+  } catch (err) {
+    console.error('Unexpected error:', err);
+    return null;
+  }
+};
+
+// Admin-only: Update company dengan semua fields (termasuk membership)
+export const updateCompanyByAdmin = async (companyId, fields) => {
   try {
     const { data, error } = await supabase
       .from('companies')
@@ -253,6 +300,96 @@ export const getAllRegistrationsForAdmin = async (adminId) => {
   }
 };
 
+// Helper: Log payment approval action to audit trail
+const logPaymentApprovalAction = async (companyId, adminId, action, targetTier, paymentProofPath, notes = null) => {
+  try {
+    const { error } = await supabase
+      .from('payment_approval_history')
+      .insert({
+        company_id: companyId,
+        admin_id: adminId,
+        action,
+        target_tier: targetTier,
+        payment_proof_path: paymentProofPath,
+        notes
+      });
+
+    if (error) {
+      console.error('Failed to log payment approval action:', error.message);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error('Unexpected error logging payment approval:', err);
+    return false;
+  }
+};
+
+// Get payment approval history for a company
+export const getPaymentApprovalHistory = async (companyId) => {
+  try {
+    const { data, error } = await supabase
+      .from('payment_approval_history')
+      .select(`
+        id,
+        action,
+        target_tier,
+        payment_proof_path,
+        notes,
+        created_at,
+        admins!inner (
+          id,
+          name,
+          email
+        )
+      `)
+      .eq('company_id', companyId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching payment approval history:', error.message);
+      return [];
+    }
+    return data;
+  } catch (err) {
+    console.error('Unexpected error:', err);
+    return [];
+  }
+};
+
+// Admin-only: Konfirmasi pembayaran client
+export const confirmPayment = async (companyId, membershipTier, adminId, paymentProofPath, notes = null) => {
+  // Update company status
+  const result = await updateCompanyByAdmin(companyId, {
+    subscription_status: 'active',
+    membership_tier: membershipTier,
+    payment_proof_path: null, // reset setelah dikonfirmasi
+  });
+
+  // Log to audit trail
+  if (result) {
+    await logPaymentApprovalAction(companyId, adminId, 'approve', membershipTier, paymentProofPath, notes);
+  }
+
+  return result;
+};
+
+// Admin-only: Tolak pembayaran client
+export const rejectPayment = async (companyId, adminId, targetTier, paymentProofPath, notes = null) => {
+  // Update company status
+  const result = await updateCompanyByAdmin(companyId, {
+    subscription_status: 'rejected',
+    payment_proof_path: null, // reset setelah ditolak
+  });
+
+  // Log to audit trail
+  if (result) {
+    await logPaymentApprovalAction(companyId, adminId, 'reject', targetTier, paymentProofPath, notes);
+  }
+
+  return result;
+};
+
 // Get pending payment registrations untuk admin — no password
 export const getPendingPayments = async (adminId) => {
   try {
@@ -279,22 +416,6 @@ export const getPendingPayments = async (adminId) => {
     console.error('Unexpected error:', err);
     return [];
   }
-};
-
-// Admin konfirmasi pembayaran — upgrade tier, set subscription_status active
-export const confirmPayment = async (companyId, targetTier) => {
-  return updateCompany(companyId, {
-    subscription_status: 'active',
-    membership_tier: targetTier,
-  });
-};
-
-// Admin tolak pembayaran — set subscription_status rejected
-export const rejectPayment = async (companyId) => {
-  return updateCompany(companyId, {
-    subscription_status: 'payment_rejected',
-    membership_tier: 'free',
-  });
 };
 
 // Update client last_active timestamp — called on client activity

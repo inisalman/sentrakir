@@ -159,10 +159,28 @@ body.modal-open {
   transition: all 0.2s;
 }
 
-.fleet-input:focus {
+.fleet-input:focus,
+.fleet-select:focus {
   outline: none;
   border-color: var(--fleet-primary);
   box-shadow: 0 0 0 3px rgba(28, 57, 103, 0.1);
+}
+
+.fleet-select {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: inherit;
+  transition: all 0.2s;
+  background: white;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7a96' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 36px;
 }
 
 .fleet-btn-submit {
@@ -1011,6 +1029,234 @@ body.modal-open {
     display: none;
   }
 
+  /* Mobile Login/Register Pages - Android Optimized */
+  .fleet-login-bg {
+    padding: 0 !important;
+    min-height: 100vh !important;
+    min-height: 100dvh !important;
+    align-items: stretch !important;
+    justify-content: stretch !important;
+  }
+
+  .fleet-login-card {
+    max-width: 100% !important;
+    width: 100% !important;
+    border-radius: 0 !important;
+    padding: 24px 20px !important;
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    box-shadow: none !important;
+  }
+
+  .fleet-login-header {
+    margin-bottom: 24px !important;
+  }
+
+  .fleet-login-logo {
+    height: 56px !important;
+    margin-bottom: 12px !important;
+  }
+
+  .fleet-login-title {
+    font-size: 22px !important;
+  }
+
+  .fleet-login-subtitle {
+    font-size: 13px !important;
+  }
+
+  /* Form improvements for mobile */
+  .fleet-form-group {
+    margin-bottom: 16px !important;
+  }
+
+  .fleet-label {
+    font-size: 14px !important;
+    margin-bottom: 6px !important;
+  }
+
+  .fleet-input,
+  .fleet-select {
+    padding: 14px 16px !important;
+    font-size: 16px !important;
+    border-radius: 10px !important;
+    min-height: 52px;
+  }
+
+  .fleet-input:focus,
+  .fleet-select:focus {
+    box-shadow: 0 0 0 4px rgba(28, 57, 103, 0.15) !important;
+  }
+
+  /* Submit button mobile */
+  .fleet-btn-submit {
+    padding: 16px 24px !important;
+    font-size: 16px !important;
+    border-radius: 12px !important;
+    min-height: 54px;
+    margin-top: 8px;
+  }
+
+  /* Step indicator mobile optimization */
+  .fleet-login-card > div:first-child > div:first-child {
+    flex-wrap: wrap;
+    gap: 6px !important;
+  }
+
+  .fleet-login-card > div:first-child > div:first-child > div {
+    flex: 1;
+    min-width: 0;
+    justify-content: center;
+  }
+
+  .fleet-login-card > div:first-child > div:first-child > div > div:first-child {
+    width: 32px !important;
+    height: 32px !important;
+    font-size: 13px !important;
+  }
+
+  .fleet-login-card > div:first-child > div:first-child > div > span {
+    font-size: 10px !important;
+  }
+
+  .fleet-login-card > div:first-child > div:first-child > div > div:last-child {
+    width: 12px !important;
+  }
+
+  /* Grid layout mobile - stack vertically */
+  .fleet-login-card [style*="grid-template-columns: 1fr 1fr"] {
+    grid-template-columns: 1fr !important;
+    gap: 0 !important;
+  }
+
+  /* Admin choice buttons mobile */
+  .fleet-login-card [style*="display: flex"][style*="gap: 12px"] {
+    flex-direction: column !important;
+    gap: 10px !important;
+  }
+
+  .fleet-login-card [style*="display: flex"][style*="gap: 12px"] button {
+    padding: 14px !important;
+    font-size: 14px !important;
+  }
+
+  /* Membership tier buttons mobile */
+  .fleet-login-card button[style*="margin-bottom: 10px"] {
+    padding: 16px !important;
+    margin-bottom: 12px !important;
+    border-radius: 12px !important;
+  }
+
+  .fleet-login-card button[style*="margin-bottom: 10px"] > div > div:first-child {
+    font-size: 15px !important;
+  }
+
+  .fleet-login-card button[style*="margin-bottom: 10px"] > div > div:last-child {
+    font-size: 13px !important;
+  }
+
+  .fleet-login-card button[style*="margin-bottom: 10px"] > span {
+    font-size: 15px !important;
+  }
+
+  /* Terms checkbox mobile */
+  .fleet-login-card label[style*="display: flex"] {
+    padding: 4px 0;
+  }
+
+  .fleet-login-card label[style*="display: flex"] input[type="checkbox"] {
+    width: 20px !important;
+    height: 20px !important;
+    margin-top: 0 !important;
+  }
+
+  .fleet-login-card label[style*="display: flex"] span {
+    font-size: 14px !important;
+    line-height: 1.5 !important;
+  }
+
+  /* Google button mobile */
+  .fleet-login-card button[style*="background: #ffffff"][style*="border: 1px solid"] {
+    padding: 14px 16px !important;
+    min-height: 52px;
+  }
+
+  /* Info boxes mobile */
+  .fleet-login-card [style*="background: #f8fafc"][style*="border-radius"] {
+    padding: 14px !important;
+    border-radius: 10px !important;
+  }
+
+  .fleet-login-card [style*="background: #f8fafc"][style*="border-radius"] p,
+  .fleet-login-card [style*="background: #f8fafc"][style*="border-radius"] div,
+  .fleet-login-card [style*="background: #f8fafc"][style*="border-radius"] li {
+    font-size: 14px !important;
+  }
+
+  /* Payment section mobile */
+  .fleet-login-card [style*="background: white"][style*="border: 1px solid"][style*="margin-bottom: 10px"],
+  .fleet-login-card [style*="background: white"][style*="border: 1px solid"][style*="border-radius: 8px"] {
+    padding: 14px !important;
+    border-radius: 10px !important;
+  }
+
+  /* Error message mobile */
+  .fleet-login-card [style*="color: #dc2626"][style*="font-weight: 600"] {
+    padding: 12px 14px !important;
+    background: #fef2f2;
+    border: 1px solid #fca5a5;
+    border-radius: 10px !important;
+    font-size: 14px !important;
+    margin-bottom: 20px !important;
+  }
+
+  /* Success message mobile */
+  .fleet-login-card [style*="color: #15803d"],
+  .fleet-login-card [style*="background: #f0fdf4"] {
+    padding: 14px !important;
+    border-radius: 10px !important;
+  }
+
+  /* File input mobile */
+  .fleet-login-card input[type="file"] {
+    padding: 12px !important;
+  }
+
+  /* Textarea mobile */
+  .fleet-login-card textarea {
+    padding: 14px 16px !important;
+    font-size: 16px !important;
+    min-height: 80px;
+  }
+
+  /* Link styles mobile */
+  .fleet-login-card p {
+    font-size: 14px !important;
+    line-height: 1.5 !important;
+  }
+
+  .fleet-login-card h2 {
+    font-size: 20px !important;
+  }
+
+  .fleet-login-card h3 {
+    font-size: 18px !important;
+  }
+
+  /* Back button mobile */
+  .fleet-login-card button[style*="background: none"][style*="border: none"] {
+    padding: 12px 0 !important;
+    font-size: 14px !important;
+  }
+
+  /* Hide desktop sidebar on mobile */
+  .fleet-sidebar {
+    display: none;
+  }
+
   /* Mobile Header with Hamburger */
   .fleet-page-header {
     display: grid !important;
@@ -1265,10 +1511,6 @@ body.modal-open {
   }
 
   /* Input fields full width */
-  .fleet-form-group {
-    margin-bottom: 12px;
-  }
-
   .fleet-input,
   .fleet-select,
   .fleet-textarea {

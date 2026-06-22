@@ -16,11 +16,21 @@ CREATE TABLE IF NOT EXISTS admin_notifications (
 );
 
 -- Index untuk query per admin + unread
-CREATE INDEX idx_notifications_admin_unread ON admin_notifications(admin_id, is_read, created_at DESC);
-CREATE INDEX idx_notifications_created ON admin_notifications(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_notifications_admin_unread ON admin_notifications(admin_id, is_read, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_notifications_created ON admin_notifications(created_at DESC);
 
--- Enable realtime for live push notifications
-ALTER PUBLICATION supabase_realtime ADD TABLE admin_notifications;
+-- Enable realtime for live push notifications (safe handling if already added)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime'
+    AND schemaname = 'public'
+    AND tablename = 'admin_notifications'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE admin_notifications;
+  END IF;
+END $$;
 
 -- RLS (optional — skip jika pakai service role key dari frontend)
 -- ALTER TABLE admin_notifications ENABLE ROW LEVEL SECURITY;

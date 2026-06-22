@@ -16,9 +16,8 @@ export default function SettingsView({ company, onUpdate }) {
   const handleSave = (e) => {
     e.preventDefault();
     updateCompany(company.id, {
-      picName: formData.picName,
-      picPhone: formData.picPhone,
-      email: formData.email,
+      pic_name: formData.picName,
+      pic_phone: formData.picPhone,
       address: formData.address,
     });
     onUpdate();
