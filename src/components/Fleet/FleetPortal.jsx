@@ -1104,7 +1104,7 @@ function RegisterPage({ onLogin, navigate }) {
     if (authMethod === "email") {
       // Email registration: create auth user + company via Edge Function
       // Password stays server-side, never in browser
-      const { data, error } = await supabase.functions.invoke('register-with-auth', {
+      const response = await supabase.functions.invoke('register-with-auth', {
         body: {
           name: formData.name,
           pic_name: formData.picName,
@@ -1116,6 +1116,21 @@ function RegisterPage({ onLogin, navigate }) {
           admin_id: adminData.id,
         },
       });
+
+      let error = response.error;
+      let data = response.data;
+
+      // Handle non-2xx errors gracefully
+      if (error && error.context && error.context.status !== 200) {
+        try {
+          const errBody = await error.context.json();
+          if (errBody && errBody.error) {
+            error = new Error(errBody.error);
+          }
+        } catch (e) {
+          // Keep original error if parsing fails
+        }
+      }
 
       if (error || !data?.company) {
         const msg = error?.message || data?.error || "Gagal mendaftarkan perusahaan.";
@@ -1132,7 +1147,7 @@ function RegisterPage({ onLogin, navigate }) {
       result = data.company;
     } else {
       // Google registration: create company via Edge Function (secure server-side validation)
-      const { data, error } = await supabase.functions.invoke('register-google-with-auth', {
+      const response = await supabase.functions.invoke('register-google-with-auth', {
         body: {
           name: formData.name,
           pic_name: formData.picName,
@@ -1144,6 +1159,21 @@ function RegisterPage({ onLogin, navigate }) {
           auth_user_id: googleData?.id || null,
         },
       });
+
+      let error = response.error;
+      let data = response.data;
+
+      // Handle non-2xx errors gracefully
+      if (error && error.context && error.context.status !== 200) {
+        try {
+          const errBody = await error.context.json();
+          if (errBody && errBody.error) {
+            error = new Error(errBody.error);
+          }
+        } catch (e) {
+          // Keep original error if parsing fails
+        }
+      }
 
       if (error || !data?.company) {
         const msg = error?.message || data?.error || "Gagal mendaftarkan perusahaan.";
