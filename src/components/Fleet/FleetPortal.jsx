@@ -1751,7 +1751,7 @@ function RegisterPage({ onLogin, navigate }) {
                           if (error) throw error;
                         } else {
                           // Web: pakai browser OAuth
-                          const redirectUrl = `${window.location.origin}/fleet/register`;
+                          const redirectUrl = `${window.location.origin}/fleet/login`; // Samakan redirect url dengan tombol login agar masuk dashboard
                           const { data, error } = await supabase.auth.signInWithOAuth({
                             provider: "google",
                             options: {
