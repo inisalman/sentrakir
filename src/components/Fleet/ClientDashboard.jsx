@@ -49,6 +49,55 @@ export default function ClientDashboard({
   });
   const [activeTab, setActiveTab] = useState("dashboard");
   const [servicePrices, setServicePrices] = useState({}); // { service_code: base_price }
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [onboardingData, setOnboardingData] = useState({
+    agreedToTerms: false,
+    membershipTier: "free",
+    picName: "",
+    picPhone: "",
+    address: "",
+  });
+  const [onboardingLoading, setOnboardingLoading] = useState(false);
+  const [onboardingError, setOnboardingError] = useState("");
+
+  // Check if onboarding is needed (pic_name or pic_phone is empty)
+  useEffect(() => {
+    if (company.pic_name || company.pic_phone) {
+      setShowOnboarding(false);
+    } else {
+      setShowOnboarding(true);
+    }
+  }, [company.id]);
+
+  const handleOnboardingSubmit = async () => {
+    if (!onboardingData.agreedToTerms) {
+      setOnboardingError("Anda harus menyetujui Syarat & Ketentuan.");
+      return;
+    }
+    if (!onboardingData.picName || !onboardingData.picPhone) {
+      setOnboardingError("Nama PIC dan Nomor WhatsApp wajib diisi.");
+      return;
+    }
+
+    setOnboardingLoading(true);
+    setOnboardingError("");
+
+    try {
+      const { updateCompany } = await import("../../utils/supabaseClientAuth.js");
+      await updateCompany(user.clientId, {
+        pic_name: onboardingData.picName,
+        pic_phone: onboardingData.picPhone,
+        address: onboardingData.address,
+        membership_tier: onboardingData.membershipTier,
+      });
+      await refreshData();
+      setShowOnboarding(false);
+    } catch (err) {
+      setOnboardingError("Gagal menyimpan data: " + (err.message || "Unknown error"));
+    } finally {
+      setOnboardingLoading(false);
+    }
+  };
 
   // Sync active tab with currentPath
   useEffect(() => {
@@ -203,6 +252,126 @@ export default function ClientDashboard({
 
   return (
     <div className="fleet-portal-wrapper">
+      {/* Onboarding Modal — wajib isi data sebelum pakai Dashboard */}
+      {showOnboarding && (
+        <div style={{
+          position: "fixed", inset: 0, zIndex: 9999,
+          background: "rgba(15,23, 42, 0.95)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          backdropFilter: "blur(4px)",
+        }}>
+          <div style={{
+            background: "white", borderRadius: "16px", padding: "32px",
+            maxWidth: "480px", width: "90%", maxHeight: "90vh", overflowY: "auto",
+            boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
+          }}>
+            <div style={{ textAlign: "center", marginBottom: "24px" }}>
+              <img src="/logo-sentra-kir.png" alt="Sentra Fleet" style={{ height: "48px", objectFit: "contain", marginBottom: "12px" }} />
+              <h2 style={{ color: "#1C3967", margin: "0 0 4px 0", fontSize: "18px" }}>Lengkapi Data Perusahaan</h2>
+              <p style={{ color: "#64748b", fontSize: "13px", margin: 0 }}>Harap lengkapi data berikut untuk mengakses Dashboard.</p>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+              <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: "10px", padding: "12px 14px", fontSize: "13px", color: "#1e40af", marginBottom: "4px" }}>
+                👋 Selamat datang! Lengkapi data di bawah ini untuk melanjutkan.
+              </div>
+
+              {/* Syarat & Ketentuan */}
+              <div>
+                <label style={{ display: "flex", alignItems: "flex-start", gap: "8px", cursor: "pointer", fontSize: "13px", color: "#374151" }}>
+                  <input
+                    type="checkbox"
+                    checked={onboardingData.agreedToTerms}
+                    onChange={(e) => setOnboardingData(d => ({ ...d, agreedToTerms: e.target.checked }))}
+                    style={{ marginTop: "2px", flexShrink: 0 }}
+                  />
+                  <span>Saya telah membaca dan menyetujui <strong>Syarat & Ketentuan</strong> Sentra Fleet.</span>
+                </label>
+              </div>
+
+              {/* Pilih Paket */}
+              <div>
+                <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: "#374151", marginBottom: "6px" }}>Paket Membership</label>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+                  {[
+                    { value: "free", label: "Free", desc: "1–10 kendaraan", price: "Gratis" },
+                    { value: "starter", label: "Starter", desc: "11–30 kendaraan", price: "Rp 399.000/bln" },
+                    { value: "business", label: "Business", desc: "31–50 kendaraan", price: "Rp 499.000/bln" },
+                    { value: "enterprise", label: "Enterprise", desc: "50–100 kendaraan", price: "Custom" },
+                  ].map(t => (
+                    <button
+                      key={t.value}
+                      type="button"
+                      onClick={() => setOnboardingData(d => ({ ...d, membershipTier: t.value }))}
+                      style={{
+                        padding: "10px 12px", borderRadius: "8px", cursor: "pointer",
+                        border: `2px solid ${onboardingData.membershipTier === t.value ? "#1C3967" : "#e2e8f0"}`,
+                        background: onboardingData.membershipTier === t.value ? "#f0f4ff" : "white",
+                        textAlign: "left",
+                      }}
+                    >
+                      <div style={{ fontWeight: 700, fontSize: "13px", color: "#1C3967" }}>{t.label}</div>
+                      <div style={{ fontSize: "11px", color: "#6b7a96" }}>{t.desc}</div>
+                      <div style={{ fontSize: "12px", fontWeight: 700, color: "#1C3967", marginTop: "2px" }}>{t.price}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Nama PIC */}
+              <div>
+                <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: "#374151", marginBottom: "6px" }}>Nama PIC *</label>
+                <input
+                  type="text"
+                  className="fleet-input"
+                  placeholder="Nama lengkap PIC"
+                  value={onboardingData.picName}
+                  onChange={(e) => setOnboardingData(d => ({ ...d, picName: e.target.value }))}
+                />
+              </div>
+
+              {/* No WhatsApp PIC */}
+              <div>
+                <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: "#374151", marginBottom: "6px" }}>No. WhatsApp PIC *</label>
+                <input
+                  type="text"
+                  className="fleet-input"
+                  placeholder="62812xxxxxx"
+                  value={onboardingData.picPhone}
+                  onChange={(e) => setOnboardingData(d => ({ ...d, picPhone: e.target.value }))}
+                />
+              </div>
+
+              {/* Alamat */}
+              <div>
+                <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: "#374151", marginBottom: "6px" }}>Alamat Kantor</label>
+                <textarea
+                  className="fleet-input"
+                  placeholder="Jl. Raya Cakung No. 10..."
+                  value={onboardingData.address}
+                  onChange={(e) => setOnboardingData(d => ({ ...d, address: e.target.value }))}
+                  rows="2"
+                  style={{ resize: "vertical" }}
+                />
+              </div>
+
+              {onboardingError && (
+                <div style={{ color: "#dc2626", fontSize: "13px", fontWeight: 600 }}>⚠️ {onboardingError}</div>
+              )}
+            </div>
+
+            <button
+              onClick={handleOnboardingSubmit}
+              disabled={onboardingLoading}
+              className="fleet-btn-submit"
+              style={{ marginTop: "20px", width: "100%", opacity: onboardingLoading ? 0.7 : 1 }}
+            >
+              {onboardingLoading ? "Menyimpan..." : "Simpan & Lanjutkan ke Dashboard"}
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="fleet-layout">
         {/* Sidebar */}
         <aside className="fleet-sidebar">

@@ -141,20 +141,37 @@ function FleetPortalInner() {
             navigate("/fleet/client/dashboard");
           }
         } else {
-          // Auth user exists but no company record — redirect to complete registration
-          console.warn("User auth exist, but company record missing. Redirecting to complete registration...");
+          // Kasus aneh: Auth user ada, tapi trigger gagal bikin company.
+          // Kita akan buatkan company kosongan secara langsung agar user bisa masuk ke Dashboard.
+          console.warn("[Auth] Company record missing for user. Creating placeholder record...");
+          const { data: newCompany, error: createErr } = await supabase
+            .from('companies')
+            .insert([{
+              name: authUser.user_metadata?.company_name || authUser.user_metadata?.full_name || authUser.email.split('@')[0],
+              email: authUser.email,
+              membership_tier: 'free',
+              status: 'active',
+              auth_user_id: authUser.id
+            }])
+            .select()
+            .single();
 
-          const currentPath = window.location.pathname;
-          if (currentPath !== "/fleet/register") {
-            navigate("/fleet/register");
+          if (!createErr && newCompany) {
+            setUser({
+              role: "client",
+              clientId: newCompany.id,
+              adminId: null,
+              email: authUser.email,
+              companyName: newCompany.name,
+            });
+            navigate("/fleet/client/dashboard");
+          } else {
+            console.error("[Auth] Failed to create placeholder company:", createErr);
+            const currentPath = window.location.pathname;
+            if (currentPath !== "/fleet/register") {
+              navigate("/fleet/register");
+            }
           }
-
-          // Store temp data for registration continuation
-          window.fleetTempGoogleAuth = {
-            id: authUser.id,
-            email: authUser.email,
-            name: authUser.user_metadata?.full_name || authUser.user_metadata?.company_name || "",
-          };
         }
       } catch (err) {
         console.error("[Auth] Fatal error in restoreSession:", err);
@@ -984,19 +1001,6 @@ function RegisterPage({ onLogin, navigate }) {
   };
 
   const isPaid = formData.membershipTier !== "free";
-
-  // Mengecek apakah ada unfinished Google Auth Registration
-  useEffect(() => {
-    if (window.fleetTempGoogleAuth) {
-      const { id, email, name } = window.fleetTempGoogleAuth;
-      setGoogleData({ email, name, id });
-      setFormData((prev) => ({ ...prev, name: name || "", picName: name || "", email }));
-      setAuthMethod("google");
-      setStep("terms");
-      // hapus dari temp memory supaya tidak ter-trigger ulang jika refresh manual
-      delete window.fleetTempGoogleAuth;
-    }
-  }, []);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
