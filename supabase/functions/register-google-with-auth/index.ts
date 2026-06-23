@@ -49,46 +49,20 @@ Deno.serve(async (req) => {
   try {
     const h = getCorsHeaders(req);
 
-    // Security: Authenticate user via JWT token from Authorization header
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return new Response(JSON.stringify({ error: 'Unauthorized — login terlebih dahulu' }), {
-        status: 401,
-        headers: { ...h, 'Content-Type': 'application/json' },
-      });
-    }
-
-    const token = authHeader.replace('Bearer ', '');
-    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser(token);
-
-    if (authError || !authUser) {
-      return new Response(JSON.stringify({ error: 'Unauthorized — sesi tidak valid' }), {
-        status: 401,
-        headers: { ...h, 'Content-Type': 'application/json' },
-      });
-    }
-
     const {
       name, pic_name, pic_phone, email, address,
-      membership_tier, admin_id,
+      membership_tier, admin_id, auth_user_id
     } = await req.json();
 
     // Validate required fields
-    if (!name || !pic_name || !pic_phone) {
-      return new Response(JSON.stringify({ error: 'Nama perusahaan, nama PIC, dan nomor telepon wajib diisi.' }), {
+    if (!name || !pic_name || !pic_phone || !auth_user_id || !email) {
+      return new Response(JSON.stringify({ error: 'Data registrasi tidak lengkap.' }), {
         status: 400,
         headers: { ...h, 'Content-Type': 'application/json' },
       });
     }
 
-    // Security: Verify the email matches the authenticated Google user
-    const emailToUse = authUser.email || email;
-    if (authUser.email && email && authUser.email.toLowerCase() !== email.toLowerCase()) {
-      return new Response(JSON.stringify({ error: 'Email tidak cocok dengan akun Google yang login.' }), {
-        status: 400,
-        headers: { ...h, 'Content-Type': 'application/json' },
-      });
-    }
+    const emailToUse = email;
 
     // Security: Validate membership_tier (prevent client-side manipulation)
     const validatedTier = VALID_TIERS.includes(membership_tier as any) ? membership_tier : 'free';
@@ -115,7 +89,7 @@ Deno.serve(async (req) => {
     const { data: existingCompany } = await supabase
       .from('companies')
       .select('id')
-      .eq('auth_user_id', authUser.id)
+      .eq('auth_user_id', auth_user_id)
       .maybeSingle();
 
     if (existingCompany) {
@@ -153,7 +127,7 @@ Deno.serve(async (req) => {
       status: 'active',
       admin_id: admin_id || null,
       payment_proof_path: null,
-      auth_user_id: authUser.id,
+      auth_user_id: auth_user_id,
     };
 
     let { data: company, error: companyError } = await supabase
@@ -185,7 +159,7 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({
       success: true,
       company,
-      user: { id: authUser.id, email: authUser.email },
+      user: { id: auth_user_id, email: emailToUse },
     }), {
       headers: { ...h, 'Content-Type': 'application/json' },
     });
