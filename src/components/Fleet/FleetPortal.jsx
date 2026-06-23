@@ -1121,7 +1121,7 @@ function RegisterPage({ onLogin, navigate }) {
       let data = response.data;
 
       // Handle non-2xx errors gracefully
-      if (error && error.context && error.context.status !== 200) {
+      if (error && error.context && typeof error.context.json === 'function') {
         try {
           const errBody = await error.context.json();
           if (errBody && errBody.error) {
@@ -1129,6 +1129,16 @@ function RegisterPage({ onLogin, navigate }) {
           }
         } catch (e) {
           // Keep original error if parsing fails
+        }
+      } else if (error && error.message) {
+        // If the library already parsed the JSON or it's a generic text error
+        try {
+          const parsed = JSON.parse(error.message);
+          if (parsed.error) {
+            error = new Error(parsed.error);
+          }
+        } catch(e) {
+           // Might be a pure string
         }
       }
 
@@ -1164,7 +1174,7 @@ function RegisterPage({ onLogin, navigate }) {
       let data = response.data;
 
       // Handle non-2xx errors gracefully
-      if (error && error.context && error.context.status !== 200) {
+      if (error && error.context && typeof error.context.json === 'function') {
         try {
           const errBody = await error.context.json();
           if (errBody && errBody.error) {
@@ -1172,6 +1182,16 @@ function RegisterPage({ onLogin, navigate }) {
           }
         } catch (e) {
           // Keep original error if parsing fails
+        }
+      } else if (error && error.message) {
+        // If the library already parsed the JSON or it's a generic text error
+        try {
+          const parsed = JSON.parse(error.message);
+          if (parsed.error) {
+            error = new Error(parsed.error);
+          }
+        } catch(e) {
+           // Might be a pure string
         }
       }
 
