@@ -1,11 +1,26 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
+// Environment variables must be set in Supabase Dashboard > Functions > Settings
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
-const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+const SUPABASE_SERVICE_KEY = Deno.env.get('SERVICE_ROLE_KEY') ?? '';
+
+// Validate env vars on cold start
+if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
+  console.error('[register-with-auth] FATAL: SUPABASE_URL or SERVICE_ROLE_KEY not set in environment');
+  // We throw here so the function fails fast and visibly
+  throw new Error('FATAL: Missing SUPABASE_URL or SERVICE_ROLE_KEY environment variables.');
+}
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
-const ALLOWED_ORIGINS = ['https://sentrakir.com', 'http://localhost:5173', 'capacitor://localhost', 'http://localhost'];
+const ALLOWED_ORIGINS = [
+  'https://sentrakir.com',
+  'https://sentrakir.web.id',
+  'https://www.sentrakir.web.id',
+  'http://localhost:5173',
+  'http://localhost',
+  'capacitor://localhost',
+];
 
 // Security: Server-side tier validation (prevent client-side manipulation)
 const VALID_TIERS = ['free', 'starter', 'business', 'enterprise'] as const;
@@ -95,12 +110,14 @@ Deno.serve(async (req) => {
     const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
       email,
       password,
-      email_confirm: false, // require email confirmation
+      email_confirm: true, // activate immediately, no email confirmation needed
       user_metadata: { company_name: name },
     });
 
     if (authError) {
-      return new Response(JSON.stringify({ error: 'Authentication failed' }), {
+      console.error('[register-with-auth] Auth create user error:', authError);
+      // Return specific error message instead of generic "Authentication failed"
+      return new Response(JSON.stringify({ error: authError.message }), {
         status: 400,
         headers: { ...h, 'Content-Type': 'application/json' },
       });
@@ -114,30 +131,47 @@ Deno.serve(async (req) => {
     }
 
     // 2. Insert company linked to auth user
-    const { data: company, error: companyError } = await supabase
+    const companyPayload = {
+      name: name || '',
+      pic_name: pic_name || '',
+      pic_phone: pic_phone || '',
+      email: email.toLowerCase(),
+      password: '', // cleared — now in auth.users
+      address: address || '',
+      membership_tier: initialTier,
+      membership_price: validatedPrice,
+      subscription_status: validatedSubscriptionStatus,
+      status: 'active',
+      admin_id: admin_id || null,
+      payment_proof_path: payment_proof_path || null,
+      auth_user_id: authUser.user.id,
+    };
+
+    let { data: company, error: companyError } = await supabase
       .from('companies')
-      .insert([{
-        name: name || '',
-        pic_name: pic_name || '',
-        pic_phone: pic_phone || '',
-        email: email.toLowerCase(),
-        password: '', // cleared — now in auth.users
-        address: address || '',
-        membership_tier: initialTier,
-        membership_price: validatedPrice,
-        subscription_status: validatedSubscriptionStatus,
-        status: 'active',
-        admin_id: admin_id || null,
-        payment_proof_path: payment_proof_path || null,
-        auth_user_id: authUser.user.id,
-      }])
+      .insert([companyPayload])
       .select()
       .single();
+
+    // Fallback: If there's an automatic DB trigger that already created the row on auth.users insert,
+    // the insert will fail with a unique constraint error (23505). We then UPDATE the existing row.
+    if (companyError && companyError.code === '23505') {
+      const updateRes = await supabase
+        .from('companies')
+        .update(companyPayload)
+        .eq('email', email.toLowerCase())
+        .select()
+        .single();
+
+      company = updateRes.data;
+      companyError = updateRes.error;
+    }
 
     if (companyError) {
       // Rollback: delete the auth user
       await supabase.auth.admin.deleteUser(authUser.user.id);
-      return new Response(JSON.stringify({ error: 'Failed to create company' }), {
+
+      return new Response(JSON.stringify({ error: `Gagal mendaftar: ${companyError.message}` }), {
         status: 500,
         headers: { ...h, 'Content-Type': 'application/json' },
       });

@@ -29,17 +29,22 @@ const ClientDashboard = React.lazy(() => import('./ClientDashboard.jsx'));
 const AdminDashboard = React.lazy(() => import('./AdminDashboard.jsx'));
 const SuperAdminDashboard = React.lazy(() => import('./SuperAdminDashboard.jsx'));
 
-// Custom router hook/logic
-const useFleetPath = () => {
-  const [path, setPath] = useState(window.location.pathname);
+  // Custom router hook/logic
+  const useFleetPath = () => {
+    const [path, setPath] = useState(window.location.pathname === '/fleet' ? '/fleet/login' : window.location.pathname);
 
-  useEffect(() => {
-    const handlePopState = () => {
-      setPath(window.location.pathname);
-    };
-    window.addEventListener("popstate", handlePopState);
-    return () => window.removeEventListener("popstate", handlePopState);
-  }, []);
+    useEffect(() => {
+      // Normalisasi path jika user akses /fleet saja
+      if (window.location.pathname === '/fleet') {
+        window.history.replaceState(null, '', '/fleet/login');
+      }
+
+      const handlePopState = () => {
+        setPath(window.location.pathname);
+      };
+      window.addEventListener("popstate", handlePopState);
+      return () => window.removeEventListener("popstate", handlePopState);
+    }, []);
 
   const navigate = (toPath) => {
     window.history.pushState(null, "", toPath);
@@ -71,103 +76,127 @@ function FleetPortalInner() {
     initFleetData();
 
     const restoreSession = async (session) => {
-      console.log("[Auth] restoreSession called, session:", session ? "YES" : "NO");
-      if (!session?.user) {
-        console.log("[Auth] No user in session, stopping");
+      try {
+        console.log("[Auth] restoreSession called, session:", session ? "YES" : "NO");
+        if (!session?.user) {
+          console.log("[Auth] No user in session, stopping");
+          setLoading(false);
+          return;
+        }
+
+        // User login via Supabase Auth (Google / email) — auth.uid() now valid
+        const authUser = session.user;
+        console.log("[Auth] User found:", authUser.email, "ID:", authUser.id);
+
+        // 1. Cek apakah ini Admin
+        const adminData = await getAdminByEmail(authUser.email);
+        console.log("[Auth] Admin check:", adminData ? "IS ADMIN" : "NOT ADMIN");
+        if (adminData) {
+          setUser({
+            role: "admin",
+            clientId: null,
+            adminId: adminData.id,
+            email: authUser.email,
+            companyName: `${adminData.name} Admin`,
+          });
+
+          // Selalu navigate ke admin dashboard kalau belum di dashboard
+          const currentPath = window.location.pathname;
+          if (!currentPath.includes('/dashboard')) {
+            navigate("/fleet/admin/dashboard");
+          }
+          setLoading(false);
+          return;
+        }
+
+        // 2. Cek apakah ini Company/Client via auth_user_id link
+        // Karena ada delay trigger database, kita query ke companies berdasarkan email juga sebagai fallback
+        const { data: company, error: companyError } = await supabase
+          .from('companies')
+          .select(`id, name, admin_id, membership_tier, membership_price, subscription_status, status, auth_user_id`)
+          .or(`auth_user_id.eq.${authUser.id},email.eq.${authUser.email}`)
+          .maybeSingle();
+
+        if (companyError) {
+          console.error("[Auth] Error fetching company:", companyError.message);
+        }
+
+        if (company) {
+          // Jika company ketemu via email tapi auth_user_id belum ter-link, update secara diam-diam
+          if (!company.auth_user_id) {
+            supabase.from('companies').update({ auth_user_id: authUser.id }).eq('id', company.id).then();
+          }
+
+          setUser({
+            role: "client",
+            clientId: company.id,
+            adminId: null,
+            email: authUser.email,
+            companyName: company.name,
+          });
+
+          // Selalu navigate ke client dashboard kalau belum di dashboard
+          const currentPath = window.location.pathname;
+          if (!currentPath.includes('/dashboard')) {
+            navigate("/fleet/client/dashboard");
+          }
+        } else {
+          // Auth user exists but no company record — redirect to complete registration
+          console.warn("User auth exist, but company record missing. Redirecting to complete registration...");
+
+          const currentPath = window.location.pathname;
+          if (currentPath !== "/fleet/register") {
+            navigate("/fleet/register");
+          }
+
+          // Store temp data for registration continuation
+          window.fleetTempGoogleAuth = {
+            id: authUser.id,
+            email: authUser.email,
+            name: authUser.user_metadata?.full_name || authUser.user_metadata?.company_name || "",
+          };
+        }
+      } catch (err) {
+        console.error("[Auth] Fatal error in restoreSession:", err);
+      } finally {
         setLoading(false);
-        return;
       }
-
-      // User login via Supabase Auth (Google / email) — auth.uid() now valid
-      const authUser = session.user;
-      console.log("[Auth] User found:", authUser.email, "ID:", authUser.id);
-
-      // 1. Cek apakah ini Admin
-      const adminData = await getAdminByEmail(authUser.email);
-      console.log("[Auth] Admin check:", adminData ? "IS ADMIN" : "NOT ADMIN");
-      if (adminData) {
-        setUser({
-          role: "admin",
-          clientId: null,
-          adminId: adminData.id,
-          email: authUser.email,
-          companyName: `${adminData.name} Admin`,
-        });
-
-        // Selalu navigate ke admin dashboard kalau belum di dashboard
-        const currentPath = window.location.pathname;
-        if (!currentPath.includes('/dashboard')) {
-          navigate("/fleet/admin/dashboard");
-        }
-        setLoading(false);
-        return;
-      }
-
-      // 2. Cek apakah ini Company/Client via auth_user_id link
-      const { data: company, error: companyError } = await supabase
-        .from('companies')
-        .select(`id, name, admin_id, membership_tier, membership_price, subscription_status, status`)
-        .eq('auth_user_id', authUser.id)
-        .maybeSingle();
-
-      if (companyError) {
-        console.error("[Auth] Error fetching company:", companyError.message);
-      }
-
-      if (company) {
-        setUser({
-          role: "client",
-          clientId: company.id,
-          adminId: null,
-          email: authUser.email,
-          companyName: company.name,
-        });
-
-        // Selalu navigate ke client dashboard kalau belum di dashboard
-        const currentPath = window.location.pathname;
-        if (!currentPath.includes('/dashboard')) {
-          navigate("/fleet/client/dashboard");
-        }
-      } else {
-        // Auth user exists but no company record — redirect to complete registration
-        console.warn("User auth exist, but company record missing. Redirecting to complete registration...");
-
-        const currentPath = window.location.pathname;
-        if (currentPath !== "/fleet/register") {
-          navigate("/fleet/register");
-        }
-
-        // Store temp data for registration continuation
-        window.fleetTempGoogleAuth = {
-          id: authUser.id,
-          email: authUser.email,
-          name: authUser.user_metadata?.full_name || authUser.user_metadata?.company_name || "",
-        };
-      }
-      setLoading(false);
     };
 
     // Cek session aktif saat ini
     console.log("[Auth] Initial pathname:", window.location.pathname, "hash:", window.location.hash);
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data, error }) => {
+      if (error) {
+        console.error("[Auth] getSession error:", error);
+      }
+      const session = data?.session;
       console.log("[Auth] getSession result:", session ? "HAS SESSION" : "NO SESSION");
       // Jika url mengandung hash access_token (dari Google), biarkan onAuthStateChange yang handle
       // untuk mencegah double restoreSession yang bikin kedip / masuk landing page.
-      if (window.location.hash.includes("access_token")) {
-        console.log("[Auth] Skipping getSession — access_token in hash, letting onAuthStateChange handle it");
+      if (window.location.hash.includes("access_token") || window.location.hash.includes("error_description")) {
+        console.log("[Auth] Skipping getSession — access_token or error in hash, letting onAuthStateChange handle it");
         return;
       }
       restoreSession(session);
+    }).catch(err => {
+      console.error("[Auth] getSession crashed:", err);
+      setLoading(false);
     });
 
     // Listen perubahan auth state (login/logout/callback Google)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       console.log("[Auth] onAuthStateChange event:", _event, "session:", session ? "YES" : "NO");
+      if (session) console.log("[Auth] Session data user email:", session.user.email);
       if (_event === "SIGNED_IN" || _event === "INITIAL_SESSION") {
         restoreSession(session);
       } else if (_event === "SIGNED_OUT") {
         setUser(null);
         setLoading(false);
+      } else if (_event === "USER_UPDATED") {
+        restoreSession(session);
+      } else {
+        // Fallback catch for other events if stuck
+        setTimeout(() => setLoading(false), 3000);
       }
     });
 
@@ -251,21 +280,25 @@ function FleetPortalInner() {
       }
     } else {
       // Client — get company by id for fresh data
-      const { data: company } = await supabase
-        .from('companies')
-        .select(`id, name, admin_id, membership_tier, membership_price, subscription_status, status`)
-        .eq('id', id)
-        .single();
-      const name = company?.name || companyName;
-      setUser({
-        role: "client",
-        clientId: id,
-        adminId: null,
-        email,
-        companyName: name,
-      });
-      toast.show(`Login berhasil! Selamat datang, ${name}`, "success");
-      navigate("/fleet/client/dashboard");
+      try {
+        const { data: company } = await supabase
+          .from('companies')
+          .select(`id, name, admin_id, membership_tier, membership_price, subscription_status, status`)
+          .eq('id', id)
+          .maybeSingle();
+        const name = company?.name || companyName;
+        setUser({
+          role: "client",
+          clientId: id,
+          adminId: null,
+          email,
+          companyName: name,
+        });
+        toast.show(`Login berhasil! Selamat datang, ${name}`, "success");
+        navigate("/fleet/client/dashboard");
+      } catch (err) {
+        console.error("[Login] Failed to set user state:", err);
+      }
     }
   };
 

@@ -1,11 +1,18 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
-const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+const SUPABASE_SERVICE_KEY = Deno.env.get('SERVICE_ROLE_KEY') ?? '';
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
-const ALLOWED_ORIGINS = ['https://sentrakir.com', 'http://localhost:5173', 'capacitor://localhost', 'http://localhost'];
+const ALLOWED_ORIGINS = [
+  'https://sentrakir.com',
+  'https://sentrakir.web.id',
+  'https://www.sentrakir.web.id',
+  'http://localhost:5173',
+  'http://localhost',
+  'capacitor://localhost',
+];
 
 // Security: Whitelist valid tiers and pricing (server-side source of truth)
 const VALID_TIERS = ['free', 'starter', 'business', 'enterprise'] as const;
@@ -130,26 +137,40 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Insert company linked to authenticated user
-    const { data: company, error: companyError } = await supabase
+    // Insert or update company linked to authenticated user
+    const companyPayload = {
+      name: name || '',
+      pic_name: pic_name || '',
+      pic_phone: pic_phone || '',
+      email: emailToUse.toLowerCase(),
+      password: '',
+      address: address || '',
+      membership_tier: validatedTier,
+      membership_price: validatedPrice,
+      subscription_status: validatedSubscriptionStatus,
+      status: 'active',
+      admin_id: admin_id || null,
+      payment_proof_path: null,
+      auth_user_id: authUser.id,
+    };
+
+    let { data: company, error: companyError } = await supabase
       .from('companies')
-      .insert([{
-        name: name || '',
-        pic_name: pic_name || '',
-        pic_phone: pic_phone || '',
-        email: emailToUse.toLowerCase(),
-        password: '',
-        address: address || '',
-        membership_tier: validatedTier,
-        membership_price: validatedPrice,
-        subscription_status: validatedSubscriptionStatus,
-        status: 'active',
-        admin_id: admin_id || null,
-        payment_proof_path: null,
-        auth_user_id: authUser.id,
-      }])
+      .insert([companyPayload])
       .select()
       .single();
+
+    if (companyError && companyError.code === '23505') {
+      const updateRes = await supabase
+        .from('companies')
+        .update(companyPayload)
+        .eq('email', emailToUse.toLowerCase())
+        .select()
+        .single();
+
+      company = updateRes.data;
+      companyError = updateRes.error;
+    }
 
     if (companyError) {
       console.error('register-google-with-auth company error:', companyError);

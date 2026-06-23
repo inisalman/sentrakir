@@ -90,6 +90,15 @@ export default function App() {
 
   // Fleet routes (/fleet or /fleet/*)
   if (pathname === '/fleet' || pathname.startsWith('/fleet/')) {
+    // If exact /fleet, redirect to /fleet/login
+    if (pathname === '/fleet') {
+      window.history.replaceState(null, '', '/fleet/login');
+      // No return here, let the path state change naturally, or we can just render FleetPortal directly
+      // because FleetPortal internally handles /fleet/login path.
+      // Actually, FleetPortal's path hook doesn't re-render on replaceState.
+      // Better to let FleetPortal render, and its internal logic will show LoginPage
+      // because path is now /fleet/login or it will default to it.
+    }
     return (
       <Suspense fallback={<div className="dashboard-loading-spinner"></div>}>
         <FleetPortal />

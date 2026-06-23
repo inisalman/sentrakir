@@ -11,7 +11,6 @@ import {
 } from "../../utils/supabaseRequests.js";
 import { getAllCompanies, updateClientLastActive } from "../../utils/supabaseClientAuth.js";
 import { getAllServicePrices } from "../../utils/supabasePricing.js";
-import { useSystemFlags } from "../../utils/SystemFlagsContext";
 import ChatWidget from "../Chat/ChatWidget";
 
 import BillingView from "./ClientDashboard/BillingView";
@@ -42,7 +41,6 @@ export default function ClientDashboard({
   currentPath,
   navigate,
 }) {
-  const { flags } = useSystemFlags();
   const [db, setDb] = useState({
     companies: [],
     vehicles: [],
@@ -168,26 +166,6 @@ export default function ClientDashboard({
   const companyDocs = db.documents.filter((d) =>
     vehicleIds.includes(d.vehicleId),
   );
-
-  const clientAdmin = getAdminById(company.adminId) || { name: "Sentra" };
-  const isSentraAdmin = clientAdmin.name.toLowerCase().includes("sentra");
-
-  if (
-    (isSentraAdmin && !flags.armada_sentra_enabled) ||
-    (!isSentraAdmin && !flags.armada_padajaya_enabled)
-  ) {
-    return (
-      <div className="fleet-portal-wrapper" style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh" }}>
-        <div className="fleet-card" style={{ textAlign: "center", maxWidth: "400px" }}>
-          <h2 style={{ color: "#dc2626", marginBottom: "16px" }}>Akses Ditangguhkan</h2>
-          <p style={{ color: "#64748b", marginBottom: "24px" }}>
-            Layanan administrator untuk akun Anda sedang ditutup sementara (Maintenance) oleh Super Admin. Silakan hubungi Customer Service.
-          </p>
-          <button className="fleet-btn-secondary" onClick={onLogout}>Keluar</button>
-        </div>
-      </div>
-    );
-  }
 
   // Sidebar Links
   const sidebarNavItems = [
@@ -330,7 +308,6 @@ export default function ClientDashboard({
             <DashboardView
               vehicles={companyVehicles}
               requests={companyRequests}
-              company={company}
               navigate={navigate}
             />
           )}
@@ -364,8 +341,8 @@ export default function ClientDashboard({
         </main>
       </div>
 
-      {/* Chat Widget — only for paid tiers and if globally enabled */}
-      {flags.ai_chat_enabled && company && company.id && getTierConfig(company.membershipTier)?.canUseChat && (
+      {/* Chat Widget — only for paid tiers */}
+      {company && company.id && getTierConfig(company.membershipTier)?.canUseChat && (
         <ChatWidget
           companyId={company.id}
           clientName={company.name || "Client"}
