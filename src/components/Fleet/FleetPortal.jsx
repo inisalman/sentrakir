@@ -111,7 +111,7 @@ function FleetPortalInner() {
 
         // 2. Cek apakah ini Company/Client via auth_user_id link
         // Karena ada delay trigger database, kita query ke companies berdasarkan email juga sebagai fallback
-        const { data: company, error: companyError } = await supabase
+        let { data: company, error: companyError } = await supabase
           .from('companies')
           .select(`id, name, admin_id, membership_tier, membership_price, subscription_status, status, auth_user_id`)
           .or(`auth_user_id.eq.${authUser.id},email.eq.${authUser.email}`)
@@ -119,6 +119,21 @@ function FleetPortalInner() {
 
         if (companyError) {
           console.error("[Auth] Error fetching company:", companyError.message);
+        }
+
+        // Retry mechanism: Give DB trigger time to finish creating the row
+        if (!company) {
+          console.warn("[Auth] Company missing. Retrying in 1.5s to let DB triggers finish...");
+          await new Promise(r => setTimeout(r, 1500));
+          const { data: retryCompany } = await supabase
+            .from('companies')
+            .select(`id, name, admin_id, membership_tier, membership_price, subscription_status, status, auth_user_id`)
+            .or(`auth_user_id.eq.${authUser.id},email.eq.${authUser.email}`)
+            .maybeSingle();
+
+          if (retryCompany) {
+            company = retryCompany;
+          }
         }
 
         if (company) {
