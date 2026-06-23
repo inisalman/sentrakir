@@ -7,7 +7,7 @@ export const getAdminByEmail = async (email) => {
       .from('admins')
       .select('*')
       .ilike('email', email)
-      .single();
+      .maybeSingle();
 
     if (error) {
       if (error.code === 'PGRST116') return null;
