@@ -164,14 +164,20 @@ export default function ClientDashboard({
 
       // 3. Fetch updated requests from Supabase
       const supabaseRequests = await getRequestsByCompanyId(user.clientId);
-      const mappedRequests = supabaseRequests.map((r) => ({
-        ...r,
-        ...(r.meta_data || {}),
-        companyId: r.company_id,
-        vehicleId: r.vehicle_id,
-        serviceType: r.service_type,
-        adminId: r.admin_id,
-      }));
+      const mappedRequests = supabaseRequests.map((r) => {
+        // Find the vehicle to get its plate number
+        const vehicle = mappedVehicles.find(v => v.id === r.vehicle_id);
+
+        return {
+          ...r,
+          ...(r.meta_data || {}),
+          companyId: r.company_id,
+          vehicleId: r.vehicle_id,
+          plateNumber: vehicle?.plateNumber || r.meta_data?.plateNumber || "-",
+          serviceType: r.service_type,
+          adminId: r.admin_id,
+        };
+      });
 
       setDb({
         companies: mappedCompanies,
