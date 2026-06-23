@@ -9,6 +9,8 @@ const ALLOWED_ORIGINS = [
   'https://sentrakir.com',
   'https://sentrakir.web.id',
   'https://www.sentrakir.web.id',
+  'https://sentrakirsim.web.id',
+  'https://www.sentrakirsim.web.id',
   'http://localhost:5173',
   'http://localhost',
   'capacitor://localhost',
