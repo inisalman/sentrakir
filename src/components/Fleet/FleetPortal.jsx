@@ -1157,6 +1157,13 @@ function RegisterPage({ onLogin, navigate }) {
       result = data.company;
     } else {
       // Google registration: create company via Edge Function (secure server-side validation)
+      // Ambil user ID aktif langsung dari sesi Supabase agar tidak meleset
+      let activeUserId = googleData?.id;
+      if (!activeUserId) {
+        const { data: sessionData } = await supabase.auth.getSession();
+        activeUserId = sessionData?.session?.user?.id;
+      }
+
       const response = await supabase.functions.invoke('register-google-with-auth', {
         body: {
           name: formData.name,
@@ -1166,7 +1173,7 @@ function RegisterPage({ onLogin, navigate }) {
           address: formData.address,
           membership_tier: formData.membershipTier,
           admin_id: adminData.id,
-          auth_user_id: googleData?.id || null,
+          auth_user_id: activeUserId || null,
         },
       });
 
