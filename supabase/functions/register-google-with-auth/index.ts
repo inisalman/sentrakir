@@ -55,14 +55,35 @@ Deno.serve(async (req) => {
     } = await req.json();
 
     // Validate required fields
-    if (!name || !pic_name || !pic_phone || !auth_user_id || !email) {
-      return new Response(JSON.stringify({ error: 'Data registrasi tidak lengkap.' }), {
+    if (!name || !pic_name || !pic_phone || !email) {
+      return new Response(JSON.stringify({ error: 'Nama perusahaan, nama PIC, nomor telepon, dan email wajib diisi.' }), {
         status: 400,
         headers: { ...h, 'Content-Type': 'application/json' },
       });
     }
 
     const emailToUse = email;
+
+    // Security: Fetch the actual auth user from auth.users by email to ensure we have the correct UUID
+    let finalAuthUserId = auth_user_id;
+
+    if (!finalAuthUserId) {
+      // Fallback: lookup by email if frontend failed to provide the UUID
+      const { data: authUserLookup, error: authUserLookupError } = await supabase.auth.admin.listUsers();
+      if (!authUserLookupError && authUserLookup.users) {
+        const foundUser = authUserLookup.users.find(u => u.email === emailToUse.toLowerCase());
+        if (foundUser) {
+          finalAuthUserId = foundUser.id;
+        }
+      }
+    }
+
+    if (!finalAuthUserId) {
+      return new Response(JSON.stringify({ error: 'Gagal memverifikasi identitas akun Google Anda (Auth User ID tidak ditemukan).' }), {
+        status: 400,
+        headers: { ...h, 'Content-Type': 'application/json' },
+      });
+    }
 
     // Security: Validate membership_tier (prevent client-side manipulation)
     const validatedTier = VALID_TIERS.includes(membership_tier as any) ? membership_tier : 'free';
@@ -89,7 +110,7 @@ Deno.serve(async (req) => {
     const { data: existingCompany } = await supabase
       .from('companies')
       .select('id')
-      .eq('auth_user_id', auth_user_id)
+      .eq('auth_user_id', finalAuthUserId)
       .maybeSingle();
 
     if (existingCompany) {
@@ -127,7 +148,7 @@ Deno.serve(async (req) => {
       status: 'active',
       admin_id: admin_id || null,
       payment_proof_path: null,
-      auth_user_id: auth_user_id,
+      auth_user_id: finalAuthUserId,
     };
 
     let { data: company, error: companyError } = await supabase
@@ -150,7 +171,7 @@ Deno.serve(async (req) => {
 
     if (companyError) {
       console.error('register-google-with-auth company error:', companyError);
-      return new Response(JSON.stringify({ error: 'Gagal membuat akun perusahaan.' }), {
+      return new Response(JSON.stringify({ error: `Gagal membuat akun perusahaan: ${companyError.message || companyError.details}` }), {
         status: 500,
         headers: { ...h, 'Content-Type': 'application/json' },
       });
