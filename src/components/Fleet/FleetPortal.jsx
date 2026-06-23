@@ -1732,77 +1732,8 @@ function RegisterPage({ onLogin, navigate }) {
 
             {flags.google_oauth_enabled && (
               <>
-                <div style={{ display: "flex", alignItems: "center", gap: "12px", margin: "16px 0" }}>
-                  <div style={{ flex: 1, borderTop: "1px solid #e2e8f0" }} />
-                  <span style={{ fontSize: "12px", color: "#94a3b8", whiteSpace: "nowrap" }}>atau</span>
-                  <div style={{ flex: 1, borderTop: "1px solid #e2e8f0" }} />
-                </div>
-
-                <div style={{ display: "flex", justifyContent: "center" }}>
-                  <button
-                    type="button"
-                    className="fleet-btn-submit"
-                    style={{
-                      background: "#ffffff",
-                      color: "#1e293b",
-                      border: "1px solid #cbd5e1",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: "10px",
-                      fontWeight: "600",
-                    }}
-                    onClick={async (e) => {
-                      e.preventDefault();
-                      try {
-                        // Native: pakai Google account picker langsung
-                        if (Capacitor.isNativePlatform()) {
-                          const { GoogleAuth } = await import('@codetrix-studio/capacitor-google-auth');
-                          const user = await GoogleAuth.signIn();
-                          const { error } = await supabase.auth.signInWithIdToken({
-                            provider: 'google',
-                            token: user.authentication.idToken,
-                          });
-                          if (error) throw error;
-                        } else {
-                          // Web: pakai browser OAuth
-                          const redirectUrl = `${window.location.origin}/fleet/login`; // Samakan redirect url dengan tombol login agar masuk dashboard
-                          const { data, error } = await supabase.auth.signInWithOAuth({
-                            provider: "google",
-                            options: {
-                              redirectTo: redirectUrl,
-                              skipBrowserRedirect: false,
-                            },
-                          });
-                          if (error) throw error;
-                        }
-                      } catch (err) {
-                        console.error("Auth error:", err);
-                        setError("Daftar dengan Google gagal: " + err.message);
-                      }
-                    }}
-                  >
-                    <svg width="20" height="20" viewBox="0 0 24 24">
-                      <path
-                        fill="#EA4335"
-                        d="M12 5.04c1.66 0 3.2.57 4.38 1.69l3.27-3.27C17.67 1.48 14.98 1 12 1 7.28 1 3.26 3.74 1.45 7.72l3.86 3C6.22 7.73 8.89 5.04 12 5.04z"
-                      />
-                      <path
-                        fill="#4285F4"
-                        d="M23.49 12.27c0-.81-.07-1.59-.2-2.36H12v4.51h6.46c-.28 1.48-1.11 2.73-2.36 3.58l3.66 2.84c2.14-1.98 3.39-4.88 3.39-8.57z"
-                      />
-                      <path
-                        fill="#FBBC05"
-                        d="M5.31 14.28c-.24-.72-.38-1.49-.38-2.28s.14-1.56.38-2.28l-3.86-3C.64 8.24 0 10.04 0 12s.64 3.76 1.45 5.28l3.86-3z"
-                      />
-                      <path
-                        fill="#34A853"
-                        d="M12 23c3.24 0 5.97-1.07 7.96-2.91l-3.66-2.84c-1.1.74-2.5 1.18-4.3 1.18-3.11 0-5.78-2.69-6.69-5.68l-3.86 3C3.26 20.26 7.28 23 12 23z"
-                      />
-                    </svg>
-                    Daftar dengan Google
-                  </button>
-                </div>
+                {/* Tombol Google dihilangkan dari halaman Register untuk menghindari kebingungan.
+                    User bisa login Google langsung lewat halaman /fleet/login */}
               </>
             )}
 
