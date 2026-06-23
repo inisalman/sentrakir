@@ -63,13 +63,13 @@ export default function ClientDashboard({
   // Get current company details
   const company = db.companies.find((c) => c.id === user.clientId) || {};
 
-  // Check if onboarding is needed (pic_name or pic_phone is empty)
+  // Check if onboarding is needed (pic_phone is empty)
   useEffect(() => {
     // Only set it to true once per session so it doesn't close/flash unexpectedly.
-    if (!company.pic_name && !company.pic_phone && company.id) {
+    if (!company.pic_phone && company.id) {
       setShowOnboarding(true);
     }
-  }, [company.pic_name, company.pic_phone, company.id]);
+  }, [company.pic_phone, company.id]);
 
   const handleOnboardingSubmit = async () => {
     if (!onboardingData.agreedToTerms) {
