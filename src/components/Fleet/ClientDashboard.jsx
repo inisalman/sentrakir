@@ -65,12 +65,11 @@ export default function ClientDashboard({
 
   // Check if onboarding is needed (pic_name or pic_phone is empty)
   useEffect(() => {
-    if (company.pic_name || company.pic_phone) {
-      setShowOnboarding(false);
-    } else {
+    // Only set it to true once per session so it doesn't close/flash unexpectedly.
+    if (!company.pic_name && !company.pic_phone && company.id) {
       setShowOnboarding(true);
     }
-  }, [company.id]);
+  }, [company.pic_name, company.pic_phone, company.id]);
 
   const handleOnboardingSubmit = async () => {
     if (!onboardingData.agreedToTerms) {
