@@ -91,6 +91,7 @@ const CLIENT_UPDATABLE_FIELDS = [
   'address',
   'payment_proof_path', // untuk upload bukti pembayaran
   'name', // nama perusahaan
+  'admin_id', // client boleh memilih admin saat onboarding
 ];
 
 // Update company fields by ID (with security validation)
