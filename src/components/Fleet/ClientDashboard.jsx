@@ -300,35 +300,6 @@ export default function ClientDashboard({
                 </label>
               </div>
 
-              {/* Pilih Paket */}
-              <div>
-                <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: "#374151", marginBottom: "6px" }}>Paket Membership</label>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
-                  {[
-                    { value: "free", label: "Free", desc: "1–10 kendaraan", price: "Gratis" },
-                    { value: "starter", label: "Starter", desc: "11–30 kendaraan", price: "Rp 399.000/bln" },
-                    { value: "business", label: "Business", desc: "31–50 kendaraan", price: "Rp 499.000/bln" },
-                    { value: "enterprise", label: "Enterprise", desc: "50–100 kendaraan", price: "Custom" },
-                  ].map(t => (
-                    <button
-                      key={t.value}
-                      type="button"
-                      onClick={() => setOnboardingData(d => ({ ...d, membershipTier: t.value }))}
-                      style={{
-                        padding: "10px 12px", borderRadius: "8px", cursor: "pointer",
-                        border: `2px solid ${onboardingData.membershipTier === t.value ? "#1C3967" : "#e2e8f0"}`,
-                        background: onboardingData.membershipTier === t.value ? "#f0f4ff" : "white",
-                        textAlign: "left",
-                      }}
-                    >
-                      <div style={{ fontWeight: 700, fontSize: "13px", color: "#1C3967" }}>{t.label}</div>
-                      <div style={{ fontSize: "11px", color: "#6b7a96" }}>{t.desc}</div>
-                      <div style={{ fontSize: "12px", fontWeight: 700, color: "#1C3967", marginTop: "2px" }}>{t.price}</div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
               {/* Nama PIC */}
               <div>
                 <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: "#374151", marginBottom: "6px" }}>Nama PIC *</label>
