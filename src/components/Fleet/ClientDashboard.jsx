@@ -56,6 +56,7 @@ export default function ClientDashboard({
     picName: "",
     picPhone: "",
     address: "",
+    adminChoice: "sentra"
   });
   const [onboardingLoading, setOnboardingLoading] = useState(false);
   const [onboardingError, setOnboardingError] = useState("");
@@ -86,11 +87,21 @@ export default function ClientDashboard({
 
     try {
       const { updateCompany } = await import("../../utils/supabaseClientAuth.js");
+      const { getAdminByCode } = await import("../../utils/supabaseAdmin.js");
+
+      const ADMIN_CODES = {
+        sentra: "SENTRA-2024",
+        padajaya: "PADAJAYA-2024",
+      };
+
+      const adminData = await getAdminByCode(ADMIN_CODES[onboardingData.adminChoice]);
+
       await updateCompany(user.clientId, {
         pic_name: onboardingData.picName,
         pic_phone: onboardingData.picPhone,
         address: onboardingData.address,
         membership_tier: onboardingData.membershipTier,
+        admin_id: adminData?.id || null
       });
       await refreshData();
       setShowOnboarding(false);
@@ -328,6 +339,19 @@ export default function ClientDashboard({
                   value={onboardingData.picName}
                   onChange={(e) => setOnboardingData(d => ({ ...d, picName: e.target.value }))}
                 />
+              </div>
+
+              {/* Pilih Admin */}
+              <div>
+                <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: "#374151", marginBottom: "6px" }}>Pilih Administrator *</label>
+                <select
+                  className="fleet-input"
+                  value={onboardingData.adminChoice}
+                  onChange={(e) => setOnboardingData(d => ({ ...d, adminChoice: e.target.value }))}
+                >
+                  <option value="sentra">Admin Sentra</option>
+                  <option value="padajaya">Admin Padajaya</option>
+                </select>
               </div>
 
               {/* No WhatsApp PIC */}
