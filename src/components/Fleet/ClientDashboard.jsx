@@ -60,6 +60,9 @@ export default function ClientDashboard({
   const [onboardingLoading, setOnboardingLoading] = useState(false);
   const [onboardingError, setOnboardingError] = useState("");
 
+  // Get current company details
+  const company = db.companies.find((c) => c.id === user.clientId) || {};
+
   // Check if onboarding is needed (pic_name or pic_phone is empty)
   useEffect(() => {
     if (company.pic_name || company.pic_phone) {
@@ -200,8 +203,6 @@ export default function ClientDashboard({
     return () => clearInterval(interval);
   }, [user?.clientId]);
 
-  // Get current company details
-  const company = db.companies.find((c) => c.id === user.clientId) || {};
   // Get vehicles for this company
   const companyVehicles = db.vehicles.filter(
     (v) => v.companyId === user.clientId,
